@@ -6,6 +6,7 @@ type AiUsageContext = {
   accountId: number | null;
   threadId: number | null;
   actionId: number | null;
+  recordedCount?: number;
 };
 
 type AiUsageInput = {
@@ -17,6 +18,16 @@ type AiUsageInput = {
     completionTokens: number | null;
     totalTokens: number | null;
   };
+};
+
+type AiMeteredUsageInput = {
+  provider: string;
+  model: string;
+  purpose: string;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  billRub?: boolean;
 };
 
 const usageContext = new AsyncLocalStorage<AiUsageContext>();
@@ -40,33 +51,44 @@ function rub(value: number) {
 }
 
 export function runWithAiUsageContext<T>(context: AiUsageContext, fn: () => Promise<T>) {
-  return usageContext.run(context, fn);
+  return usageContext.run({ ...context, recordedCount: 0 }, fn);
 }
 
 export function getAiUsageContext() {
   return usageContext.getStore() ?? null;
 }
 
-export async function recordAiUsage(input: AiUsageInput) {
+export function getAiUsageRecordCount() {
+  return usageContext.getStore()?.recordedCount ?? 0;
+}
+
+export async function recordAiMeteredUsage(input: AiMeteredUsageInput) {
   const context = usageContext.getStore();
-  const totalTokens = input.usage.totalTokens ?? 0;
-  const promptTokens = input.usage.promptTokens ?? 0;
-  const completionTokens = input.usage.completionTokens ?? 0;
+  const totalTokens = input.totalTokens ?? 0;
+  const promptTokens = input.promptTokens ?? 0;
+  const completionTokens = input.completionTokens ?? 0;
 
   if (!Number.isFinite(totalTokens) || totalTokens <= 0) return;
 
-  const packageRub = await getGlobalAiNumberSetting(
-    "gigachat.packageRub",
-    readPositiveNumber(process.env.GIGACHAT_PACKAGE_RUB, DEFAULT_GIGACHAT_PACKAGE_RUB),
-  );
-  const packageTokens = await getGlobalAiNumberSetting(
-    "gigachat.packageTokens",
-    readPositiveNumber(process.env.GIGACHAT_PACKAGE_TOKENS, DEFAULT_GIGACHAT_PACKAGE_TOKENS),
-  );
-  const costPerTokenRub = packageRub / packageTokens;
-  const markupPercent = readMarkupPercent();
-  const costRub = totalTokens * costPerTokenRub;
-  const chargedRub = costRub * (1 + markupPercent / 100);
+  let costPerTokenRub = 0;
+  let markupPercent = 0;
+  let costRub = 0;
+  let chargedRub = 0;
+
+  if (input.billRub !== false) {
+    const packageRub = await getGlobalAiNumberSetting(
+      "gigachat.packageRub",
+      readPositiveNumber(process.env.GIGACHAT_PACKAGE_RUB, DEFAULT_GIGACHAT_PACKAGE_RUB),
+    );
+    const packageTokens = await getGlobalAiNumberSetting(
+      "gigachat.packageTokens",
+      readPositiveNumber(process.env.GIGACHAT_PACKAGE_TOKENS, DEFAULT_GIGACHAT_PACKAGE_TOKENS),
+    );
+    costPerTokenRub = packageRub / packageTokens;
+    markupPercent = readMarkupPercent();
+    costRub = totalTokens * costPerTokenRub;
+    chargedRub = costRub * (1 + markupPercent / 100);
+  }
 
   try {
     const created = await prisma.aiUsage.create({
@@ -95,11 +117,24 @@ export async function recordAiUsage(input: AiUsageInput) {
           usageId: created.id,
           type: "usage",
           amountRub: rub(-chargedRub),
+          amountTokens: -Math.round(totalTokens),
           comment: `${input.provider}:${input.model}:${input.purpose}`,
         },
       });
     }
+    if (context) context.recordedCount = (context.recordedCount ?? 0) + 1;
   } catch (error) {
     console.error("[ai-usage] failed to record model usage", error);
   }
+}
+
+export async function recordAiUsage(input: AiUsageInput) {
+  await recordAiMeteredUsage({
+    provider: input.provider,
+    model: input.model,
+    purpose: input.purpose,
+    promptTokens: input.usage.promptTokens,
+    completionTokens: input.usage.completionTokens,
+    totalTokens: input.usage.totalTokens,
+  });
 }

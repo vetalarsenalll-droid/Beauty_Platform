@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { SiteAishaWidgetConfig } from "@/lib/site-builder";
 
@@ -34,6 +35,7 @@ type PublicAiChatWidgetProps = {
   themeMode?: "light" | "dark";
   previewViewportWidth?: number;
   disablePageScrollOnMessages?: boolean;
+  refreshPageOnTurnComplete?: boolean;
 };
 
 function stripLegalRefs(text: string) {
@@ -301,7 +303,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
     themeMode,
     previewViewportWidth,
     disablePageScrollOnMessages = false,
+    refreshPageOnTurnComplete = false,
   } = props;
+  const router = useRouter();
   const [open, setOpen] = useState(defaultOpen);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -789,6 +793,9 @@ export default function PublicAiChatWidget(props: PublicAiChatWidgetProps) {
         setTypingVisible("");
         return next;
       });
+      if (refreshPageOnTurnComplete) {
+        router.refresh();
+      }
     } catch {
       setMessages((prev) => [
         ...prev,

@@ -13,7 +13,7 @@ import { createFailSoftHandler, preparePostTurn, saveTurn } from "@/lib/aisha-tu
 import { handleClientActionsDomain } from "@/lib/aisha-handle-client-actions";
 import { handleBookingDomain } from "@/lib/aisha-handle-booking";
 import { handleChatOnlyDomain } from "@/lib/aisha-handle-chat-only";
-import { runWithAiUsageContext } from "@/lib/ai-usage";
+import { getAiUsageRecordCount, recordAiMeteredUsage, runWithAiUsageContext } from "@/lib/ai-usage";
 import { checkAiAccessAllowed } from "@/lib/ai-billing";
 import type { Action } from "@/lib/aisha-chat-types";
 import { applyRouteDecisionGuards } from "@/lib/aisha-route-contract";
@@ -70,6 +70,27 @@ function looksLikeStandaloneServiceLabel(messageNorm: string) {
       messageNorm,
     )
   );
+}
+
+function estimatePlatformTokens(text: string) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return 0;
+  return Math.max(1, Math.ceil(normalized.length / 4));
+}
+
+async function recordLocalAssistantTurnIfNeeded(message: string, reply: string) {
+  if (getAiUsageRecordCount() > 0) return;
+  const promptTokens = estimatePlatformTokens(message);
+  const completionTokens = estimatePlatformTokens(reply);
+  await recordAiMeteredUsage({
+    provider: "platform",
+    model: "aisha-local",
+    purpose: "public_assistant_local",
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
+    billRub: false,
+  });
 }
 
 async function groupServiceLocationsWithSessions<TLocation extends { id: number }>(args: {
@@ -387,6 +408,7 @@ export async function handlePublicAiChatPost(request: Request) {
         debugTrace: buildDebugTrace(shouldConfirmComplaint ? "complaint_follow_up" : "explicit_service_complaint"),
       });
 
+      await recordLocalAssistantTurnIfNeeded(message, reply);
       return jsonOk(responsePayload);
     }
 
@@ -513,6 +535,7 @@ export async function handlePublicAiChatPost(request: Request) {
         },
         debugTrace: buildDebugTrace("unknown_service_clarification"),
       });
+      await recordLocalAssistantTurnIfNeeded(message, earlyUnknownService.payload.reply);
       return jsonOk(responsePayload);
     }
 
@@ -562,6 +585,7 @@ export async function handlePublicAiChatPost(request: Request) {
         },
         debugTrace: buildDebugTrace("entity_clarification"),
       });
+      await recordLocalAssistantTurnIfNeeded(message, entityClarification.payload.reply);
       return jsonOk(responsePayload);
     }
 
@@ -749,6 +773,7 @@ export async function handlePublicAiChatPost(request: Request) {
         },
         debugTrace: buildDebugTrace("unknown_service_clarification"),
       });
+      await recordLocalAssistantTurnIfNeeded(message, unknownService.payload.reply);
       return jsonOk(responsePayload);
     }
 
@@ -1375,6 +1400,20 @@ export async function handlePublicAiChatPost(request: Request) {
       },
       debugTrace: buildDebugTrace(guardReason),
     });
+
+    if (getAiUsageRecordCount() === 0) {
+      const promptTokens = estimatePlatformTokens(message);
+      const completionTokens = estimatePlatformTokens(reply);
+      await recordAiMeteredUsage({
+        provider: "platform",
+        model: "aisha-local",
+        purpose: "public_assistant_local",
+        promptTokens,
+        completionTokens,
+        totalTokens: promptTokens + completionTokens,
+        billRub: false,
+      });
+    }
 
     return jsonOk(responsePayload);
       },

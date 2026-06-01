@@ -48,6 +48,11 @@ export default function PlatformSettingsPanels({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const publicBillingSettings = (value: BillingSettings) => ({
+    provider: value.provider,
+    sbpEnabled: Boolean(value.sbpEnabled),
+  });
+
   const save = async (updates: Array<{ key: string; valueJson: unknown }>) => {
     setSaving(true);
     setMessage(null);
@@ -111,7 +116,12 @@ export default function PlatformSettingsPanels({
           </label>
         </div>
 
-        {billing.provider === "yookassa" ? (
+        <div className="mt-4 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-3 text-sm text-[color:var(--bp-muted)]">
+          Секретные ключи платежного провайдера хранятся только в `.env`: PAYMENT_PROVIDER, TBANK_TERMINAL_KEY, TBANK_PASSWORD, TBANK_API_URL.
+          В базе остаются только несекретные настройки.
+        </div>
+
+        {false && billing.provider === "yookassa" ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
               ЮKassa Shop ID
@@ -155,7 +165,7 @@ export default function PlatformSettingsPanels({
           </div>
         ) : null}
 
-        {billing.provider === "tinkoff" ? (
+        {false && billing.provider === "tinkoff" ? (
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm">
               Тинькофф Terminal Key
@@ -202,7 +212,7 @@ export default function PlatformSettingsPanels({
         <div className="mt-4 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => save([{ key: BILLING_KEY, valueJson: billing }])}
+            onClick={() => save([{ key: BILLING_KEY, valueJson: publicBillingSettings(billing) }])}
             disabled={saving}
             className="rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-semibold"
           >

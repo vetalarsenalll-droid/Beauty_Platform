@@ -2,37 +2,42 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 import { requirePlatformPermission } from "@/lib/auth";
 import {
-  addAiLedgerAdjustment,
   creditAiBalance,
   getAiAccountAccessByAccountIds,
   getAiAccessPackages,
-  getAiBalanceByAccountIds,
+  getAiTokenBalancesByAccountIds,
   int,
   money,
   readCheckbox,
   readOptionalNumber,
+  readOptionalNonNegativeInt,
   readOptionalPositiveInt,
-  readPositiveNumber,
-  readText,
   updateAiAccountAccess,
 } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
-import { AiBalanceAdjustmentForm } from "./ai-balance-adjustment-form";
 
 async function creditAccountAction(formData: FormData) {
   "use server";
   await requirePlatformPermission("platform.ai.manage");
   const accountId = readOptionalPositiveInt(formData.get("accountId"));
   const packageId = readOptionalPositiveInt(formData.get("packageId"));
-  const creditRub = readPositiveNumber(formData.get("creditRub"));
-  const amountRub = readPositiveNumber(formData.get("amountRub"), creditRub);
-  if (!accountId || creditRub <= 0) return;
+  if (!accountId || !packageId) return;
+
+  const packages = await prisma.aiAccessPackage.findMany({
+    where: { id: packageId, isActive: true, archivedAt: null },
+    select: { id: true, name: true, priceRub: true, includedCreditRub: true, displayTokens: true },
+    take: 1,
+  });
+  const pack = packages[0];
+  if (!pack) return;
+
   await creditAiBalance({
     accountId,
     packageId,
-    amountRub,
-    creditRub,
-    comment: packageId ? `AI package #${packageId}` : "Manual AI credit",
+    amountRub: Number(pack.priceRub),
+    creditRub: Number(pack.includedCreditRub),
+    creditTokens: pack.displayTokens ?? 0,
+    comment: `AI package #${packageId}: ${pack.displayTokens ?? 0} tokens`,
   });
   revalidatePath("/platform/ai/accounts");
   revalidatePath(`/platform/ai/accounts/${accountId}`);
@@ -53,29 +58,13 @@ async function updateAccountAccessAction(formData: FormData) {
     monthlySpendLimitRub: readOptionalNumber(formData.get("monthlySpendLimitRub")),
     minBalanceNotifyRub: readOptionalNumber(formData.get("minBalanceNotifyRub")),
     stopWhenBalanceBelowRub: readOptionalNumber(formData.get("stopWhenBalanceBelowRub")),
+    dailyTokenLimit: readOptionalNonNegativeInt(formData.get("dailyTokenLimit")),
+    monthlyTokenLimit: readOptionalNonNegativeInt(formData.get("monthlyTokenLimit")),
+    minTokensNotify: readOptionalNonNegativeInt(formData.get("minTokensNotify")),
+    stopWhenTokensBelow: readOptionalNonNegativeInt(formData.get("stopWhenTokensBelow")),
   });
   revalidatePath("/platform/ai/accounts");
   revalidatePath(`/platform/ai/accounts/${accountId}`);
-}
-
-async function adjustBalanceAction(formData: FormData) {
-  "use server";
-  await requirePlatformPermission("platform.ai.ledger.manage");
-  const accountId = readOptionalPositiveInt(formData.get("accountId"));
-  const direction = readText(formData.get("direction"), 20);
-  const amount = readPositiveNumber(formData.get("amountRub"));
-  const comment = readText(formData.get("comment"), 200) || null;
-  if (!accountId || amount <= 0) return;
-  const type = direction === "debit" ? "manual_debit" : direction === "bonus" ? "bonus" : "manual_credit";
-  await addAiLedgerAdjustment({
-    accountId,
-    type,
-    amountRub: type === "manual_debit" ? -amount : amount,
-    comment,
-  });
-  revalidatePath("/platform/ai/accounts");
-  revalidatePath(`/platform/ai/accounts/${accountId}`);
-  revalidatePath("/platform/ai/ledger");
 }
 
 export default async function PlatformAiAccountsPage() {
@@ -97,8 +86,8 @@ export default async function PlatformAiAccountsPage() {
   ]);
 
   const accountIds = accounts.map((account) => account.id);
-  const [balances, accessByAccount] = await Promise.all([
-    getAiBalanceByAccountIds(accountIds),
+  const [tokenBalances, accessByAccount] = await Promise.all([
+    getAiTokenBalancesByAccountIds(accountIds),
     getAiAccountAccessByAccountIds(accountIds),
   ]);
   const usageMap = new Map(usageByAccount.map((row) => [row.accountId, row]));
@@ -109,49 +98,27 @@ export default async function PlatformAiAccountsPage() {
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">AI / GigaChat</p>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">AI-доступ по аккаунтам</h1>
         <p className="mt-2 max-w-3xl text-sm text-[color:var(--bp-muted)]">
-          Платформа начисляет бизнес-аккаунтам внутренний AI-баланс. Реальные токены и ключи GigaChat остаются только у платформы.
+          Платформа продает бизнес-аккаунтам пакеты токенов. Рубли остаются только ценой покупки и внутренней экономикой платформы.
         </p>
       </header>
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Начислить AI-баланс</h2>
-        <form action={creditAccountAction} className="mt-4 grid gap-3 text-sm lg:grid-cols-[1.3fr_1fr_1fr_1fr_auto]">
+        <h2 className="text-lg font-semibold">Выдать пакет токенов аккаунту</h2>
+        <form action={creditAccountAction} className="mt-4 grid gap-3 text-sm lg:grid-cols-[1.3fr_1.2fr_auto]">
           <select name="accountId" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none">
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>{account.name} #{account.id}</option>
             ))}
           </select>
           <select name="packageId" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none">
-            <option value="">Ручное начисление</option>
             {packages.map((pack) => (
-              <option key={pack.id} value={pack.id}>{pack.name}</option>
+              <option key={pack.id} value={pack.id}>{pack.name} · {int(pack.displayTokens ?? 0)} токенов · {money(pack.priceRub)} ₽</option>
             ))}
           </select>
-          <input name="amountRub" type="number" min="0" step="0.01" placeholder="Оплачено, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-          <input name="creditRub" type="number" min="1" step="0.01" placeholder="Начислить, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-          <button className="rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 font-medium text-white">Начислить</button>
+          <button className="rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 font-medium text-white">Выдать</button>
         </form>
-      </section>
-
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Ручная операция по AI-балансу</h2>
-        <AiBalanceAdjustmentForm action={adjustBalanceAction} className="mt-4 grid gap-3 text-sm lg:grid-cols-[1.3fr_0.8fr_1fr_1fr_auto]">
-          <select name="accountId" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none">
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>{account.name} #{account.id}</option>
-            ))}
-          </select>
-          <select name="direction" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none">
-            <option value="credit">Начисление</option>
-            <option value="bonus">Бонус</option>
-            <option value="debit">Списание</option>
-          </select>
-          <input name="amountRub" type="number" min="0.01" step="0.01" placeholder="Сумма, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-          <input name="comment" placeholder="Комментарий" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-          <button className="rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 font-medium text-white">Провести</button>
-        </AiBalanceAdjustmentForm>
         <p className="mt-2 text-xs text-[color:var(--bp-muted)]">
-          Для ручного списания браузер попросит подтверждение перед отправкой операции.
+          Ручные рублевые начисления скрыты: аккаунту должен выдаваться конкретный пакет токенов.
         </p>
       </section>
 
@@ -164,7 +131,7 @@ export default async function PlatformAiAccountsPage() {
                 <th className="py-2 pr-3">Аккаунт</th>
                 <th className="py-2 pr-3">Доступ</th>
                 <th className="py-2 pr-3">Лимиты</th>
-                <th className="py-2 pr-3">AI-баланс</th>
+                <th className="py-2 pr-3">Токены доступны</th>
                 <th className="py-2 pr-3">Токены за месяц</th>
                 <th className="py-2 pr-3">Себестоимость</th>
                 <th className="py-2 pr-3">Списано</th>
@@ -178,6 +145,7 @@ export default async function PlatformAiAccountsPage() {
                 const cost = Number(usage?._sum.costRub ?? 0);
                 const charged = Number(usage?._sum.chargedRub ?? 0);
                 const access = accessByAccount.get(account.id);
+                const tokenBalance = tokenBalances.get(account.id) ?? { availableTokens: 0, purchasedTokens: 0, usedTokens: 0 };
                 const aiEnabled = access?.aiEnabled ?? true;
                 const siteAssistantEnabled = access?.siteAssistantEnabled ?? true;
                 const crmAgentEnabled = access?.crmAgentEnabled ?? false;
@@ -190,6 +158,10 @@ export default async function PlatformAiAccountsPage() {
                     <td className="py-3 pr-3">
                       <form action={updateAccountAccessAction} className="grid min-w-[220px] gap-2">
                         <input type="hidden" name="accountId" value={account.id} />
+                        <input type="hidden" name="dailyTokenLimit" value={access?.dailyTokenLimit?.toString() ?? ""} />
+                        <input type="hidden" name="monthlyTokenLimit" value={access?.monthlyTokenLimit?.toString() ?? ""} />
+                        <input type="hidden" name="minTokensNotify" value={access?.minTokensNotify?.toString() ?? ""} />
+                        <input type="hidden" name="stopWhenTokensBelow" value={access?.stopWhenTokensBelow?.toString() ?? ""} />
                         <label className="flex items-center gap-2 text-xs">
                           <input name="aiEnabled" type="checkbox" defaultChecked={aiEnabled} />
                           AI включён
@@ -213,16 +185,19 @@ export default async function PlatformAiAccountsPage() {
                         <input type="hidden" name="aiEnabled" value={aiEnabled ? "true" : ""} />
                         <input type="hidden" name="siteAssistantEnabled" value={siteAssistantEnabled ? "true" : ""} />
                         <input type="hidden" name="crmAgentEnabled" value={crmAgentEnabled ? "true" : ""} />
-                        <input name="dailySpendLimitRub" type="number" min="0" step="0.01" defaultValue={access?.dailySpendLimitRub?.toString() ?? ""} placeholder="День" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
-                        <input name="monthlySpendLimitRub" type="number" min="0" step="0.01" defaultValue={access?.monthlySpendLimitRub?.toString() ?? ""} placeholder="Месяц" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
-                        <input name="minBalanceNotifyRub" type="number" min="0" step="0.01" defaultValue={access?.minBalanceNotifyRub?.toString() ?? ""} placeholder="Warning" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
-                        <input name="stopWhenBalanceBelowRub" type="number" min="0" step="0.01" defaultValue={access?.stopWhenBalanceBelowRub?.toString() ?? ""} placeholder="Stop below" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
+                        <input name="dailyTokenLimit" type="number" min="0" step="1" defaultValue={access?.dailyTokenLimit?.toString() ?? ""} placeholder="День, токены" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
+                        <input name="monthlyTokenLimit" type="number" min="0" step="1" defaultValue={access?.monthlyTokenLimit?.toString() ?? ""} placeholder="Месяц, токены" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
+                        <input name="minTokensNotify" type="number" min="0" step="1" defaultValue={access?.minTokensNotify?.toString() ?? ""} placeholder="Warning, токены" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
+                        <input name="stopWhenTokensBelow" type="number" min="0" step="1" defaultValue={access?.stopWhenTokensBelow?.toString() ?? ""} placeholder="Stop ниже, токены" className="rounded-lg border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-2 py-1 text-xs outline-none" />
                         <button className="col-span-2 w-fit rounded-lg border border-[color:var(--bp-stroke)] px-2 py-1 text-xs hover:border-[color:var(--bp-accent)]">
                           Сохранить лимиты
                         </button>
                       </form>
                     </td>
-                    <td className="py-3 pr-3">{money(balances.get(account.id) ?? 0)} ₽</td>
+                    <td className="py-3 pr-3">
+                      <div className="font-medium">{int(tokenBalance.availableTokens)}</div>
+                      <div className="text-xs text-[color:var(--bp-muted)]">куплено {int(tokenBalance.purchasedTokens)}</div>
+                    </td>
                     <td className="py-3 pr-3">{int(usage?._sum.totalTokens ?? 0)}</td>
                     <td className="py-3 pr-3">{money(cost)} ₽</td>
                     <td className="py-3 pr-3">{money(charged)} ₽</td>

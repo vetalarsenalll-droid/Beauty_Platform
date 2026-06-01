@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { getAiAccountAccessByAccountIds, getAiAccountBalance } from "@/lib/ai-billing";
+import { getAiAccountAccessByAccountIds, getAiTokenBalance } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
 import type { CrmAgentPlannerMessage } from "./planner";
 
@@ -22,12 +22,12 @@ export type CrmAgentContext = {
     permissions: string[];
   };
   ai: {
-    balanceRub: number;
+    balanceTokens: number;
     aiEnabled: boolean;
     crmAgentEnabled: boolean;
-    dailySpendLimitRub: number | null;
-    monthlySpendLimitRub: number | null;
-    stopWhenBalanceBelowRub: number | null;
+    dailyTokenLimit: number | null;
+    monthlyTokenLimit: number | null;
+    stopWhenTokensBelow: number | null;
   };
   summary: {
     servicesCount: number;
@@ -99,7 +99,7 @@ export async function loadCrmAgentContext(input: {
     appointmentsSoonCount,
     activePromosCount,
     recentReviews,
-    balanceRub,
+    balanceTokens,
     accessByAccount,
     memory,
     insights,
@@ -135,7 +135,7 @@ export async function loadCrmAgentContext(input: {
       take: 5,
       select: { id: true, rating: true, status: true, comment: true, createdAt: true },
     }),
-    getAiAccountBalance(input.accountId),
+    getAiTokenBalance(input.accountId),
     getAiAccountAccessByAccountIds([input.accountId]),
     prisma.crmAgentMemory.findMany({
       where: { accountId: input.accountId },
@@ -174,12 +174,12 @@ export async function loadCrmAgentContext(input: {
       permissions: input.permissions,
     },
     ai: {
-      balanceRub,
+      balanceTokens,
       aiEnabled: access?.aiEnabled ?? true,
       crmAgentEnabled: access?.crmAgentEnabled ?? false,
-      dailySpendLimitRub: decimalToNumber(access?.dailySpendLimitRub ?? null),
-      monthlySpendLimitRub: decimalToNumber(access?.monthlySpendLimitRub ?? null),
-      stopWhenBalanceBelowRub: decimalToNumber(access?.stopWhenBalanceBelowRub ?? null),
+      dailyTokenLimit: access?.dailyTokenLimit ?? null,
+      monthlyTokenLimit: access?.monthlyTokenLimit ?? null,
+      stopWhenTokensBelow: access?.stopWhenTokensBelow ?? null,
     },
     summary: {
       servicesCount,
@@ -248,9 +248,4 @@ export function compactCrmAgentContext(context: CrmAgentContext): Prisma.JsonObj
 function plannerRole(role: string): CrmAgentPlannerMessage["role"] {
   if (role === "assistant" || role === "tool" || role === "system") return role;
   return "user";
-}
-
-function decimalToNumber(value: Prisma.Decimal | number | null) {
-  if (value == null) return null;
-  return typeof value === "number" ? value : value.toNumber();
 }

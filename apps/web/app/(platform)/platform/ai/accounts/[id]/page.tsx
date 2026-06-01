@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePlatformPermission } from "@/lib/auth";
-import { getAiAccountAccessByAccountIds, getAiBalanceByAccountIds, int, money } from "@/lib/ai-billing";
+import { getAiAccountAccessByAccountIds, getAiTokenBalancesByAccountIds, int, money } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
 
 type PageProps = {
@@ -28,8 +28,8 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
-  const [balances, accessByAccount, usageMonth, usageAll, ledger, dialogs] = await Promise.all([
-    getAiBalanceByAccountIds([account.id]),
+  const [tokenBalances, accessByAccount, usageMonth, usageAll, ledger, dialogs] = await Promise.all([
+    getAiTokenBalancesByAccountIds([account.id]),
     getAiAccountAccessByAccountIds([account.id]),
     prisma.aiUsage.aggregate({
       where: { accountId: account.id, createdAt: { gte: startOfMonth } },
@@ -59,7 +59,7 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
   ]);
 
   const access = accessByAccount.get(account.id);
-  const balance = balances.get(account.id) ?? 0;
+  const tokenBalance = tokenBalances.get(account.id) ?? { availableTokens: 0, purchasedTokens: 0, usedTokens: 0 };
   const monthCost = Number(usageMonth._sum.costRub ?? 0);
   const monthCharged = Number(usageMonth._sum.chargedRub ?? 0);
   const allCost = Number(usageAll._sum.costRub ?? 0);
@@ -86,10 +86,10 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
       </header>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Metric title="AI-баланс" value={`${money(balance)} ₽`} hint="Текущий ledger balance" />
-        <Metric title="Расход за месяц" value={`${money(monthCharged)} ₽`} hint={`${int(usageMonth._sum.totalTokens)} токенов`} />
+        <Metric title="Токены доступны" value={int(tokenBalance.availableTokens)} hint={`Куплено: ${int(tokenBalance.purchasedTokens)}`} />
+        <Metric title="Токены за месяц" value={int(usageMonth._sum.totalTokens)} hint={`Списано с аккаунта: ${money(monthCharged)} ₽`} />
         <Metric title="Маржа за месяц" value={`${money(monthCharged - monthCost)} ₽`} hint={`Себестоимость: ${money(monthCost)} ₽`} />
-        <Metric title="За всё время" value={`${money(allCharged)} ₽`} hint={`${int(usageAll._count._all)} usage-записей`} />
+        <Metric title="За всё время" value={int(tokenBalance.usedTokens)} hint={`${int(usageAll._count._all)} usage-записей`} />
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
@@ -99,10 +99,10 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
             <InfoRow label="AI" value={boolLabel(access?.aiEnabled ?? true)} />
             <InfoRow label="Site assistant" value={boolLabel(access?.siteAssistantEnabled ?? true)} />
             <InfoRow label="CRM-agent" value={boolLabel(access?.crmAgentEnabled ?? false)} />
-            <InfoRow label="Лимит в день" value={access?.dailySpendLimitRub != null ? `${money(access.dailySpendLimitRub)} ₽` : "не задан"} />
-            <InfoRow label="Лимит в месяц" value={access?.monthlySpendLimitRub != null ? `${money(access.monthlySpendLimitRub)} ₽` : "не задан"} />
-            <InfoRow label="Предупреждение" value={access?.minBalanceNotifyRub != null ? `${money(access.minBalanceNotifyRub)} ₽` : "не задано"} />
-            <InfoRow label="Стоп ниже" value={access?.stopWhenBalanceBelowRub != null ? `${money(access.stopWhenBalanceBelowRub)} ₽` : "не задан"} />
+            <InfoRow label="Лимит в день" value={access?.dailyTokenLimit != null ? `${int(access.dailyTokenLimit)} токенов` : "не задан"} />
+            <InfoRow label="Лимит в месяц" value={access?.monthlyTokenLimit != null ? `${int(access.monthlyTokenLimit)} токенов` : "не задан"} />
+            <InfoRow label="Предупреждение" value={access?.minTokensNotify != null ? `${int(access.minTokensNotify)} токенов` : "не задано"} />
+            <InfoRow label="Стоп ниже" value={access?.stopWhenTokensBelow != null ? `${int(access.stopWhenTokensBelow)} токенов` : "не задан"} />
           </dl>
         </article>
 
@@ -129,12 +129,13 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
 
       <section className="grid gap-4 xl:grid-cols-2">
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Последние движения баланса</h2>
+          <h2 className="text-lg font-semibold">Внутренний ledger, ₽</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[620px] text-sm">
               <thead className="text-left text-[color:var(--bp-muted)]">
                 <tr>
                   <th className="py-2 pr-3">Тип</th>
+                  <th className="py-2 pr-3">Токены</th>
                   <th className="py-2 pr-3">Сумма</th>
                   <th className="py-2 pr-3">Комментарий</th>
                   <th className="py-2 pr-3">Дата</th>
@@ -144,6 +145,9 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
                 {ledger.map((row) => (
                   <tr key={row.id} className="border-t border-[color:var(--bp-stroke)]">
                     <td className="py-2 pr-3">{row.type}</td>
+                    <td className={row.amountTokens < 0 ? "py-2 pr-3 text-rose-600" : "py-2 pr-3 text-emerald-600"}>
+                      {row.amountTokens > 0 ? "+" : ""}{int(row.amountTokens)}
+                    </td>
                     <td className={Number(row.amountRub) < 0 ? "py-2 pr-3 text-rose-600" : "py-2 pr-3 text-emerald-600"}>
                       {money(row.amountRub)} ₽
                     </td>
@@ -151,7 +155,7 @@ export default async function PlatformAiAccountDetailPage({ params }: PageProps)
                     <td className="py-2 pr-3">{row.createdAt.toLocaleString("ru-RU")}</td>
                   </tr>
                 ))}
-                {!ledger.length ? <tr><td colSpan={4} className="py-4 text-[color:var(--bp-muted)]">Движений пока нет.</td></tr> : null}
+                {!ledger.length ? <tr><td colSpan={5} className="py-4 text-[color:var(--bp-muted)]">Движений пока нет.</td></tr> : null}
               </tbody>
             </table>
           </div>

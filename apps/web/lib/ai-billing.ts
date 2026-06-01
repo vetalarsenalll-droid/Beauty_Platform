@@ -17,9 +17,11 @@ export type AiAccessPackageRow = {
   updatedAt: Date;
 };
 
-export type AiAccountBalanceRow = {
+export type AiAccountTokenBalanceRow = {
   accountId: number;
-  balanceRub: Prisma.Decimal | null;
+  balanceTokens: number | null;
+  purchasedTokens: number | null;
+  usedTokens: number | null;
 };
 
 export type AiAccessPurchaseRow = {
@@ -29,6 +31,7 @@ export type AiAccessPurchaseRow = {
   invoiceId: number | null;
   amountRub: Prisma.Decimal;
   creditRub: Prisma.Decimal;
+  creditTokens: number;
   status: string;
   createdAt: Date;
   paidAt: Date | null;
@@ -62,6 +65,10 @@ export type AiAccountAccessRow = {
   monthlySpendLimitRub: Prisma.Decimal | null;
   minBalanceNotifyRub: Prisma.Decimal | null;
   stopWhenBalanceBelowRub: Prisma.Decimal | null;
+  dailyTokenLimit: number | null;
+  monthlyTokenLimit: number | null;
+  minTokensNotify: number | null;
+  stopWhenTokensBelow: number | null;
 };
 
 export function money(value: unknown, digits = 2) {
@@ -92,6 +99,13 @@ export function readOptionalNumber(value: FormDataEntryValue | null) {
   if (!raw) return null;
   const n = Number(raw.replace(",", "."));
   return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function readOptionalNonNegativeInt(value: FormDataEntryValue | null) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
 export function readText(value: FormDataEntryValue | null, max = 160) {
@@ -129,24 +143,84 @@ export async function getAiProviderPools() {
   `;
 }
 
-export async function getAiBalanceByAccountIds(accountIds: number[]) {
-  if (!accountIds.length) return new Map<number, number>();
-  const rows = await prisma.$queryRaw<AiAccountBalanceRow[]>`
-    SELECT "accountId", COALESCE(SUM("amountRub"), 0) AS "balanceRub"
-    FROM "AiBalanceLedger"
-    WHERE "accountId" IN (${Prisma.join(accountIds)})
-    GROUP BY "accountId"
+export async function getAiTokenBalancesByAccountIds(accountIds: number[]) {
+  if (!accountIds.length) return new Map<number, { purchasedTokens: number; usedTokens: number; availableTokens: number }>();
+
+  const rows = await prisma.$queryRaw<AiAccountTokenBalanceRow[]>`
+    WITH first_credit AS (
+      SELECT "accountId", MIN("createdAt") AS "startsAt"
+      FROM "AiBalanceLedger"
+      WHERE "accountId" IN (${Prisma.join(accountIds)})
+        AND "amountTokens" > 0
+      GROUP BY "accountId"
+    ),
+    ledger AS (
+      SELECT
+        l."accountId",
+        COALESCE(SUM(
+          CASE
+            WHEN l."amountTokens" > 0 THEN l."amountTokens"
+            WHEN l."amountTokens" < 0 AND fc."startsAt" IS NOT NULL AND l."createdAt" >= fc."startsAt" THEN l."amountTokens"
+            ELSE 0
+          END
+        ), 0) AS "balanceTokens",
+        COALESCE(SUM(CASE WHEN l."amountTokens" > 0 THEN l."amountTokens" ELSE 0 END), 0) AS "purchasedTokens",
+        ABS(COALESCE(SUM(
+          CASE
+            WHEN l."amountTokens" < 0 AND fc."startsAt" IS NOT NULL AND l."createdAt" >= fc."startsAt" THEN l."amountTokens"
+            ELSE 0
+          END
+        ), 0)) AS "usedTokens"
+      FROM "AiBalanceLedger" l
+      LEFT JOIN first_credit fc ON fc."accountId" = l."accountId"
+      WHERE l."accountId" IN (${Prisma.join(accountIds)})
+      GROUP BY l."accountId"
+    ),
+    paid_purchases AS (
+      SELECT p."accountId", COALESCE(SUM(p."creditTokens"), 0) AS "purchasedTokens"
+      FROM "AiAccessPurchase" p
+      WHERE p."accountId" IN (${Prisma.join(accountIds)})
+        AND p."status" = 'PAID'
+      GROUP BY p."accountId"
+    ),
+    usage AS (
+      SELECT u."accountId", COALESCE(SUM(COALESCE(u."totalTokens", 0)), 0) AS "usedTokens"
+      FROM "AiUsage" u
+      WHERE u."accountId" IN (${Prisma.join(accountIds)})
+      GROUP BY u."accountId"
+    )
+    SELECT
+      account_ids."accountId",
+      COALESCE(ledger."balanceTokens", COALESCE(paid_purchases."purchasedTokens", 0) - COALESCE(usage."usedTokens", 0)) AS "balanceTokens",
+      COALESCE(ledger."purchasedTokens", paid_purchases."purchasedTokens", 0) AS "purchasedTokens",
+      COALESCE(ledger."usedTokens", usage."usedTokens", 0) AS "usedTokens"
+    FROM (
+      SELECT unnest(ARRAY[${Prisma.join(accountIds)}]::int[]) AS "accountId"
+    ) account_ids
+    LEFT JOIN ledger ON ledger."accountId" = account_ids."accountId"
+    LEFT JOIN paid_purchases ON paid_purchases."accountId" = account_ids."accountId"
+    LEFT JOIN usage ON usage."accountId" = account_ids."accountId"
   `;
-  return new Map(rows.map((row) => [row.accountId, Number(row.balanceRub ?? 0)]));
+
+  return new Map(
+    rows.map((row) => {
+      const purchasedTokens = Number(row.purchasedTokens ?? 0);
+      const usedTokens = Number(row.usedTokens ?? 0);
+      const balanceTokens = Number(row.balanceTokens ?? purchasedTokens - usedTokens);
+      return [
+        row.accountId,
+        {
+          purchasedTokens,
+          usedTokens,
+          availableTokens: Math.max(0, balanceTokens),
+        },
+      ];
+    }),
+  );
 }
 
-export async function getAiAccountBalance(accountId: number) {
-  const rows = await prisma.$queryRaw<Array<{ balanceRub: Prisma.Decimal | null }>>`
-    SELECT COALESCE(SUM("amountRub"), 0) AS "balanceRub"
-    FROM "AiBalanceLedger"
-    WHERE "accountId" = ${accountId}
-  `;
-  return Number(rows[0]?.balanceRub ?? 0);
+export async function getAiTokenBalance(accountId: number) {
+  return (await getAiTokenBalancesByAccountIds([accountId])).get(accountId)?.availableTokens ?? 0;
 }
 
 export async function getAiAccountAccessByAccountIds(accountIds: number[]) {
@@ -160,7 +234,11 @@ export async function getAiAccountAccessByAccountIds(accountIds: number[]) {
       "dailySpendLimitRub",
       "monthlySpendLimitRub",
       "minBalanceNotifyRub",
-      "stopWhenBalanceBelowRub"
+      "stopWhenBalanceBelowRub",
+      "dailyTokenLimit",
+      "monthlyTokenLimit",
+      "minTokensNotify",
+      "stopWhenTokensBelow"
     FROM "AiAccountAccess"
     WHERE "accountId" IN (${Prisma.join(accountIds)})
   `;
@@ -184,6 +262,10 @@ export async function updateAiAccountAccess(input: {
   monthlySpendLimitRub: number | null;
   minBalanceNotifyRub: number | null;
   stopWhenBalanceBelowRub: number | null;
+  dailyTokenLimit: number | null;
+  monthlyTokenLimit: number | null;
+  minTokensNotify: number | null;
+  stopWhenTokensBelow: number | null;
 }) {
   await prisma.$executeRaw`
     INSERT INTO "AiAccountAccess" (
@@ -195,6 +277,10 @@ export async function updateAiAccountAccess(input: {
       "monthlySpendLimitRub",
       "minBalanceNotifyRub",
       "stopWhenBalanceBelowRub",
+      "dailyTokenLimit",
+      "monthlyTokenLimit",
+      "minTokensNotify",
+      "stopWhenTokensBelow",
       "updatedAt"
     )
     VALUES (
@@ -206,6 +292,10 @@ export async function updateAiAccountAccess(input: {
       ${input.monthlySpendLimitRub},
       ${input.minBalanceNotifyRub},
       ${input.stopWhenBalanceBelowRub},
+      ${input.dailyTokenLimit},
+      ${input.monthlyTokenLimit},
+      ${input.minTokensNotify},
+      ${input.stopWhenTokensBelow},
       NOW()
     )
     ON CONFLICT ("accountId") DO UPDATE SET
@@ -216,6 +306,10 @@ export async function updateAiAccountAccess(input: {
       "monthlySpendLimitRub" = EXCLUDED."monthlySpendLimitRub",
       "minBalanceNotifyRub" = EXCLUDED."minBalanceNotifyRub",
       "stopWhenBalanceBelowRub" = EXCLUDED."stopWhenBalanceBelowRub",
+      "dailyTokenLimit" = EXCLUDED."dailyTokenLimit",
+      "monthlyTokenLimit" = EXCLUDED."monthlyTokenLimit",
+      "minTokensNotify" = EXCLUDED."minTokensNotify",
+      "stopWhenTokensBelow" = EXCLUDED."stopWhenTokensBelow",
       "updatedAt" = NOW()
   `;
 }
@@ -233,12 +327,12 @@ function startOfMonth(value = new Date()) {
   return date;
 }
 
-async function sumAiSpendRub(accountId: number, since: Date) {
+async function sumAiUsageTokens(accountId: number, since: Date) {
   const result = await prisma.aiUsage.aggregate({
     where: { accountId, createdAt: { gte: since } },
-    _sum: { chargedRub: true },
+    _sum: { totalTokens: true },
   });
-  return Number(result._sum.chargedRub ?? 0);
+  return Number(result._sum.totalTokens ?? 0);
 }
 
 async function writeAiGuardLog(input: {
@@ -297,6 +391,10 @@ export async function checkAiAccessAllowed(
       monthlySpendLimitRub: Prisma.Decimal | null;
       minBalanceNotifyRub: Prisma.Decimal | null;
       stopWhenBalanceBelowRub: Prisma.Decimal | null;
+      dailyTokenLimit: number | null;
+      monthlyTokenLimit: number | null;
+      minTokensNotify: number | null;
+      stopWhenTokensBelow: number | null;
     }>
   >`
     SELECT
@@ -306,7 +404,11 @@ export async function checkAiAccessAllowed(
       "dailySpendLimitRub",
       "monthlySpendLimitRub",
       "minBalanceNotifyRub",
-      "stopWhenBalanceBelowRub"
+      "stopWhenBalanceBelowRub",
+      "dailyTokenLimit",
+      "monthlyTokenLimit",
+      "minTokensNotify",
+      "stopWhenTokensBelow"
     FROM "AiAccountAccess"
     WHERE "accountId" = ${accountId}
     LIMIT 1
@@ -320,39 +422,39 @@ export async function checkAiAccessAllowed(
     return block("crm_agent_disabled");
   }
 
-  const balance = await getAiAccountBalance(accountId);
+  const tokenBalance = await getAiTokenBalance(accountId);
   const enforceBalance =
     (await getGlobalAiBooleanSetting("ai.balanceEnforcement", process.env.AI_BALANCE_ENFORCEMENT === "true")) ||
     Boolean(access);
-  const stopBelow = Number(access?.stopWhenBalanceBelowRub ?? 0);
-  if (enforceBalance && balance <= Math.max(0, stopBelow)) {
-    return block("ai_balance_empty", { balanceRub: balance, stopWhenBalanceBelowRub: stopBelow });
+  const stopBelow = Number(access?.stopWhenTokensBelow ?? 0);
+  if (enforceBalance && tokenBalance <= Math.max(0, stopBelow)) {
+    return block("ai_tokens_empty", { balanceTokens: tokenBalance, stopWhenTokensBelow: stopBelow });
   }
 
-  if (access?.dailySpendLimitRub != null) {
-    const dailyLimit = Number(access.dailySpendLimitRub);
+  if (access?.dailyTokenLimit != null) {
+    const dailyLimit = Number(access.dailyTokenLimit);
     if (dailyLimit > 0) {
-      const spentToday = await sumAiSpendRub(accountId, startOfDay());
+      const spentToday = await sumAiUsageTokens(accountId, startOfDay());
       if (spentToday >= dailyLimit) {
-        return block("daily_limit_exceeded", { spentRub: spentToday, limitRub: dailyLimit });
+        return block("daily_token_limit_exceeded", { spentTokens: spentToday, limitTokens: dailyLimit });
       }
     }
   }
 
-  if (access?.monthlySpendLimitRub != null) {
-    const monthlyLimit = Number(access.monthlySpendLimitRub);
+  if (access?.monthlyTokenLimit != null) {
+    const monthlyLimit = Number(access.monthlyTokenLimit);
     if (monthlyLimit > 0) {
-      const spentMonth = await sumAiSpendRub(accountId, startOfMonth());
+      const spentMonth = await sumAiUsageTokens(accountId, startOfMonth());
       if (spentMonth >= monthlyLimit) {
-        return block("monthly_limit_exceeded", { spentRub: spentMonth, limitRub: monthlyLimit });
+        return block("monthly_token_limit_exceeded", { spentTokens: spentMonth, limitTokens: monthlyLimit });
       }
     }
   }
 
-  const notifyBelow = Number(access?.minBalanceNotifyRub ?? 0);
+  const notifyBelow = Number(access?.minTokensNotify ?? 0);
   let warning: string | null = null;
-  if (notifyBelow > 0 && balance <= notifyBelow) {
-    warning = "low_balance";
+  if (notifyBelow > 0 && tokenBalance <= notifyBelow) {
+    warning = "low_tokens";
     if (shouldLog) {
       await writeAiGuardLog({
         actionId: options.actionId,
@@ -360,7 +462,7 @@ export async function checkAiAccessAllowed(
         reason: warning,
         accountId,
         scope,
-        data: { balanceRub: balance, minBalanceNotifyRub: notifyBelow },
+        data: { balanceTokens: tokenBalance, minTokensNotify: notifyBelow },
       });
     }
   }
@@ -458,20 +560,22 @@ export async function creditAiBalance(input: {
   packageId: number | null;
   amountRub: number;
   creditRub: number;
+  creditTokens: number;
   comment: string;
 }) {
   await prisma.$transaction(async (tx) => {
     await tx.$executeRaw`
       INSERT INTO "AiAccessPurchase"
-        ("accountId", "packageId", "amountRub", "creditRub", "status", "paidAt")
+        ("accountId", "packageId", "amountRub", "creditRub", "creditTokens", "status", "paidAt")
       VALUES
-        (${input.accountId}, ${input.packageId}, ${input.amountRub}, ${input.creditRub}, 'PAID', NOW())
+        (${input.accountId}, ${input.packageId}, ${input.amountRub}, ${input.creditRub}, ${input.creditTokens}, 'PAID', NOW())
     `;
     await tx.aiBalanceLedger.create({
       data: {
         accountId: input.accountId,
         type: input.packageId ? "purchase" : "manual_credit",
         amountRub: input.creditRub.toFixed(6),
+        amountTokens: input.creditTokens,
         comment: input.comment,
       },
     });
@@ -481,6 +585,7 @@ export async function creditAiBalance(input: {
 export async function addAiLedgerAdjustment(input: {
   accountId: number;
   amountRub: number;
+  amountTokens: number;
   type: "manual_credit" | "manual_debit" | "bonus";
   comment: string | null;
 }) {
@@ -490,6 +595,7 @@ export async function addAiLedgerAdjustment(input: {
       accountId: input.accountId,
       type: input.type,
       amountRub: input.amountRub.toFixed(6),
+      amountTokens: input.amountTokens,
       comment: input.comment,
     },
   });
@@ -504,6 +610,8 @@ export async function requestAiPackageInvoice(accountId: number, packageId: numb
   `;
   const pack = packages[0] ?? null;
   if (!pack) return null;
+  const tokensPart = pack.displayTokens ? `, ${int(pack.displayTokens)} токенов` : "";
+  const packageSaleText = (pack.description?.trim() || `${pack.name}${tokensPart}`).slice(0, 128);
 
   return prisma.$transaction(async (tx) => {
     const existing = await tx.$queryRaw<Array<{ invoiceId: number | null }>>`
@@ -523,17 +631,34 @@ export async function requestAiPackageInvoice(accountId: number, packageId: numb
       data: {
         accountId,
         status: "ISSUED",
+        purpose: "AI_TOKENS",
         amount: pack.priceRub,
         currency: "RUB",
+        description: packageSaleText,
         issuedAt: new Date(),
+        items: {
+          create: {
+            name: packageSaleText,
+            quantity: 1,
+            unitPrice: pack.priceRub,
+            amount: pack.priceRub,
+            vat: "none",
+            paymentObject: "service",
+            paymentMethod: "full_payment",
+            metadataJson: {
+              packageId: pack.id,
+              displayTokens: pack.displayTokens,
+            },
+          },
+        },
       },
       select: { id: true },
     });
     await tx.$executeRaw`
       INSERT INTO "AiAccessPurchase"
-        ("accountId", "packageId", "invoiceId", "amountRub", "creditRub", "status")
+        ("accountId", "packageId", "invoiceId", "amountRub", "creditRub", "creditTokens", "status")
       VALUES
-        (${accountId}, ${packageId}, ${invoice.id}, ${pack.priceRub}, ${pack.includedCreditRub}, 'PENDING')
+        (${accountId}, ${packageId}, ${invoice.id}, ${pack.priceRub}, ${pack.includedCreditRub}, ${pack.displayTokens ?? 0}, 'PENDING')
     `;
     return invoice.id;
   });

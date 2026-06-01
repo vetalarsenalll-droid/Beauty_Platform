@@ -26,6 +26,7 @@
     "test:crm-agent-v2:inspector": "node scripts/crm-agent-v2-inspector-tests.mjs",
     "test:crm-agent-v2:hardening": "node scripts/crm-agent-v2-hardening-tests.mjs",
     "test:crm-agent-v2": "npm run test:crm-agent-v2:catalog && npm run test:crm-agent-v2:canonicalizer && npm run test:crm-agent-v2:inspector && npm run test:crm-agent-v2:hardening && npm run test:crm-agent-v2:dialogs && npm run test:crm-agent-v2:ui && npm run test:crm-agent-v2:integration",
+    "test:payments": "node --test scripts/platform-payments-tests.mjs",
     "test:aisha-dialogs:live": "node scripts/aisha-live-e2e.mjs",
     "prisma:studio": "powershell -ExecutionPolicy Bypass -File ./studio.ps1",
     "prisma:validate": "powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 validate",

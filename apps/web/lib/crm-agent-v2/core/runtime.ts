@@ -548,13 +548,16 @@ function aiAccessBlockedAnswer(error: string | null | undefined) {
   const reason = error.split("AI access denied:")[1]?.trim() || "ai_access_denied";
   const reasonText: Record<string, string> = {
     ai_balance_empty: "на балансе аккаунта нет средств для работы агента",
+    ai_tokens_empty: "на балансе аккаунта нет токенов для работы агента",
     ai_disabled: "интеллектуальные функции выключены для аккаунта",
     crm_agent_disabled: "агент выключен для аккаунта",
     site_assistant_disabled: "ассистент сайта выключен для аккаунта",
     daily_limit_exceeded: "дневной лимит расходов на агента исчерпан",
     monthly_limit_exceeded: "месячный лимит расходов на агента исчерпан",
+    daily_token_limit_exceeded: "дневной лимит токенов агента исчерпан",
+    monthly_token_limit_exceeded: "месячный лимит токенов агента исчерпан",
   };
-  return `Сейчас агент недоступен: ${reasonText[reason] ?? "доступ временно ограничен"}. Проверьте баланс и доступ агента в настройках.`;
+  return `Сейчас агент недоступен: ${reasonText[reason] ?? "доступ временно ограничен"}. Проверьте токены и доступ агента в настройках.`;
 }
 
 function conversationModeForRoute(route: CrmAgentRouteDecision) {

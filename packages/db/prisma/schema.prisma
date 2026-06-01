@@ -275,6 +275,12 @@ enum InvoiceStatus {
   VOID
 }
 
+enum PlatformInvoicePurpose {
+  MANUAL
+  SUBSCRIPTION
+  AI_TOKENS
+}
+
 enum PaymentStatus {
   PENDING
   SUCCEEDED
@@ -339,36 +345,93 @@ model PlatformSubscription {
 }
 
 model PlatformInvoice {
-  id             Int           @id @default(autoincrement())
-  accountId      Int
-  subscriptionId Int?
-  status         InvoiceStatus @default(DRAFT)
-  amount         Decimal       @db.Decimal(12, 2)
-  currency       String        @default("RUB")
-  issuedAt       DateTime?
-  dueAt          DateTime?
-  paidAt         DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  id                Int                    @id @default(autoincrement())
+  accountId         Int
+  subscriptionId    Int?
+  status            InvoiceStatus          @default(DRAFT)
+  purpose           PlatformInvoicePurpose @default(MANUAL)
+  amount            Decimal                @db.Decimal(12, 2)
+  currency          String                 @default("RUB")
+  description       String?
+  paymentProvider   String?
+  paymentMethod     String?
+  providerPaymentId String?
+  providerStatus    String?
+  paymentUrl        String?
+  metadataJson      Json?
+  issuedAt          DateTime?
+  dueAt             DateTime?
+  paidAt            DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
 
   account      Account               @relation(fields: [accountId], references: [id])
   subscription PlatformSubscription? @relation(fields: [subscriptionId], references: [id])
+  items        PlatformInvoiceItem[]
   payments     PlatformPayment[]
 
   @@index([accountId, status])
+  @@index([purpose, status])
+  @@index([paymentProvider, providerPaymentId])
 }
 
 model PlatformPayment {
-  id          Int           @id @default(autoincrement())
-  invoiceId   Int?
-  amount      Decimal       @db.Decimal(12, 2)
-  currency    String        @default("RUB")
-  status      PaymentStatus @default(PENDING)
-  provider    String?
-  providerRef String?
-  createdAt   DateTime      @default(now())
+  id              Int           @id @default(autoincrement())
+  invoiceId       Int?
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("RUB")
+  status          PaymentStatus @default(PENDING)
+  provider        String?
+  providerRef     String?
+  method          String?
+  providerStatus  String?
+  receiptStatus   String?
+  receiptUrl      String?
+  rawProviderJson Json?
+  paidAt          DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
   invoice PlatformInvoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId, status])
+  @@index([provider, providerRef])
+}
+
+model PlatformInvoiceItem {
+  id            Int      @id @default(autoincrement())
+  invoiceId     Int
+  name          String
+  quantity      Decimal  @default(1) @db.Decimal(12, 3)
+  unitPrice     Decimal  @db.Decimal(12, 2)
+  amount        Decimal  @db.Decimal(12, 2)
+  vat           String   @default("none")
+  paymentObject String   @default("service")
+  paymentMethod String   @default("full_payment")
+  metadataJson  Json?
+  createdAt     DateTime @default(now())
+
+  invoice PlatformInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+model PlatformPaymentWebhookEvent {
+  id                Int       @id @default(autoincrement())
+  provider          String
+  providerEventId   String?
+  providerPaymentId String?
+  invoiceId         Int?
+  status            String
+  payloadJson       Json
+  tokenValid        Boolean   @default(false)
+  processedAt       DateTime?
+  errorMessage      String?
+  createdAt         DateTime  @default(now())
+
+  @@index([provider, providerPaymentId])
+  @@index([invoiceId])
+  @@index([createdAt])
 }
 
 model PlatformLimit {
@@ -2288,13 +2351,14 @@ model AiUsage {
 }
 
 model AiBalanceLedger {
-  id        Int      @id @default(autoincrement())
-  accountId Int
-  usageId   Int?
-  type      String
-  amountRub Decimal  @db.Decimal(18, 6)
-  comment   String?
-  createdAt DateTime @default(now())
+  id           Int      @id @default(autoincrement())
+  accountId    Int
+  usageId      Int?
+  type         String
+  amountRub    Decimal  @db.Decimal(18, 6)
+  amountTokens Int      @default(0)
+  comment      String?
+  createdAt    DateTime @default(now())
 
   @@index([accountId, createdAt])
   @@index([usageId])
@@ -2336,15 +2400,16 @@ model AiAccessPackage {
 }
 
 model AiAccessPurchase {
-  id        Int       @id @default(autoincrement())
-  accountId Int
-  packageId Int?
-  invoiceId Int?
-  amountRub Decimal   @db.Decimal(18, 2)
-  creditRub Decimal   @db.Decimal(18, 2)
-  status    String
-  createdAt DateTime  @default(now())
-  paidAt    DateTime?
+  id           Int       @id @default(autoincrement())
+  accountId    Int
+  packageId    Int?
+  invoiceId    Int?
+  amountRub    Decimal   @db.Decimal(18, 2)
+  creditRub    Decimal   @db.Decimal(18, 2)
+  creditTokens Int       @default(0)
+  status       String
+  createdAt    DateTime  @default(now())
+  paidAt       DateTime?
 
   @@index([accountId, createdAt])
   @@index([packageId])
@@ -2353,17 +2418,21 @@ model AiAccessPurchase {
 }
 
 model AiAccountAccess {
-  id                     Int      @id @default(autoincrement())
-  accountId              Int      @unique
-  aiEnabled              Boolean  @default(true)
-  siteAssistantEnabled   Boolean  @default(true)
-  crmAgentEnabled        Boolean  @default(false)
-  dailySpendLimitRub     Decimal? @db.Decimal(18, 2)
-  monthlySpendLimitRub   Decimal? @db.Decimal(18, 2)
-  minBalanceNotifyRub    Decimal? @db.Decimal(18, 2)
+  id                      Int      @id @default(autoincrement())
+  accountId               Int      @unique
+  aiEnabled               Boolean  @default(true)
+  siteAssistantEnabled    Boolean  @default(true)
+  crmAgentEnabled         Boolean  @default(false)
+  dailySpendLimitRub      Decimal? @db.Decimal(18, 2)
+  monthlySpendLimitRub    Decimal? @db.Decimal(18, 2)
+  minBalanceNotifyRub     Decimal? @db.Decimal(18, 2)
   stopWhenBalanceBelowRub Decimal? @db.Decimal(18, 2)
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  dailyTokenLimit         Int?
+  monthlyTokenLimit       Int?
+  minTokensNotify         Int?
+  stopWhenTokensBelow     Int?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 model AiLog {

@@ -93,6 +93,11 @@ export default async function PlatformBillingPage() {
                       Счёт #{invoice.id} · {money(invoice.amount)} {invoice.currency} ·{" "}
                       {invoiceStatusLabels[invoice.status] ?? invoice.status}
                     </div>
+                    {invoice.paymentProvider || invoice.providerPaymentId || invoice.providerStatus ? (
+                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                        Провайдер: {invoice.paymentProvider ?? "—"} · Метод: {invoice.paymentMethod ?? "—"} · Платёж: {invoice.providerPaymentId ?? "—"} · Статус банка: {invoice.providerStatus ?? "—"}
+                      </div>
+                    ) : null}
                     {aiInvoice ? (
                       <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                         AI-пакет: {aiInvoice.packageName ?? "пакет"} · {int(aiInvoice.displayTokens ?? 0)} токенов начислится после оплаты
@@ -103,9 +108,7 @@ export default async function PlatformBillingPage() {
                     {invoice.issuedAt?.toLocaleDateString("ru-RU") ?? "—"}
                   </div>
                   <BillingInvoiceActions
-                    invoiceId={invoice.id}
                     status={invoice.status}
-                    isAiInvoice={aiInvoice != null}
                   />
                 </div>
               );
@@ -135,6 +138,9 @@ export default async function PlatformBillingPage() {
                   <div className="text-xs text-[color:var(--bp-muted)]">
                     {payment.amount.toString()} {payment.currency} ·{" "}
                     {paymentStatusLabels[payment.status] ?? payment.status}
+                  </div>
+                  <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                    Провайдер: {payment.provider ?? "—"} · Метод: {payment.method ?? "—"} · Платёж: {payment.providerRef ?? "—"} · Статус банка: {payment.providerStatus ?? "—"}
                   </div>
                 </div>
                 <div className="text-xs text-[color:var(--bp-muted)]">

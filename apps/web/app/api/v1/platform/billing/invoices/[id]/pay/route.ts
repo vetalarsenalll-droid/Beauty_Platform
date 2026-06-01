@@ -39,9 +39,9 @@ export async function POST(_request: Request, { params }: Params) {
   }
 
   const aiPurchases = await prisma.$queryRaw<
-    Array<{ id: number; accountId: number; creditRub: { toString(): string }; status: string }>
+    Array<{ id: number; accountId: number; creditRub: { toString(): string }; creditTokens: number; status: string }>
   >`
-    SELECT "id", "accountId", "creditRub", "status"
+    SELECT "id", "accountId", "creditRub", "creditTokens", "status"
     FROM "AiAccessPurchase"
     WHERE "invoiceId" = ${invoice.id}
   `;
@@ -76,6 +76,7 @@ export async function POST(_request: Request, { params }: Params) {
           accountId: purchase.accountId,
           type: "purchase",
           amountRub: Number(purchase.creditRub).toFixed(6),
+          amountTokens: purchase.creditTokens,
           comment: `AI invoice #${invoice.id}`,
         },
       });
