@@ -1,24 +1,28 @@
 # CRM Agent v2 Real Agent E2E Test Report
 
-Generated: 2026-05-29T19:52:34.024Z
-Run ID: crm-agent-v2-real-e2e-1780084335970-988f20f35941f
+Generated: 2026-05-30T13:22:31.174Z
+Run ID: crm-agent-v2-real-e2e-1780147230542-a0873a3236a39
+Scenario filter: none
+Diagnostics: none
 
 ## Summary
 
 | Metric | Value |
 | --- | --- |
 | Section 13 actions | 374 |
-| Real dialog scenarios | 5 |
-| Passed | 5 |
-| Failed | 0 |
-| Not covered yet | 369 |
+| Real dialog scenarios | 36 |
+| Scenario passed | 36 |
+| Scenario failed | 0 |
+| Action passed | 30 |
+| Action failed | 0 |
+| Not covered yet | 344 |
 
 ## E2E Status Counts
 
 | Status | Count |
 | --- | --- |
-| not_covered_yet | 369 |
-| passed | 5 |
+| not_covered_yet | 344 |
+| passed | 30 |
 
 ## Architecture Guards
 
@@ -29,6 +33,47 @@ Run ID: crm-agent-v2-real-e2e-1780084335970-988f20f35941f
 ## Bugs / Deviations
 
 _Нет зафиксированных падений в покрытых real-E2E сценариях._
+
+## Scenario Results
+
+| Action | Scenario | Status | Details |
+| --- | --- | --- | --- |
+| client.search | client-search-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.view | client-view-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.resolve | client-resolve-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.create | client-create-real-dialog | passed | Prepared and executed action #713. |
+| client.update | client-update-real-dialog | passed | Prepared and executed action #714. |
+| client.archive | client-archive-real-dialog | passed | Prepared and executed action #715. |
+| client.restore | client-restore-real-dialog | passed | Prepared and executed action #716. |
+| client.add_contact | client-add-contact-real-dialog | passed | Prepared and executed action #717. |
+| client.update_contact | client-update-contact-real-dialog | passed | Prepared and executed action #718. |
+| client.delete_contact | client-delete-contact-real-dialog | passed | Prepared and executed action #719. |
+| client.add_note | client-add-note-real-dialog | passed | Prepared and executed action #720. |
+| client.update_note | client-update-note-real-dialog | passed | Prepared and executed action #721. |
+| client.delete_note | client-delete-note-real-dialog | passed | Prepared and executed action #722. |
+| client.add_tag | client-add-tag-real-dialog | passed | Prepared and executed action #723. |
+| client.remove_tag | client-remove-tag-real-dialog | passed | Prepared and executed action #724. |
+| client.create_tag | client-create-tag-real-dialog | passed | Prepared and executed action #725. |
+| client.view_history | client-view-history-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.merge_duplicates | client-merge-duplicates-real-dialog | passed | Prepared draft action #726. |
+| client.view_visits | client-view-visits-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.view_payments | client-view-payments-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.view_reviews | client-view-reviews-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.view_loyalty | client-view-loyalty-real-dialog | passed | Agent produced the expected read/search behavior. |
+| client.update_consent | client-update-consent-real-dialog | passed | Prepared and executed action #727. |
+| client.notify | client-notify-real-dialog | passed | Prepared draft action #728. |
+| client.create_segment | client-create-segment-real-dialog | passed | Prepared draft action #729. |
+| client.export_segment | client-export-segment-real-dialog | passed | Prepared draft action #730. |
+| client.search | client-search-by-phone-paraphrase | passed | Agent produced the expected read/search behavior. |
+| client.view | client-view-short-paraphrase | passed | Agent produced the expected read/search behavior. |
+| client.add_note | client-add-note-paraphrase | passed | Prepared and executed action #731. |
+| client.notify | client-notify-paraphrase | passed | Prepared draft action #732. |
+| client.view_history | client-history-multiturn | passed | Agent produced the expected read/search behavior. |
+| client.delete_note | client-delete-note-ambiguous-negative | passed | Agent avoided unsafe action as expected. |
+| appointment.create | appointment-create-real-dialog | passed | Prepared and executed action #733. |
+| service.update_description | service-update-description-real-dialog | passed | Prepared and executed action #734. |
+| service.search | service-search-real-dialog | passed | Agent produced the expected read/search behavior. |
+| service.update_price | service-update-price-real-dialog | passed | Prepared and executed action #735. |
 
 ## Per-Action Matrix
 
@@ -76,38 +121,38 @@ _Нет зафиксированных падений в покрытых real-E
 | 13.2 Пользователи, роли, пароль | permission.revoke | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.2 Пользователи, роли, пароль | permission.view_matrix | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.3 Клиенты | client.search | read_only | passed | client-search-real-dialog | Agent produced the expected read/search behavior. |
-| 13.3 Клиенты | client.view | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.resolve | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.create | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.update | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.archive | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.restore | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.add_contact | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.update_contact | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.delete_contact | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.add_note | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.update_note | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.delete_note | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.add_tag | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.remove_tag | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.create_tag | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.merge_duplicates | draft_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.view_history | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.view_visits | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.view_payments | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.view_reviews | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.view_loyalty | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.update_consent | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.notify | draft_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.create_segment | draft_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.3 Клиенты | client.export_segment | draft_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
+| 13.3 Клиенты | client.view | read_only | passed | client-view-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.resolve | read_only | passed | client-resolve-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.create | implemented | passed | client-create-real-dialog | Prepared and executed action #713. |
+| 13.3 Клиенты | client.update | implemented | passed | client-update-real-dialog | Prepared and executed action #714. |
+| 13.3 Клиенты | client.archive | implemented | passed | client-archive-real-dialog | Prepared and executed action #715. |
+| 13.3 Клиенты | client.restore | implemented | passed | client-restore-real-dialog | Prepared and executed action #716. |
+| 13.3 Клиенты | client.add_contact | implemented | passed | client-add-contact-real-dialog | Prepared and executed action #717. |
+| 13.3 Клиенты | client.update_contact | implemented | passed | client-update-contact-real-dialog | Prepared and executed action #718. |
+| 13.3 Клиенты | client.delete_contact | implemented | passed | client-delete-contact-real-dialog | Prepared and executed action #719. |
+| 13.3 Клиенты | client.add_note | implemented | passed | client-add-note-real-dialog | Prepared and executed action #720. |
+| 13.3 Клиенты | client.update_note | implemented | passed | client-update-note-real-dialog | Prepared and executed action #721. |
+| 13.3 Клиенты | client.delete_note | implemented | passed | client-delete-note-real-dialog | Prepared and executed action #722. |
+| 13.3 Клиенты | client.add_tag | implemented | passed | client-add-tag-real-dialog | Prepared and executed action #723. |
+| 13.3 Клиенты | client.remove_tag | implemented | passed | client-remove-tag-real-dialog | Prepared and executed action #724. |
+| 13.3 Клиенты | client.create_tag | implemented | passed | client-create-tag-real-dialog | Prepared and executed action #725. |
+| 13.3 Клиенты | client.merge_duplicates | draft_only | passed | client-merge-duplicates-real-dialog | Prepared draft action #726. |
+| 13.3 Клиенты | client.view_history | read_only | passed | client-view-history-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.view_visits | read_only | passed | client-view-visits-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.view_payments | read_only | passed | client-view-payments-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.view_reviews | read_only | passed | client-view-reviews-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.view_loyalty | read_only | passed | client-view-loyalty-real-dialog | Agent produced the expected read/search behavior. |
+| 13.3 Клиенты | client.update_consent | implemented | passed | client-update-consent-real-dialog | Prepared and executed action #727. |
+| 13.3 Клиенты | client.notify | draft_only | passed | client-notify-real-dialog | Prepared draft action #728. |
+| 13.3 Клиенты | client.create_segment | draft_only | passed | client-create-segment-real-dialog | Prepared draft action #729. |
+| 13.3 Клиенты | client.export_segment | draft_only | passed | client-export-segment-real-dialog | Prepared draft action #730. |
 | 13.4 Записи | appointment.search | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.view | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.resolve | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.find_slots | read_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.hold_slot | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.release_hold | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.4 Записи | appointment.create | implemented | passed | appointment-create-real-dialog | Prepared and executed action #263. |
+| 13.4 Записи | appointment.create | implemented | passed | appointment-create-real-dialog | Prepared and executed action #733. |
 | 13.4 Записи | appointment.reschedule | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.cancel | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.4 Записи | appointment.confirm | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
@@ -165,9 +210,9 @@ _Нет зафиксированных падений в покрытых real-E
 | 13.7 Услуги | service.create | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.7 Услуги | service.update | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.7 Услуги | service.update_name | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.7 Услуги | service.update_description | implemented | passed | service-update-description-real-dialog | Prepared and executed action #264. |
+| 13.7 Услуги | service.update_description | implemented | passed | service-update-description-real-dialog | Prepared and executed action #734. |
 | 13.7 Услуги | service.generate_description | draft_only | not_covered_yet |  | Real dialog scenario is not defined yet. |
-| 13.7 Услуги | service.update_price | implemented | passed | service-update-price-real-dialog | Prepared and executed action #265. |
+| 13.7 Услуги | service.update_price | implemented | passed | service-update-price-real-dialog | Prepared and executed action #735. |
 | 13.7 Услуги | service.update_duration | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.7 Услуги | service.update_booking_type | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |
 | 13.7 Услуги | service.activate | implemented | not_covered_yet |  | Real dialog scenario is not defined yet. |

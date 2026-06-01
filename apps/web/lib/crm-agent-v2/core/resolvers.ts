@@ -87,6 +87,47 @@ function scoreLabels(query: string | null | undefined, labels: Array<string | nu
   return misses === tokens.length ? Number.POSITIVE_INFINITY : misses + tokens.length * 0.1;
 }
 
+function transliterateRuToLatin(value: string | null | undefined) {
+  const map: Record<string, string> = {
+    а: "a",
+    б: "b",
+    в: "v",
+    г: "g",
+    д: "d",
+    е: "e",
+    ё: "e",
+    ж: "zh",
+    з: "z",
+    и: "i",
+    й: "y",
+    к: "k",
+    л: "l",
+    м: "m",
+    н: "n",
+    о: "o",
+    п: "p",
+    р: "r",
+    с: "s",
+    т: "t",
+    у: "u",
+    ф: "f",
+    х: "h",
+    ц: "ts",
+    ч: "ch",
+    ш: "sh",
+    щ: "sch",
+    ъ: "",
+    ы: "y",
+    ь: "",
+    э: "e",
+    ю: "yu",
+    я: "ya",
+  };
+  const raw = String(value ?? "").toLocaleLowerCase("ru-RU");
+  if (!/[а-яё]/iu.test(raw)) return "";
+  return raw.replace(/[а-яё]/giu, (char) => map[char.toLocaleLowerCase("ru-RU")] ?? char);
+}
+
 function takeValue(value: number | undefined) {
   return Math.min(Math.max(Math.trunc(value ?? DEFAULT_TAKE), 1), 50);
 }
@@ -175,6 +216,9 @@ export async function resolveCrmAgentClient(ctx: CrmAgentResolverContext, args: 
       client.firstName,
       client.lastName,
       [client.firstName, client.lastName].filter(Boolean).join(" "),
+      transliterateRuToLatin(client.firstName),
+      transliterateRuToLatin(client.lastName),
+      transliterateRuToLatin([client.firstName, client.lastName].filter(Boolean).join(" ")),
       client.phone,
       client.email,
       ...client.tags.map((item) => item.tag.name),

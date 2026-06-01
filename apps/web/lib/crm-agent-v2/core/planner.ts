@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { runWithAiUsageContext } from "@/lib/ai-usage";
 import { createGigaChatCompletion } from "@/lib/gigachat";
 import type { CrmAgentCatalogSummaryAction } from "../actions";
+import { canonicalizeCrmAgentPlan } from "./plan-canonicalizer";
 import type { CrmAgentGoal, CrmAgentIntent, CrmAgentPlanStepType } from "./types";
 import type { CrmAgentRegisteredToolDefinition } from "./tools";
 
@@ -49,6 +50,28 @@ export type CrmAgentPlannerResult =
   | { ok: false; error: string; raw: string | null; model: string | null };
 
 const supportedIntents = new Set<CrmAgentIntent>(["read", "create", "update", "delete", "analyze", "notify", "execute"]);
+const supportedReadToolNames = new Set([
+  "clients.search",
+  "clients.get",
+  "client.view_history",
+  "client.view_visits",
+  "client.view_payments",
+  "client.view_reviews",
+  "client.view_loyalty",
+  "services.search",
+  "services.get",
+  "specialists.search",
+  "specialists.get",
+  "locations.search",
+  "appointments.search",
+  "appointments.findAvailableSlots",
+  "reviews.search",
+  "promos.search",
+  "analytics.workload",
+  "analytics.retention",
+  "site.health",
+  "memory.search",
+]);
 const supportedStepTypes = new Set<CrmAgentPlanStepType>([
   "read",
   "resolve",
@@ -102,7 +125,14 @@ function normalizeSteps(value: unknown) {
   return value.flatMap((item, index): CrmAgentPlannerStep[] => {
     if (!isJsonObject(item)) return [];
     const rawType = typeof item.type === "string" ? item.type : null;
-    const normalizedType = rawType === "prepare" || rawType === "actions.prepare" ? "draft" : rawType;
+    const normalizedType =
+      rawType === "prepare" || rawType === "actions.prepare"
+        ? "draft"
+        : rawType && supportedReadToolNames.has(rawType)
+          ? "read"
+          : rawType?.includes(".") && rawType !== "actions.confirm"
+            ? "draft"
+            : rawType;
     const type =
       typeof normalizedType === "string" && supportedStepTypes.has(normalizedType as CrmAgentPlanStepType)
         ? (normalizedType as CrmAgentPlanStepType)
@@ -116,17 +146,14 @@ function normalizeSteps(value: unknown) {
           ? args.actionName
           : typeof args.actionType === "string"
             ? args.actionType
-            : null;
+            : type === "draft" && rawType?.includes(".")
+              ? rawType
+              : null;
     return [
       {
         order: typeof item.order === "number" && Number.isFinite(item.order) ? item.order : index + 1,
         type,
-        toolName:
-          typeof item.toolName === "string" && item.toolName.trim()
-            ? item.toolName
-            : rawType === "actions.prepare"
-              ? "actions.prepare"
-              : null,
+        toolName: normalizePlannerToolName(type, rawType, item.toolName),
         actionName,
         args,
         reason: typeof item.reason === "string" ? item.reason : "",
@@ -146,6 +173,12 @@ function normalizePlannerStepArgs(value: unknown): Prisma.JsonObject | undefined
     args.actionType = args.actionName;
   }
   return args;
+}
+
+function normalizePlannerToolName(type: CrmAgentPlanStepType, rawType: string | null, value: unknown) {
+  const toolName = typeof value === "string" && value.trim() ? value.trim() : null;
+  if ((type === "draft" || rawType === "actions.prepare") && (!toolName || toolName === "actions")) return "actions.prepare";
+  return toolName;
 }
 
 export function parseCrmAgentPlannerPlan(raw: string): CrmAgentPlannerPlan | null {
@@ -190,7 +223,13 @@ function fallbackGoalForStatus(status: CrmAgentPlannerPlan["status"]): CrmAgentG
 }
 
 function parseJsonObjectWithRepairedKeys(jsonLike: string): unknown {
-  const repaired = trimExtraClosingBraces(jsonLike)
+  const repaired = trimExtraClosingBraces(repairExtraStepClosingBrace(jsonLike))
+    .replace(
+      /("userFacingSummary"\s*:\s*"(?:(?:\\.)|[^"\\])*")\s*,\s*"missingSlots"\s*:/,
+      '$1},"status":"planned","missingSlots":',
+    )
+    .replace(/"args\{\}"/g, '"args":{}')
+    .replace(/("reason"\s*:\s*"(?:(?:\\.)|[^"\\])*")\s*}\s*}\s*(?=\])/g, "$1}")
     .replace(/,\s*"steps=\[\]"\s*(?=})/g, ',"steps":[]')
     .replace(/"steps=\[\]"\s*(?=})/g, '"steps":[]')
     .replace(/([,{]\s*)\.([A-Za-z_][A-Za-z0-9_]*)\s*:/g, '$1"$2":')
@@ -201,6 +240,10 @@ function parseJsonObjectWithRepairedKeys(jsonLike: string): unknown {
   } catch {
     return null;
   }
+}
+
+function repairExtraStepClosingBrace(jsonLike: string) {
+  return jsonLike.replace(/("reason"\s*:\s*"(?:(?:\\.)|[^"\\])*")\s*}\s*}\s*(?=\])/g, "$1}");
 }
 
 function trimExtraClosingBraces(jsonLike: string) {
@@ -314,7 +357,12 @@ export async function requestCrmAgentPlannerPlan(input: CrmAgentPlannerRequest):
     if (!plan) {
       return { ok: false, error: "invalid_planner_json", raw: completion.content, model: completion.model };
     }
-    plan = normalizePlannerPlanForRuntime(plan, input.actions, input.message);
+    plan = canonicalizeCrmAgentPlan({
+      plan,
+      actions: input.actions,
+      tools: input.tools,
+      message: input.message,
+    }).plan;
     return { ok: true, plan, raw: completion.content, model: completion.model };
   } catch (error) {
     return {
@@ -337,250 +385,7 @@ export function normalizePlannerPlanForRuntime(
   actions: CrmAgentCatalogSummaryAction[],
   message: string,
 ): CrmAgentPlannerPlan {
-  if (!["create", "update", "delete", "notify", "execute"].includes(plan.goal.intent)) return plan;
-
-  const action = actions.find((item) => item.name === plan.goal.type);
-  if (!action || action.status === "read_only" || action.status === "planned" || action.status === "blocked" || action.status === "unsupported") {
-    return plan;
-  }
-  if (plan.status !== "planned" && !canPromoteClarificationToResolvablePlan(plan, action)) return plan;
-
-  const readSteps = ensureResolvableReadSteps(plan.steps, plan.goal, action);
-  const steps: CrmAgentPlannerStep[] = readSteps.map((step) => {
-    if (step.type !== "draft" && step.toolName !== "actions.prepare" && step.toolName !== "actions.preview") return step;
-    const actionName = step.actionName ?? action.name;
-    const payload = {
-      ...payloadFromGoalSlots(plan.goal.slots, action.requiredSlots, readSteps, plan.goal.userFacingSummary),
-      ...(isJsonObject(step.args?.payload) ? step.args.payload : {}),
-    };
-    normalizeActionPayloadFromMessage(payload, action, message);
-    fillMissingIdPlaceholders(payload, action.requiredSlots, readSteps);
-    return {
-      ...step,
-      type: step.type === "preview" ? "preview" : "draft",
-      toolName: step.toolName ?? "actions.prepare",
-      actionName,
-      args: {
-        ...(step.args ?? {}),
-        actionType: actionName,
-        payload,
-      },
-    };
-  });
-
-  if (!steps.some((step) => step.type === "draft" || step.toolName === "actions.prepare")) {
-    steps.push({
-      order: steps.length + 1,
-      type: "draft",
-      toolName: "actions.prepare",
-      actionName: action.name,
-      args: {
-        actionType: action.name,
-        summary: plan.goal.userFacingSummary || action.name,
-        payload: normalizedActionPayloadFromMessage(
-          payloadFromGoalSlots(plan.goal.slots, action.requiredSlots, readSteps, plan.goal.userFacingSummary),
-          action,
-          message,
-        ),
-      },
-      reason: "Prepare action draft after required entities are resolved.",
-    });
-  }
-
-  return { ...plan, status: "planned", missingSlots: [], clarificationQuestion: "", steps: steps.map((step, index) => ({ ...step, order: index + 1 })) };
-}
-
-function normalizedActionPayloadFromMessage(
-  payload: Prisma.JsonObject,
-  action: CrmAgentCatalogSummaryAction,
-  message: string,
-) {
-  normalizeActionPayloadFromMessage(payload, action, message);
-  return payload;
-}
-
-function normalizeActionPayloadFromMessage(
-  payload: Prisma.JsonObject,
-  action: CrmAgentCatalogSummaryAction,
-  message: string,
-) {
-  if (action.name === "service.update_description") {
-    const exactDescription = message.match(/(?:^|\s)на:\s*(.+?)\s*$/iu)?.[1]?.trim();
-    if (exactDescription) payload.description = exactDescription;
-  }
-  if (action.name === "service.update_price") {
-    if (payload.basePrice == null && payload.priceTotal != null) payload.basePrice = payload.priceTotal;
-    const exactPrice = message.match(/(?:^|\s)на\s+(\d+(?:[.,]\d+)?)\s*(?:руб|р\b|₽|$)/iu)?.[1]?.replace(",", ".");
-    if (exactPrice) payload.basePrice = exactPrice;
-  }
-}
-
-function payloadFromGoalSlots(
-  slots: Record<string, unknown>,
-  requiredSlots: string[],
-  steps: CrmAgentPlannerStep[] = [],
-  summary = "",
-) {
-  const payload: Prisma.JsonObject = {};
-  for (const slot of requiredSlots) {
-    if (slot.endsWith("Id")) {
-      const entity = slot.slice(0, -2);
-      const selected = selectedIdSlotValue(slots[slot]);
-      if (selected != null && selected !== "") {
-        payload[slot] = selected;
-        continue;
-      }
-      const entityValue = slotValue(slots[entity]) ?? slotValue(slots[slot]) ?? inferredEntityQueryFromSummary(entity, summary);
-      if (entityValue != null && entityValue !== "") payload[slot] = placeholderForEntityId(entity);
-      if (payload[slot] === undefined && hasReadStepForEntity(steps, entity)) payload[slot] = placeholderForEntityId(entity);
-      continue;
-    }
-
-    const direct = slotValue(slots[slot]);
-    if (direct != null && direct !== "") {
-      payload[slot] = slot === "startAt" ? normalizePlannerDateValue(direct) ?? direct : direct;
-      continue;
-    }
-
-    if (slot === "startAt") {
-      const startAt = slotValue(slots.startAt) ?? slotValue(slots.time);
-      payload.startAt = startAt ? normalizePlannerDateValue(startAt) ?? startAt : "#START_AT#";
-    }
-  }
-  return payload;
-}
-
-function canPromoteClarificationToResolvablePlan(plan: CrmAgentPlannerPlan, action: CrmAgentCatalogSummaryAction) {
-  if (plan.status !== "needs_clarification") return true;
-  return action.requiredSlots.every((slot) => {
-    const direct = slotValue(plan.goal.slots[slot]);
-    if (direct != null && direct !== "") return true;
-    if (!slot.endsWith("Id")) return false;
-    const entity = slot.slice(0, -2);
-    return Boolean(slotValue(plan.goal.slots[entity]) ?? inferredEntityQueryFromSummary(entity, plan.goal.userFacingSummary));
-  });
-}
-
-function ensureResolvableReadSteps(
-  steps: CrmAgentPlannerStep[],
-  goal: CrmAgentGoal,
-  action: CrmAgentCatalogSummaryAction,
-) {
-  const next = [...steps];
-  for (const slot of action.requiredSlots) {
-    if (!slot.endsWith("Id")) continue;
-    const entity = slot.slice(0, -2);
-    if (hasReadStepForEntity(next, entity)) continue;
-    const query = slotValue(goal.slots[entity]) ?? slotValue(goal.slots[slot]) ?? inferredEntityQueryFromSummary(entity, goal.userFacingSummary);
-    const toolName = readToolForEntity(entity);
-    if (typeof query === "string" && query.trim() && toolName) {
-      next.push({
-        order: next.length + 1,
-        type: "read",
-        toolName,
-        args: { query: query.trim() },
-        reason: `Resolve ${entity} before preparing ${action.name}.`,
-      });
-    }
-  }
-  return next;
-}
-
-function readToolForEntity(entity: string) {
-  const tools: Record<string, string> = {
-    client: "clients.search",
-    service: "services.search",
-    specialist: "specialists.search",
-    location: "locations.search",
-    appointment: "appointments.search",
-  };
-  return tools[entity] ?? null;
-}
-
-function fillMissingIdPlaceholders(payload: Prisma.JsonObject, requiredSlots: string[], steps: CrmAgentPlannerStep[]) {
-  for (const slot of requiredSlots) {
-    if (!slot.endsWith("Id") || (payload[slot] != null && payload[slot] !== "")) continue;
-    const entity = slot.slice(0, -2);
-    if (hasReadStepForEntity(steps, entity)) payload[slot] = placeholderForEntityId(entity);
-  }
-}
-
-function hasReadStepForEntity(steps: CrmAgentPlannerStep[], entity: string) {
-  const toolPrefixByEntity: Record<string, string> = {
-    client: "clients.",
-    service: "services.",
-    specialist: "specialists.",
-    location: "locations.",
-    appointment: "appointments.",
-  };
-  const prefix = toolPrefixByEntity[entity];
-  return Boolean(prefix && steps.some((step) => step.type === "read" && step.toolName?.startsWith(prefix)));
-}
-
-function inferredEntityQueryFromSummary(entity: string, summary: string) {
-  if (entity !== "service") return null;
-  const match = summary.match(/услуг[аи]?\s+(.+?)(?:\s+на\s+|\s+с\s+|$)/iu);
-  return match?.[1]?.trim() || null;
-}
-
-function slotValue(value: unknown): unknown {
-  if (isJsonObject(value)) return value.value ?? value.query ?? value.selectedId ?? null;
-  return value ?? null;
-}
-
-function selectedIdSlotValue(value: unknown): unknown {
-  if (!isJsonObject(value)) return value ?? null;
-  return value.selectedId ?? value.value ?? null;
-}
-
-function placeholderForEntityId(entity: string) {
-  return `#${entity.replace(/[A-Z]/g, (char) => `_${char}`).toUpperCase()}_ID#`;
-}
-
-function normalizePlannerDateValue(value: unknown) {
-  if (typeof value !== "string") return null;
-  const raw = value.trim();
-  if (!raw) return null;
-  const iso = new Date(raw);
-  if (!Number.isNaN(iso.getTime())) return iso.toISOString();
-  const match = raw.match(/^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
-  const ruMatch = raw.match(/^(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s+(?:в\s*)?(\d{1,2}):(\d{2}))?$/iu);
-  if (!match && !ruMatch) return null;
-  const [, day, month, year, hour = "0", minute = "0"] = match ?? ruMatch ?? [];
-  const monthIndex = match ? Number(month) - 1 : ruMonthIndex(month);
-  if (monthIndex == null) return null;
-  const date = new Date(Date.UTC(Number(year), monthIndex, Number(day), Number(hour), Number(minute)));
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
-
-function ruMonthIndex(value: string) {
-  const months: Record<string, number> = {
-    января: 0,
-    январь: 0,
-    февраля: 1,
-    февраль: 1,
-    марта: 2,
-    март: 2,
-    апреля: 3,
-    апрель: 3,
-    мая: 4,
-    май: 4,
-    июня: 5,
-    июнь: 5,
-    июля: 6,
-    июль: 6,
-    августа: 7,
-    август: 7,
-    сентября: 8,
-    сентябрь: 8,
-    октября: 9,
-    октябрь: 9,
-    ноября: 10,
-    ноябрь: 10,
-    декабря: 11,
-    декабрь: 11,
-  };
-  return months[value.toLowerCase()] ?? null;
+  return canonicalizeCrmAgentPlan({ plan, actions, message }).plan;
 }
 
 async function requestPlannerCompletion(input: CrmAgentPlannerRequest, repairRaw?: string) {

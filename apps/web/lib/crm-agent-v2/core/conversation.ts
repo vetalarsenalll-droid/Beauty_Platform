@@ -101,7 +101,8 @@ export async function runCrmAgentConversation(input: RunCrmAgentConversationInpu
       draft = repairedDraft;
     }
   }
-  draft = withFallbackReadToolRequest(input.route, draft, readTools.map((tool) => tool.name));
+  draft = normalizeClientScopedReadToolRequests(input.route, draft, input.message);
+  draft = withFallbackReadToolRequest(input.route, draft, readTools.map((tool) => tool.name), input.message);
 
   const readToolResults =
     input.route.kind === "crm_question" && !draft.shouldEscalateToPlanner
@@ -466,21 +467,75 @@ function withFallbackReadToolRequest(
   route: CrmAgentRouteDecision,
   draft: ConversationDraft,
   allowedToolNames: string[],
+  message: string,
 ): ConversationDraft {
   if (route.kind !== "crm_question" || draft.shouldEscalateToPlanner || draft.readToolRequests.length) return draft;
+  const mentionedTool = allowedToolNames.find((toolName) => draft.answer.includes(toolName));
+  if (mentionedTool) {
+    return {
+      ...draft,
+      readToolRequests: [
+        {
+          toolName: mentionedTool,
+          args: { query: extractClientQueryFromQuestion(message) ?? message, take: 30 },
+          reason: "Fallback read-only tool mentioned by the conversation draft.",
+        },
+      ],
+    };
+  }
   const fallbackTool = readToolForSuggestedGoal(route.suggestedGoalType);
-  if (!fallbackTool || !allowedToolNames.includes(fallbackTool)) return draft;
+  const messageFallbackTool = readToolForMessage(message);
+  const toolName = fallbackTool && allowedToolNames.includes(fallbackTool) ? fallbackTool : messageFallbackTool;
+  if (!toolName || !allowedToolNames.includes(toolName)) return draft;
 
   return {
     ...draft,
     readToolRequests: [
       {
-        toolName: fallbackTool,
-        args: { take: 30 },
-        reason: "Fallback read-only tool selected from router suggestedGoalType.",
+        toolName,
+        args: { query: extractClientQueryFromQuestion(message) ?? message, take: 30 },
+        reason: fallbackTool === toolName ? "Fallback read-only tool selected from router suggestedGoalType." : "Fallback read-only tool selected from message shape.",
       },
     ],
   };
+}
+
+function normalizeClientScopedReadToolRequests(
+  route: CrmAgentRouteDecision,
+  draft: ConversationDraft,
+  message: string,
+): ConversationDraft {
+  if (route.kind !== "crm_question" || draft.shouldEscalateToPlanner || !draft.readToolRequests.length) return draft;
+  const scopedTool = clientScopedReadToolForMessage(route.suggestedGoalType, message);
+  if (!scopedTool) return draft;
+  return {
+    ...draft,
+    readToolRequests: draft.readToolRequests.map((request) =>
+      request.toolName === "clients.search" || request.toolName === "clients.get"
+        ? {
+            ...request,
+            toolName: scopedTool,
+            args: { ...request.args, query: extractClientQueryFromQuestion(message) ?? request.args.query ?? message },
+            reason: request.reason || "Use client-scoped read tool for the requested client data.",
+          }
+        : request,
+    ),
+  };
+}
+
+function clientScopedReadToolForMessage(goalType: string | undefined, message: string) {
+  const normalized = message.toLocaleLowerCase("ru-RU");
+  if (!/клиент/u.test(normalized)) return null;
+  if (goalType === "reviews.search" || /отзыв/u.test(normalized)) return "client.view_reviews";
+  if (/визит/u.test(normalized)) return "client.view_visits";
+  if (/плат[её]ж/u.test(normalized)) return "client.view_payments";
+  if (/лояльност|бонус/u.test(normalized)) return "client.view_loyalty";
+  return null;
+}
+
+function extractClientQueryFromQuestion(message: string) {
+  const match = message.match(/клиент[а-я]*\s+(.+?)[.!?]?\s*$/iu);
+  return match?.[1]?.trim() || null;
 }
 
 function readToolForSuggestedGoal(goalType: string | undefined) {
@@ -491,11 +546,24 @@ function readToolForSuggestedGoal(goalType: string | undefined) {
   return null;
 }
 
+function readToolForMessage(message: string) {
+  const normalized = message.toLocaleLowerCase("ru-RU");
+  if (/клиент/u.test(normalized)) {
+    if (/отзыв/u.test(normalized)) return "client.view_reviews";
+    if (/визит/u.test(normalized)) return "client.view_visits";
+    if (/плат[её]ж/u.test(normalized)) return "client.view_payments";
+    if (/лояльност|бонус/u.test(normalized)) return "client.view_loyalty";
+    if (/карточк|покажи|посмотри/u.test(normalized)) return "clients.get";
+    if (/найди|поиск|определи/u.test(normalized)) return "clients.search";
+  }
+  return null;
+}
+
 function shouldRepairMissingReadTools(route: CrmAgentRouteDecision, draft: ConversationDraft) {
   if (route.kind !== "crm_question" || draft.shouldEscalateToPlanner || draft.readToolRequests.length) return false;
   const answer = draft.answer.trim().toLocaleLowerCase("ru-RU");
   if (!answer) return true;
-  return /(посмотр|провер|уточн|сейчас|данные crm|отвечу по текущему аккаунту|look|check|fetch|let me)/i.test(answer);
+  return /(ищу|найду|посмотр|провер|уточн|сейчас|данные crm|отвечу по текущему аккаунту|инструмент|используйте|предоставить доступ|подтверди|look|check|fetch|let me)/i.test(answer);
 }
 
 function shouldRepairEmptyConversationDraft(draft: ConversationDraft) {
@@ -579,6 +647,7 @@ function extractBooleanField(jsonLike: string, field: string) {
 function extractJsonObject(text: string) {
   const trimmed = text.trim();
   if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
+  if (trimmed.startsWith("{") && !trimmed.endsWith("}")) return `${trimmed}}`;
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   if (fenced?.startsWith("{") && fenced.endsWith("}")) return fenced;
   const start = trimmed.indexOf("{");

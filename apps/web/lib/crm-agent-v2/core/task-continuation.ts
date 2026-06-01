@@ -8,7 +8,7 @@ import {
   updateCrmAgentActionPayload,
 } from "./persistence";
 import { executeCrmAgentReadTool } from "./read-tools";
-import { resolveCrmAgentSpecialist } from "./resolvers";
+import { resolveCrmAgentClient, resolveCrmAgentService, resolveCrmAgentSpecialist } from "./resolvers";
 import type {
   CrmAgentCard,
   CrmAgentCandidate,
@@ -36,6 +36,9 @@ export async function handleCrmAgentTaskContinuation(
 ): Promise<CrmAgentTaskContinuationResult> {
   const state = input.state ? cloneState(input.state) : null;
   if (state) {
+    normalizeContinuationMissingSlots(state);
+    await hydrateAppointmentSelection(state, input);
+
     if (isAutoSuggestRequest(input.message) && state.missing.length) {
       const activeSlot = state.missing[0];
       const answer = pendingSelectionAnswer(state, activeSlot);
@@ -64,7 +67,7 @@ export async function handleCrmAgentTaskContinuation(
       };
     }
 
-    const selection = selectCandidateFromText(state, input.message, input.timezone);
+    const selection = selectCandidateFromText(state, input.message, input.timezone) ?? (await resolveCandidateSelectionFromText(state, input));
     if (selection) {
       applyCandidateSelection(state, selection.slot, selection.candidate);
       await hydrateAppointmentSelection(state, input);
@@ -171,6 +174,50 @@ function candidateSlotsInPriority(state: CrmAgentTaskState) {
     .map(([slot]) => slot);
   const remaining = Object.keys(state.candidates).filter((slot) => (state.candidates[slot] ?? []).length > 0);
   return [...new Set([...unresolved, ...ambiguous, ...remaining])];
+}
+
+async function resolveCandidateSelectionFromText(state: CrmAgentTaskState, input: HandleCrmAgentTaskContinuationInput) {
+  const message = input.message.trim();
+  if (!message || message.length < 2) return null;
+
+  for (const slot of candidateSlotsInPriority(state)) {
+    if (slot === "client") {
+      const result = await resolveCrmAgentClient({ accountId: input.accountId }, { query: message, take: 5 });
+      const candidate = result.selected ?? exactCandidateMatch(result.candidates, message);
+      if (candidate) return { slot, candidate, answer: `Выбран вариант: ${candidate.title}.` };
+    }
+    if (slot === "service") {
+      const result = await resolveCrmAgentService({ accountId: input.accountId }, { query: message, take: 5 });
+      const candidate = result.selected ?? exactCandidateMatch(result.candidates, message);
+      if (candidate) return { slot, candidate, answer: `Выбран вариант: ${candidate.title}.` };
+    }
+    if (slot === "specialist") {
+      const serviceId = numberValue(state.selected.service);
+      const result = await resolveCrmAgentSpecialist(
+        { accountId: input.accountId },
+        { query: message, filters: serviceId ? { serviceId } : undefined, take: 5 },
+      );
+      const candidate = result.selected ?? exactCandidateMatch(result.candidates, message);
+      if (candidate) return { slot, candidate, answer: `Выбран вариант: ${candidate.title}.` };
+    }
+    if (slot === "location") {
+      const serviceId = numberValue(state.selected.service);
+      const candidates = serviceId ? await loadServiceLocationCandidates(input.accountId, serviceId) : [];
+      const candidate = exactCandidateMatch(candidates, message);
+      if (candidate) return { slot, candidate, answer: `Выбран вариант: ${candidate.title}.` };
+    }
+  }
+
+  return null;
+}
+
+function exactCandidateMatch(candidates: CrmAgentCandidate[], message: string) {
+  const normalized = normalizeSelectionText(message);
+  return candidates.find((candidate) => {
+    const title = normalizeSelectionText(candidate.title);
+    const subtitle = normalizeSelectionText(candidate.subtitle ?? "");
+    return title === normalized || title.includes(normalized) || normalized.includes(title) || subtitle.includes(normalized);
+  });
 }
 
 function isAutoSuggestRequest(message: string) {
@@ -322,7 +369,7 @@ function availableSlotCandidates(value: unknown): CrmAgentCandidate[] {
 
 function applyNextMissingSlots(state: CrmAgentTaskState) {
   if (state.goalType !== "appointment.create") return;
-  const missing = new Set(state.missing);
+  const missing = new Set(state.missing.map(normalizeEntitySlotName));
   if (!state.selected.client) missing.add("client");
   if (!state.selected.service) missing.add("service");
   if (state.selected.client && state.selected.service) {
@@ -332,6 +379,25 @@ function applyNextMissingSlots(state: CrmAgentTaskState) {
   }
   for (const slot of Object.keys(state.selected)) missing.delete(slot);
   state.missing = [...missing];
+}
+
+function normalizeContinuationMissingSlots(state: CrmAgentTaskState) {
+  state.missing = [...new Set(state.missing.map(normalizeEntitySlotName))];
+}
+
+function normalizeEntitySlotName(slot: string) {
+  const map: Record<string, string> = {
+    clientId: "client",
+    serviceId: "service",
+    specialistId: "specialist",
+    locationId: "location",
+    startAt: "time",
+  };
+  return map[slot] ?? slot;
+}
+
+function normalizeSelectionText(value: string) {
+  return value.toLocaleLowerCase("ru-RU").replace(/\s+/g, " ").trim();
 }
 
 async function updatePendingDraftFromText(input: HandleCrmAgentTaskContinuationInput): Promise<CrmAgentTaskContinuationResult | null> {

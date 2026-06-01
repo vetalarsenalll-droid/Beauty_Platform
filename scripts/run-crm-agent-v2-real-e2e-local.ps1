@@ -1,5 +1,6 @@
 param(
-  [int]$RealAccountId = 2
+  [int]$RealAccountId = 2,
+  [string]$Filter = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -33,6 +34,11 @@ if (-not $env:DATABASE_URL) {
 
 $env:CRM_AGENT_V2_REAL_E2E = "1"
 $env:CRM_AGENT_V2_REAL_ACCOUNT_ID = [string]$RealAccountId
+if ($Filter) {
+  $env:CRM_AGENT_V2_REAL_E2E_FILTER = $Filter
+} else {
+  [Environment]::SetEnvironmentVariable("CRM_AGENT_V2_REAL_E2E_FILTER", $null, "Process")
+}
 $env:JITI_FS_CACHE = "false"
 $env:JITI_MODULE_CACHE = "false"
 $env:JITI_REBUILD_FS_CACHE = "true"

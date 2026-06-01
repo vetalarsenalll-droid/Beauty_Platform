@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 type BillingInvoiceActionsProps = {
   invoiceId: number;
   status: string;
+  isAiInvoice?: boolean;
 };
 
 const statusLabels: Record<string, string> = {
@@ -18,6 +19,7 @@ const statusLabels: Record<string, string> = {
 export default function BillingInvoiceActions({
   invoiceId,
   status,
+  isAiInvoice = false,
 }: BillingInvoiceActionsProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -46,7 +48,7 @@ export default function BillingInvoiceActions({
           disabled={saving}
           className="rounded-2xl border border-[color:var(--bp-stroke)] px-2 py-1 text-xs"
         >
-          {saving ? "..." : "Отметить оплату"}
+          {saving ? "..." : isAiInvoice ? "Оплачен, начислить токены" : "Отметить оплату"}
         </button>
       ) : null}
     </div>

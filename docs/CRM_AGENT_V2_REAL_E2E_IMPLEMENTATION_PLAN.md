@@ -27,10 +27,12 @@ npm run test:crm-agent-v2:real-e2e:local
 
 ```text
 Section 13 actions: 374
-Real dialog scenarios: 5
-Passed: 5
-Failed: 0
-Not covered yet: 369
+Real dialog scenarios: 36
+Scenario passed: 36
+Scenario failed: 0
+Action passed: 30
+Action failed: 0
+Not covered yet: 344
 ```
 
 Минимальный этап `Passed >= 3 / Failed = 0` закрыт.
@@ -44,6 +46,37 @@ docs/CRM_AGENT_V2_REAL_AGENT_E2E_TEST_REPORT.md
 Покрытые real-dialog сценарии:
 
 - `client.search`: passed.
+- `client.view`: passed.
+- `client.resolve`: passed.
+- `client.create`: passed, action prepared and executed.
+- `client.update`: passed, action prepared and executed.
+- `client.archive`: passed, action prepared and executed.
+- `client.restore`: passed, action prepared and executed.
+- `client.add_contact`: passed, action prepared and executed.
+- `client.update_contact`: passed, action prepared and executed.
+- `client.delete_contact`: passed, action prepared and executed.
+- `client.add_note`: passed, action prepared and executed.
+- `client.update_note`: passed, action prepared and executed.
+- `client.delete_note`: passed, action prepared and executed.
+- `client.add_tag`: passed, action prepared and executed.
+- `client.remove_tag`: passed, action prepared and executed.
+- `client.create_tag`: passed, action prepared and executed.
+- `client.merge_duplicates`: passed, draft action prepared.
+- `client.view_history`: passed.
+- `client.view_visits`: passed.
+- `client.view_payments`: passed.
+- `client.view_reviews`: passed.
+- `client.view_loyalty`: passed.
+- `client.update_consent`: passed, action prepared and executed.
+- `client.notify`: passed, draft action prepared.
+- `client.create_segment`: passed, draft action prepared.
+- `client.export_segment`: passed, draft action prepared.
+- `client.search` phone paraphrase: passed.
+- `client.view` short paraphrase: passed.
+- `client.add_note` comment paraphrase: passed, action prepared and executed.
+- `client.notify` paraphrase: passed, draft action prepared.
+- `client.view_history` multi-turn: passed.
+- `client.delete_note` ambiguous negative: passed, no unsafe action.
 - `appointment.create`: passed, action prepared and executed.
 - `service.update_description`: passed, action prepared and executed.
 - `service.search`: passed.
@@ -159,14 +192,17 @@ Runner:
 
 ```bash
 npm run typecheck
+npm run test:crm-agent-v2:canonicalizer
 npm run test:crm-agent-v2:real-e2e:local
 ```
 
 Real-E2E report показывает:
 
 ```text
-Passed: 5
-Failed: 0
+Scenario passed: 36
+Scenario failed: 0
+Action passed: 30
+Action failed: 0
 ```
 
 ## Важное различие тестов
@@ -225,6 +261,78 @@ Failed: 0
 
 Исправления должны усиливать contract, parser, planner normalization, resolver/runtime placeholder handling или fixture. Runtime keyword/regex recovery по пользовательским фразам не возвращать.
 
+## Codex-like CRM agent loop
+
+Цель следующего уровня - не заставить LLM "понимать все" одним prompt-ом, а построить вокруг него такой же проверяемый цикл, как у Codex вокруг кода:
+
+```text
+user phrase
+  -> router
+  -> retrieval/context selection
+  -> planner LLM
+  -> canonicalizer
+  -> validator
+  -> repair-pass or clarification
+  -> runtime tools/actions
+  -> verifier/report
+  -> regression tests
+```
+
+Обязательные свойства этого цикла:
+
+- Каталог возможностей: агент выбирает только из зарегистрированных `tools` и `actions`, не придумывает новые операции.
+- Контекст по запросу: перед планированием и выполнением агент должен добирать только релевантные CRM-данные, правила, examples и session state, а не полагаться на память модели.
+- Canonicalizer: типовые drift-shapes модели чинятся до runtime (`aliases`, malformed `actions.prepare`, `args.args`, строковые id, misplaced read/draft steps, tool/action names in `type`).
+- Validator gate: невалидный план не должен частично выполняться. Ошибки должны уходить в repair-pass или `needs_clarification`.
+- Structured repair-pass: если validator нашел ошибки, planner получает конкретный список ошибок, допустимые actions/tools и ожидаемый JSON contract.
+- Clarification вместо угадывания: если required slots нельзя безопасно получить из сообщения, state или read tools, агент задает вопрос.
+- Regression capture: каждый новый real-E2E failure class должен получать быстрый no-LLM тест, если это parser/canonicalizer/validator drift.
+- Runtime остается доменным executor-ом, а не phrase parser-ом: keyword/regex recovery по пользовательским фразам в runtime не возвращать.
+
+Текущий статус по этому циклу:
+
+- Уже есть: action/tool registry, router, planner, canonicalizer, partial validator, runtime tools/actions, persistence/audit, real-E2E matrix, filtered runs, canonicalizer no-LLM tests.
+- Не хватает: полноценного structured repair-pass после validator failure, retrieval по docs/schema/business rules/examples, paraphrase matrix, multi-turn matrix, автоматического превращения diagnostics в regression fixtures.
+
+## Client hardening до уровня Codex-like
+
+Текущий client catalog slice закрыт по одному основному real-dialog сценарию на action: 26 client scenarios passed в полном прогоне 30/30. Это означает verified happy-path coverage, но не "любые фразы и диалоги".
+
+Перед переходом к широкому покрытию новых доменов нужно добить клиентов отдельным hardening этапом:
+
+1. Добавить `client.*` paraphrase matrix:
+   - 3-5 формулировок на каждый важный action;
+   - варианты с id (`#123`), именем, телефоном/email, короткой разговорной фразой;
+   - варианты с неполными данными, где ожидается clarification, а не неверное действие.
+2. Добавить multi-turn client scenarios:
+   - "найди Анну" -> "покажи историю" -> "добавь заметку";
+   - "подготовь сообщение клиенту" -> уточнение канала/текста -> draft;
+   - "создай сегмент" -> уточнение фильтра -> draft;
+   - ambiguous client name -> candidate selection -> action.
+3. Добавить negative/safety scenarios:
+   - read-only request не уходит в mutation;
+   - delete/update без конкретного id или resolvable entity уходит в clarification;
+   - dangerous/bulk/export actions остаются draft/confirmation-only.
+4. Добавить no-LLM regression tests для новых client drift cases:
+   - parser/canonicalizer malformed JSON/steps;
+   - aliases и plural action names;
+   - non-concrete id strings;
+   - read steps after draft;
+   - invalid optional filters.
+5. Ввести метрики client robustness:
+   - `client_happy_path_passed`: текущие 26/26;
+   - `client_paraphrase_passed`: новая матрица;
+   - `client_multiturn_passed`: новая матрица;
+   - `client_negative_passed`: safety/clarification matrix.
+
+Client domain считать "добитым" только когда:
+
+- текущие 26 happy-path client scenarios проходят;
+- paraphrase matrix проходит без failed;
+- multi-turn matrix проходит без failed;
+- negative/safety matrix проходит без failed;
+- новые drift classes перенесены в no-LLM regression tests.
+
 ## Обязательный handoff-протокол для следующего агента
 
 Этот файл является основным источником контекста для агента, который продолжит работу без истории текущего чата. После каждой правки, каждого прогона тестов и каждой добавленной пачки сценариев обязательно обновлять этот документ.
@@ -261,6 +369,116 @@ npm run test:crm-agent-v2:real-e2e:local
 
 ## Что сделано в последней пачке
 
+Update 2026-05-30, batch 13.6 Client Codex-like hardening slice 1:
+
+- Extended the real-E2E runner with scenario-level reporting so paraphrase/multi-turn scenarios can validate robustness without overwriting the per-action matrix.
+- Added 6 client robustness scenarios with `matrix: false`:
+  - `client-search-by-phone-paraphrase`;
+  - `client-view-short-paraphrase`;
+  - `client-add-note-paraphrase`;
+  - `client-notify-paraphrase`;
+  - `client-history-multiturn`;
+  - `client-delete-note-ambiguous-negative`.
+- Added `no_action` scenario mode for negative/safety checks where the expected behavior is clarification/no draft.
+- Hardened canonicalizer for new client drift cases: phone/email/q read args map to `query`; `client.update` + comment wording maps to `client.add_note`; planner path references like `.slots.note.query` are replaced with user text; unknown draft action names fall back to the known goal action when safe.
+- Made `client.archive` fixture phrase deterministic by including the fixture phone, and scoped `service.search` verification to the current session to avoid cross-scenario tool-call bleed.
+- Added no-LLM canonicalizer regressions for add-note path references, unknown draft action fallback, and phone lookup read args.
+- Full real-E2E result after this batch: 36 scenarios, 36 scenario passed, 0 scenario failed, 30 actions passed, 0 actions failed, 344 not covered yet.
+
+Client robustness counters after this slice:
+
+```text
+client_happy_path_passed: 26/26
+client_paraphrase_passed: 4/4
+client_multiturn_passed: 1/1
+client_negative_passed: 1/1
+```
+
+Checks:
+
+```bash
+npm run test:crm-agent-v2:canonicalizer
+node node_modules/typescript/bin/tsc --noEmit -p apps/web/tsconfig.json
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client-search-by-phone-paraphrase,client-view-short-paraphrase,client-add-note-paraphrase,client-notify-paraphrase,client-history-multiturn,client-delete-note-ambiguous-negative"
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.archive,client.create_tag,client-add-note-paraphrase,client-search-by-phone-paraphrase,client-view-short-paraphrase,client-notify-paraphrase,client-history-multiturn,client-delete-note-ambiguous-negative"
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client-search-by-phone-paraphrase"
+npm run test:crm-agent-v2:real-e2e:local
+```
+
+Update 2026-05-30, batch 13.5 Client draft-only completion:
+
+- Added and verified real-dialog scenarios for `client.notify`, `client.create_segment`, `client.export_segment`.
+- Hardened planner canonicalizer for draft-only client exports/segments: `client.export` and `clients.export` aliases now map to `client.export_segment`; `filterTag`/`filterTags` map to `tagName`; redundant tag `query` and invalid date filters are removed.
+- Hardened client notification canonicalization: invalid regex-like id payloads such as `".*"` are removed, synthetic client reads run before `actions.prepare`, and SMS channel is normalized to `sms`.
+- Hardened planner parser for malformed step shapes observed in real E2E: missing final conversation JSON brace, `"args{}"` typo, read tool names used as step `type`, and action names used as step `type`.
+- Hardened conversation read fallback so explicit client read questions still call read tools when the conversation model answers in future tense or omits `readToolRequests`.
+- Full real-E2E result after this batch: 30 scenarios, 30 passed, 0 failed, 344 not covered yet.
+
+Checks:
+
+```bash
+npm run test:crm-agent-v2:canonicalizer
+node node_modules/typescript/bin/tsc --noEmit -p apps/web/tsconfig.json
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.notify,client.create_segment,client.export_segment"
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.search,client.view,client.view_loyalty,client.notify,client.create_segment,client.export_segment"
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.delete_note"
+npm run test:crm-agent-v2:real-e2e:local
+```
+
+Update 2026-05-30, batch 13.4 Planner canonicalizer hardening:
+
+- Added `apps/web/lib/crm-agent-v2/core/plan-canonicalizer.ts` as the single planner-output canonicalization layer.
+- Kept `normalizePlannerPlanForRuntime()` in `planner.ts` as a thin compatibility wrapper over `canonicalizeCrmAgentPlan()`.
+- Added declarative action rules for client mutation/read drift: direct contact/note id actions, `client.update` aliases, scoped client read tools, and numeric id slot coercion.
+- Added canonical validation findings for model execute steps, unknown tools/actions, draft action mismatch, unresolved required slots and string numeric ids.
+- Added fast no-LLM canonicalizer regression tests in `scripts/crm-agent-v2-plan-canonicalizer-tests.mjs` and wired `test:crm-agent-v2:canonicalizer` into `package.json`.
+- Added regression coverage for `appointment.create` when planner payload has time-only `startAt`, restoring the full ISO datetime from goal/message slots.
+- Full real-E2E was rerun after GigaChat tokens were replenished: 27 scenarios, 27 passed, 0 failed, 347 not covered yet.
+
+Checks:
+
+```bash
+npm run test:crm-agent-v2:canonicalizer
+node node_modules/typescript/bin/tsc --noEmit -p apps/web/tsconfig.json
+npm run test:crm-agent-v2:real-e2e:local
+```
+
+Update 2026-05-30, batch 13.3 Clients continued:
+
+- Added and verified real-dialog scenarios for `client.merge_duplicates`, `client.view_visits`, `client.view_payments`, `client.view_reviews`, `client.view_loyalty`, `client.update_consent`.
+- Added fixture data for appointment visit history, payment intent, review, loyalty wallet/transaction, duplicate client and consent update coverage, plus cleanup for payment/review/loyalty/consent entities.
+- Added registered read tools and handlers for client-scoped visits, payments, reviews and loyalty, backed by existing client read helpers.
+- Hardened conversation read-tool selection so client-scoped review/visit/payment/loyalty questions use scoped tools instead of generic `clients.search`.
+- Hardened planner normalization for draft-only and client mutation cases: numeric `*Id` payload slots are coerced to numbers, unneeded client context reads are removed for direct contact/note id actions, and `client.update_consent` is selected from consent wording.
+- Runner now supports `CRM_AGENT_V2_REAL_E2E_FILTER`, filtered reports/diagnostics, draft-only mode, compact failure diagnostics and dynamic scenario messages.
+- Full real-E2E result after this batch: 27 scenarios, 27 passed, 0 failed, 347 not covered yet.
+
+Checks:
+
+```bash
+npm run typecheck
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.merge_duplicates,client.view_visits,client.view_payments,client.view_reviews,client.view_loyalty,client.update_consent"
+powershell -ExecutionPolicy Bypass -File .\scripts\run-crm-agent-v2-real-e2e-local.ps1 -Filter "client.delete_contact,client.view_reviews"
+npm run test:crm-agent-v2:real-e2e:local
+```
+
+Update 2026-05-29, batch 13.3 Clients continued:
+
+- Added and verified real-dialog scenarios for `client.archive`, `client.restore`, `client.add_contact`, `client.update_contact`, `client.delete_contact`, `client.add_note`.
+- Added independent fixture data for archived client restore and contact update/delete scenarios, plus cleanup for client contacts, notes, tags and assignments.
+- Fixed appointment continuation UX bug where internal `specialistId`/`locationId` slots leaked to the user and typed candidate names were not resolved back into pending selections.
+- Hardened planner/runtime contracts for observed LLM shapes: object slots like `{ value/query }`, non-numeric `*Id` placeholders, unsupported read/execute tools, extra step closing brace repair, and transliterated client search queries.
+- Added router guard for explicit CRM write requests that were incorrectly classified as smalltalk/unsupported.
+- Full real-E2E result after this batch: 15 scenarios, 15 passed, 0 failed, 359 not covered yet.
+
+Checks:
+
+```bash
+node node_modules/typescript/bin/tsc --noEmit -p apps/web/tsconfig.json
+node --check scripts/crm-agent-v2-real-agent-e2e-tests.mjs
+powershell -ExecutionPolicy Bypass -File ./scripts/run-crm-agent-v2-real-e2e-local.ps1
+```
+
 Дата: 2026-05-29.
 
 Пачка: расширение real-E2E покрытия услуг.
@@ -285,24 +503,63 @@ npm run test:crm-agent-v2:real-e2e:local
 Результат:
 
 ```text
-Real dialog scenarios: 5
-Passed: 5
+Real dialog scenarios: 9
+Passed: 9
 Failed: 0
-Not covered yet: 369
+Not covered yet: 365
+```
+
+Update 2026-05-29, batch 13.3 Clients:
+
+- Added real-dialog scenarios for `client.view`, `client.resolve`, `client.create`, `client.update`.
+- Fixed planner/runtime normalization for client id slots that arrive as text queries: non-numeric `*Id` values now go through read/resolve placeholders instead of being sent to actions as literal ids.
+- Added runtime placeholder support for slash references like `/clients/search/result/clientId`.
+- Hardened planner JSON repair for an extra `}` before `steps` array close, which was observed in `appointment.create`.
+- Adjusted read-only client scenario verification to accept the actual registered read tools (`clients.get` / `clients.search`) as verified behavior for catalog read actions.
+- Updated report: 9 scenarios, 9 passed, 0 failed.
+
+Checks:
+
+```bash
+node node_modules/typescript/bin/tsc --noEmit -p apps/web/tsconfig.json
+node -e "process.env.CRM_AGENT_V2_REAL_E2E='1'; process.env.CRM_AGENT_V2_REAL_ACCOUNT_ID='2'; import('./scripts/crm-agent-v2-real-agent-e2e-tests.mjs')"
+```
+
+Token/limit-saving runner mode added after this batch:
+
+- During development, run only the scenarios being changed with `CRM_AGENT_V2_REAL_E2E_FILTER`.
+- Filter accepts comma-separated scenario ids or action names, for example `client.archive,client.restore` or `client-view-real-dialog`.
+- Filtered runs write `docs/CRM_AGENT_V2_REAL_AGENT_E2E_TEST_REPORT.filtered.md` and do not overwrite the full report.
+- Failure details in markdown stay compact; full payload diagnostics are written only on failures to `docs/CRM_AGENT_V2_REAL_AGENT_E2E_DIAGNOSTICS.json` or `.filtered.json`.
+- Full unfiltered real-E2E still must be run once before marking a batch complete in this plan.
+
+Filtered example:
+
+```bash
+node -e "process.env.CRM_AGENT_V2_REAL_E2E='1'; process.env.CRM_AGENT_V2_REAL_ACCOUNT_ID='2'; process.env.CRM_AGENT_V2_REAL_E2E_FILTER='client.view'; import('./scripts/crm-agent-v2-real-agent-e2e-tests.mjs')"
+powershell -ExecutionPolicy Bypass -File ./scripts/run-crm-agent-v2-real-e2e-local.ps1 -Filter client.view
+```
+
+Result:
+
+```text
+Real dialog scenarios: 9
+Passed: 9
+Failed: 0
+Not covered yet: 365
 ```
 
 ## Следующая пачка для продолжения
 
-Рекомендуемая следующая пачка: продолжить домен `13.3 Клиенты`, потому что fixture уже содержит клиента `Анна Тестовая`, и это даст быстрый прирост покрытия без большой перестройки данных.
+Update 2026-05-30: client domain has enough coverage for the current execution baseline: happy-path catalog slice plus the first Codex-like hardening slice are green. Это не означает "любые фразы"; broad paraphrase/multi-turn/safety coverage stays a quality milestone, but it should now be expanded regression-driven or in a dedicated hardening batch, not block progress on other domains.
+
+Рекомендуемая следующая пачка: перейти к домену `13.4 Записи` и сначала закрыть read-only appointment actions. Это усилит способность агента собирать контекст по записям перед lifecycle mutations.
 
 Минимальная следующая пачка:
 
-- `client.view`
-- `client.resolve`
-- `client.create`
-- `client.update`
-
-После нее перейти к оставшимся `client.*`: archive/restore, contacts, notes, tags, history/visits/payments/reviews/loyalty, consent, draft-only notify/segments/export.
+- добавить real-dialog scenarios для `appointment.search`, `appointment.view`, `appointment.resolve`, `appointment.find_slots`;
+- добавить только нужные fixture data для детерминированных read results, особенно `ScheduleEntry` для поиска свободных окон;
+- держать client hardening backlog активным: расширять `client.paraphrase_matrix`, `client.multiturn_matrix`, `client.negative_matrix`, `client.regression_no_llm` при новых client regressions или в отдельной quality-пачке.
 
 Если новый агент предпочтет продолжить услуги, ближайшие actions:
 
@@ -315,6 +572,12 @@ Not covered yet: 369
 
 ## Открытые проблемы / наблюдения
 
+- 2026-05-29 client/contact batch observation: planner may emit object-shaped payload slots (`{value}`, `{query}`, `{selectedId}`), non-numeric `*Id` strings, unsupported read tools, or execute steps. Runtime/planner now normalizes these to selected ids/scalars and strips execute steps; keep this invariant for future mutation batches.
+- 2026-05-29 resolver observation: planner can transliterate Russian client names to Latin (`anna testova` for `Анна Тестовая`). Client resolver now includes Latin transliteration labels to avoid selecting unrelated rows through weak email/domain token matches.
+- 2026-05-29 appointment continuation bug fixed in code: active task continuation now normalizes internal `clientId`/`serviceId`/`specialistId`/`locationId`/`startAt` slots to UI slots (`client`, `service`, `specialist`, `location`, `time`) and can resolve a typed candidate name like a specialist name against real candidates. Add a dedicated multi-turn real-E2E scenario for this before expanding appointment coverage further.
+- 2026-05-29 appointment continuation hotfix verified with targeted checks: `tsc --noEmit`, `node --check scripts/crm-agent-v2-real-agent-e2e-tests.mjs`, and filtered `appointment.create` real-E2E passed 1/1. Full real-E2E was intentionally not rerun to preserve LLM/test limits after the targeted hotfix.
+- 2026-05-29 client batch observation: planner may emit non-numeric text in `clientId`/`*Id` slots; keep routing those through read/resolve placeholders before `actions.prepare`.
+- 2026-05-29 parser observation: planner can append explanatory text after JSON or add one extra `}` before a steps array close; tolerant parser repair is required, but runtime phrase regex recovery remains forbidden.
 - LLM planner часто возвращает почти правильный JSON, но с нестабильным shape. Нужна tolerant normalization вокруг registry contract.
 - Нельзя возвращать runtime keyword/regex recovery по пользовательским фразам. Исправлять нужно router/conversation/planner/parser/resolver/runtime contracts.
 - Основной риск следующих пачек: `*Id` slots, которые приходят как query object и должны проходить через read/resolve step + placeholder.
@@ -391,31 +654,31 @@ Not covered yet: 369
 | Done | Action | Catalog status | Real-E2E status | Notes |
 | --- | --- | --- | --- | --- |
 | [x] | `client.search` | read_only | passed | passed: client-search-real-dialog |
-| [ ] | `client.view` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.resolve` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.create` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.update` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.archive` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.restore` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.add_contact` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.update_contact` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.delete_contact` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.add_note` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.update_note` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.delete_note` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.add_tag` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.remove_tag` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.create_tag` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.merge_duplicates` | draft_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.view_history` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.view_visits` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.view_payments` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.view_reviews` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.view_loyalty` | read_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.update_consent` | implemented | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.notify` | draft_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.create_segment` | draft_only | not_covered_yet | add real-dialog scenario |
-| [ ] | `client.export_segment` | draft_only | not_covered_yet | add real-dialog scenario |
+| [x] | `client.view` | read_only | passed | passed: client-view-real-dialog |
+| [x] | `client.resolve` | read_only | passed | passed: client-resolve-real-dialog |
+| [x] | `client.create` | implemented | passed | passed: client-create-real-dialog |
+| [x] | `client.update` | implemented | passed | passed: client-update-real-dialog |
+| [x] | `client.archive` | implemented | passed | passed: client-archive-real-dialog |
+| [x] | `client.restore` | implemented | passed | passed: client-restore-real-dialog |
+| [x] | `client.add_contact` | implemented | passed | passed: client-add-contact-real-dialog |
+| [x] | `client.update_contact` | implemented | passed | passed: client-update-contact-real-dialog |
+| [x] | `client.delete_contact` | implemented | passed | passed: client-delete-contact-real-dialog |
+| [x] | `client.add_note` | implemented | passed | passed: client-add-note-real-dialog |
+| [x] | `client.update_note` | implemented | passed | passed: client-update-note-real-dialog |
+| [x] | `client.delete_note` | implemented | passed | passed: client-delete-note-real-dialog |
+| [x] | `client.add_tag` | implemented | passed | passed: client-add-tag-real-dialog |
+| [x] | `client.remove_tag` | implemented | passed | passed: client-remove-tag-real-dialog |
+| [x] | `client.create_tag` | implemented | passed | passed: client-create-tag-real-dialog |
+| [x] | `client.merge_duplicates` | draft_only | passed | passed: client-merge-duplicates-real-dialog |
+| [x] | `client.view_history` | read_only | passed | passed: client-view-history-real-dialog |
+| [x] | `client.view_visits` | read_only | passed | passed: client-view-visits-real-dialog |
+| [x] | `client.view_payments` | read_only | passed | passed: client-view-payments-real-dialog |
+| [x] | `client.view_reviews` | read_only | passed | passed: client-view-reviews-real-dialog |
+| [x] | `client.view_loyalty` | read_only | passed | passed: client-view-loyalty-real-dialog |
+| [x] | `client.update_consent` | implemented | passed | passed: client-update-consent-real-dialog |
+| [x] | `client.notify` | draft_only | passed | passed: client-notify-real-dialog |
+| [x] | `client.create_segment` | draft_only | passed | passed: client-create-segment-real-dialog |
+| [x] | `client.export_segment` | draft_only | passed | passed: client-export-segment-real-dialog |
 
 ### 13.4 Записи
 
@@ -830,8 +1093,8 @@ npm run test:crm-agent-v2:real-e2e:local
 
 Рекомендуемый порядок полного покрытия:
 
-1. Клиенты: все `client.*`, начиная с `client.view`, `client.resolve`, `client.create`, `client.update`.
-2. Записи: все `appointment.*`, начиная с `appointment.search/view/resolve/find_slots`, затем lifecycle mutations.
+1. Записи: все `appointment.*`, начиная с `appointment.search/view/resolve/find_slots`, затем lifecycle mutations.
+2. Клиенты: baseline + first Codex-like hardening slice done; продолжать hardening (`client.paraphrase_matrix`, `client.multiturn_matrix`, `client.negative_matrix`, `client.regression_no_llm`) отдельной quality-пачкой или по регрессиям.
 3. Услуги: все `service.*`, продолжить с `service.view`, `service.resolve`, `service.update_duration`, lifecycle и bindings.
 4. Сотрудники: все `specialist.*`, включая bindings, visibility, workload/revenue/reviews/empty slots.
 5. Локации: все `location.*`, включая hours/exceptions/media/schedule/workload.

@@ -112,33 +112,35 @@ async function selectCommand(input: HandleCrmAgentCommandInput, slot: string, va
   if (!latest) return commandError(input.request.sessionId, input.accountId, "State not found.");
 
   const state = deserializeState(latest, input.request.sessionId, input.accountId);
-  state.slots[slot] = {
-    ...(state.slots[slot] ?? {}),
+  normalizeContinuationMissingSlots(state);
+  const normalizedSlot = normalizeEntitySlotName(slot);
+  state.slots[normalizedSlot] = {
+    ...(state.slots[normalizedSlot] ?? {}),
     selectedId: value,
     status: "resolved",
   };
-  state.selected[slot] = value;
-  state.missing = state.missing.filter((item) => item !== slot);
-  applySelectionSideEffects(state, slot, value);
+  state.selected[normalizedSlot] = value;
+  state.missing = state.missing.filter((item) => normalizeEntitySlotName(item) !== normalizedSlot);
+  applySelectionSideEffects(state, normalizedSlot, value);
   await hydrateAppointmentSelection(state, input);
   applyNextMissingSlots(state);
   state.status = state.missing.length ? "collecting" : "ready_to_plan";
 
   await saveCrmAgentTaskState(state);
-  const answer = selectionAnswer(state, slot);
+  const answer = selectionAnswer(state, normalizedSlot);
   await addCrmAgentMessage({
     accountId: input.accountId,
     sessionId: input.request.sessionId,
     role: "assistant",
     content: answer,
-    data: { slot, value } as Prisma.InputJsonValue,
+    data: { slot: normalizedSlot, value } as Prisma.InputJsonValue,
   });
   return {
     answer,
     sessionId: input.request.sessionId,
     state,
     cards: buildSelectionCards(state),
-    workspace: buildSelectionWorkspace(state, nextActiveSlot(state, slot)),
+    workspace: buildSelectionWorkspace(state, nextActiveSlot(state, normalizedSlot)),
     planTrace: [],
   };
 }
@@ -516,7 +518,7 @@ function availableSlotCandidates(value: unknown): CrmAgentTaskState["candidates"
 
 function applyNextMissingSlots(state: CrmAgentTaskState) {
   if (state.goalType !== "appointment.create") return;
-  const missing = new Set(state.missing);
+  const missing = new Set(state.missing.map(normalizeEntitySlotName));
   if (!state.selected.client) missing.add("client");
   if (!state.selected.service) missing.add("service");
   if (state.selected.client && state.selected.service) {
@@ -526,6 +528,21 @@ function applyNextMissingSlots(state: CrmAgentTaskState) {
   }
   for (const slot of Object.keys(state.selected)) missing.delete(slot);
   state.missing = [...missing];
+}
+
+function normalizeContinuationMissingSlots(state: CrmAgentTaskState) {
+  state.missing = [...new Set(state.missing.map(normalizeEntitySlotName))];
+}
+
+function normalizeEntitySlotName(slot: string) {
+  const map: Record<string, string> = {
+    clientId: "client",
+    serviceId: "service",
+    specialistId: "specialist",
+    locationId: "location",
+    startAt: "time",
+  };
+  return map[slot] ?? slot;
 }
 
 function nextActiveSlot(state: CrmAgentTaskState, fallback: string) {

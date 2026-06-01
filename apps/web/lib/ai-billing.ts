@@ -417,6 +417,19 @@ export async function archiveAiAccessPackage(id: number) {
   `;
 }
 
+export async function deleteUnusedAiAccessPackage(id: number) {
+  const deleted = await prisma.$executeRaw`
+    DELETE FROM "AiAccessPackage" pkg
+    WHERE pkg."id" = ${id}
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "AiAccessPurchase" purchase
+        WHERE purchase."packageId" = pkg."id"
+      )
+  `;
+  return deleted > 0;
+}
+
 export async function restoreAiAccessPackage(id: number) {
   await prisma.$executeRaw`
     UPDATE "AiAccessPackage"

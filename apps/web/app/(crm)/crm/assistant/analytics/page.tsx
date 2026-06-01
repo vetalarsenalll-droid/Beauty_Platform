@@ -224,13 +224,13 @@ async function countMessagesByThreadIds(threadIds: number[], role: "user" | "ass
 }
 
 type PageProps = {
-  searchParams?: SearchParamsShape | Promise<SearchParamsShape>;
+  searchParams?: Promise<SearchParamsShape>;
 };
 
-export default async function AishaAnalyticsPage({ searchParams }: PageProps) {
+export default async function AssistantAnalyticsPage({ searchParams }: PageProps) {
   const session = await requireCrmPermission("crm.assistant.analytics.read");
   const accountId = session.accountId;
-  const rawParams = (await Promise.resolve(searchParams ?? {})) as SearchParamsShape;
+  const rawParams = (await (searchParams ?? Promise.resolve({}))) as SearchParamsShape;
 
   const q = pickParam(rawParams, "q").trim();
   const days = Math.min(365, parsePositiveInt(pickParam(rawParams, "days"), DEFAULT_DAYS));

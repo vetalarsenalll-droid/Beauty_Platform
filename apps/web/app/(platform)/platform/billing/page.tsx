@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
+import { int, money } from "@/lib/ai-billing";
 import BillingCreateInvoiceForm from "./billing-create-invoice-form";
 import BillingInvoiceActions from "./billing-invoice-actions";
 
@@ -19,7 +20,7 @@ const paymentStatusLabels: Record<string, string> = {
 export default async function PlatformBillingPage() {
   await requirePlatformPermission("platform.plans");
 
-  const [accounts, invoices, payments] = await Promise.all([
+  const [accounts, invoices, payments, aiInvoiceRows] = await Promise.all([
     prisma.account.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
@@ -34,7 +35,18 @@ export default async function PlatformBillingPage() {
       take: 50,
       include: { invoice: { include: { account: true } } },
     }),
+    prisma.$queryRaw<Array<{ invoiceId: number | null; packageName: string | null; displayTokens: number | null }>>`
+      SELECT p."invoiceId", pkg."name" AS "packageName", pkg."displayTokens"
+      FROM "AiAccessPurchase" p
+      LEFT JOIN "AiAccessPackage" pkg ON pkg."id" = p."packageId"
+      WHERE p."invoiceId" IS NOT NULL
+    `,
   ]);
+  const aiInvoiceById = new Map(
+    aiInvoiceRows
+      .filter((row) => row.invoiceId != null)
+      .map((row) => [row.invoiceId as number, row] as const),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -65,30 +77,39 @@ export default async function PlatformBillingPage() {
           </p>
         ) : (
           <div className="mt-4 flex flex-col gap-3 text-sm">
-            {invoices.map((invoice) => (
-              <div
-                key={invoice.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3"
-              >
-                <div>
-                  <div className="font-semibold">
-                    {invoice.account?.name ??
-                      `Аккаунт #${invoice.accountId}`}
+            {invoices.map((invoice) => {
+              const aiInvoice = aiInvoiceById.get(invoice.id);
+              return (
+                <div
+                  key={invoice.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3"
+                >
+                  <div>
+                    <div className="font-semibold">
+                      {invoice.account?.name ??
+                        `Аккаунт #${invoice.accountId}`}
+                    </div>
+                    <div className="text-xs text-[color:var(--bp-muted)]">
+                      Счёт #{invoice.id} · {money(invoice.amount)} {invoice.currency} ·{" "}
+                      {invoiceStatusLabels[invoice.status] ?? invoice.status}
+                    </div>
+                    {aiInvoice ? (
+                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
+                        AI-пакет: {aiInvoice.packageName ?? "пакет"} · {int(aiInvoice.displayTokens ?? 0)} токенов начислится после оплаты
+                      </div>
+                    ) : null}
                   </div>
                   <div className="text-xs text-[color:var(--bp-muted)]">
-                    {invoice.amount.toString()} {invoice.currency} ·{" "}
-                    {invoiceStatusLabels[invoice.status] ?? invoice.status}
+                    {invoice.issuedAt?.toLocaleDateString("ru-RU") ?? "—"}
                   </div>
+                  <BillingInvoiceActions
+                    invoiceId={invoice.id}
+                    status={invoice.status}
+                    isAiInvoice={aiInvoice != null}
+                  />
                 </div>
-                <div className="text-xs text-[color:var(--bp-muted)]">
-                  {invoice.issuedAt?.toLocaleDateString("ru-RU") ?? "—"}
-                </div>
-                <BillingInvoiceActions
-                  invoiceId={invoice.id}
-                  status={invoice.status}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

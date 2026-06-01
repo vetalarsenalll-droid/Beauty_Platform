@@ -48,10 +48,24 @@ type CompletionResponse = {
   }>;
 };
 
+export type GigaChatBalanceItem = {
+  model: string;
+  remainingTokens: number;
+  totalTokens: number | null;
+  expiresAt: string | null;
+};
+
+export type GigaChatBalanceResult = {
+  ok: boolean;
+  items: GigaChatBalanceItem[];
+  error: string | null;
+};
+
 let cachedAccessToken: { value: string; expiresAtMs: number } | null = null;
 
 const DEFAULT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth";
 const DEFAULT_CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions";
+const DEFAULT_API_BASE_URL = "https://gigachat.devices.sberbank.ru/api/v1";
 const DEFAULT_MODEL = "GigaChat";
 const TOKEN_SAFETY_WINDOW_MS = 60_000;
 const PROXY_ENV_KEYS = ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"] as const;
@@ -100,6 +114,13 @@ function resolveAuthUrl() {
 
 function resolveChatUrl() {
   return process.env.GIGACHAT_API_URL?.trim() || DEFAULT_CHAT_URL;
+}
+
+function resolveApiBaseUrl() {
+  const explicit = process.env.GIGACHAT_API_BASE_URL?.trim();
+  if (explicit) return explicit.replace(/\/+$/, "");
+  const chatUrl = resolveChatUrl();
+  return chatUrl.replace(/\/chat\/completions\/?$/, "").replace(/\/+$/, "") || DEFAULT_API_BASE_URL;
 }
 
 async function resolveModel() {
@@ -182,6 +203,94 @@ async function requestCompletion(messages: ChatMessage[], accessToken: string) {
       cache: "no-store",
     })
   );
+}
+
+function readNumber(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function collectBalanceItems(value: unknown): GigaChatBalanceItem[] {
+  const items: GigaChatBalanceItem[] = [];
+  const visit = (node: unknown) => {
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item);
+      return;
+    }
+    if (!node || typeof node !== "object") return;
+    const record = node as Record<string, unknown>;
+    const model =
+      readString(record.model) ??
+      readString(record.name) ??
+      readString(record.model_name) ??
+      readString(record.usage);
+    const remaining =
+      readNumber(record.remaining_tokens) ??
+      readNumber(record.available_tokens) ??
+      readNumber(record.balance) ??
+      readNumber(record.tokens) ??
+      readNumber(record.value);
+    if (model && remaining != null) {
+      items.push({
+        model,
+        remainingTokens: Math.max(0, Math.round(remaining)),
+        totalTokens:
+          readNumber(record.total_tokens) ??
+          readNumber(record.package_tokens) ??
+          readNumber(record.initial_tokens) ??
+          null,
+        expiresAt:
+          readString(record.expires_at) ??
+          readString(record.expired_at) ??
+          readString(record.valid_until) ??
+          readString(record.expiration_date),
+      });
+    }
+    for (const child of Object.values(record)) {
+      if (child && typeof child === "object") visit(child);
+    }
+  };
+  visit(value);
+  return items;
+}
+
+export async function getGigaChatBalance(): Promise<GigaChatBalanceResult> {
+  if (!process.env.GIGACHAT_AUTH_KEY?.trim()) {
+    return { ok: false, items: [], error: "GIGACHAT_AUTH_KEY is not configured" };
+  }
+
+  try {
+    const accessToken = await fetchAccessToken();
+    const response = await withGigaChatNetworkEnv(() =>
+      fetch(`${resolveApiBaseUrl()}/balance`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: "application/json",
+        },
+        cache: "no-store",
+      })
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "");
+      return {
+        ok: false,
+        items: [],
+        error: `GigaChat balance failed (${response.status}): ${errorText || response.statusText}`,
+      };
+    }
+
+    const payload = await response.json();
+    return { ok: true, items: collectBalanceItems(payload), error: null };
+  } catch (error) {
+    console.error("[gigachat] balance request failed", error);
+    return { ok: false, items: [], error: error instanceof Error ? error.message : "unknown error" };
+  }
 }
 
 export async function createGigaChatCompletion(

@@ -8,6 +8,7 @@ import {
   resolveCrmAgentService,
   resolveCrmAgentSpecialist,
 } from "./resolvers";
+import { readClientHistory, readClientLoyalty, readClientPayments, readClientReviews, readClientVisits } from "../actions/clients/client-write-helpers";
 import type { CrmAgentToolName } from "./tools";
 import type { CrmAgentToolContext, CrmAgentToolDefinition, CrmAgentToolHandler } from "./types";
 
@@ -15,7 +16,12 @@ type JsonRecord = Record<string, unknown>;
 
 const readToolHandlers: Partial<Record<CrmAgentToolName, CrmAgentToolHandler<JsonRecord, unknown>>> = {
   "clients.search": async (args, ctx) => resolveCrmAgentClient(toolCtx(ctx), normalizeResolveArgs(args)),
-  "clients.get": async (args, ctx) => resolveCrmAgentClient(toolCtx(ctx), { id: idArg(args.id), take: 1 }),
+  "clients.get": async (args, ctx) => resolveCrmAgentClient(toolCtx(ctx), { id: idArg(args.id ?? args.clientId), query: queryArg(args), take: 1 }),
+  "client.view_history": getClientHistory,
+  "client.view_visits": async (args, ctx) => getClientScopedRead(args, ctx, readClientVisits, "visits"),
+  "client.view_payments": async (args, ctx) => getClientScopedRead(args, ctx, readClientPayments, "payments"),
+  "client.view_reviews": async (args, ctx) => getClientScopedRead(args, ctx, readClientReviews, "reviews"),
+  "client.view_loyalty": async (args, ctx) => getClientScopedRead(args, ctx, readClientLoyalty, "loyalty"),
   "services.search": async (args, ctx) => resolveCrmAgentService(toolCtx(ctx), normalizeResolveArgs(args)),
   "services.get": async (args, ctx) => resolveCrmAgentService(toolCtx(ctx), { id: idArg(args.id), take: 1 }),
   "specialists.search": async (args, ctx) => resolveCrmAgentSpecialist(toolCtx(ctx), normalizeResolveArgs(args)),
@@ -34,6 +40,11 @@ const readToolHandlers: Partial<Record<CrmAgentToolName, CrmAgentToolHandler<Jso
 const readToolPermissions: Partial<Record<CrmAgentToolName, string>> = {
   "clients.search": "crm.clients.read",
   "clients.get": "crm.clients.read",
+  "client.view_history": "crm.clients.read",
+  "client.view_visits": "crm.clients.read",
+  "client.view_payments": "crm.finance.read",
+  "client.view_reviews": "crm.reviews.read",
+  "client.view_loyalty": "crm.loyalty.read",
   "services.search": "crm.services.read",
   "services.get": "crm.services.read",
   "specialists.search": "crm.specialists.read",
@@ -77,11 +88,46 @@ function toolCtx(ctx: CrmAgentToolContext) {
 
 function normalizeResolveArgs(args: JsonRecord) {
   return {
-    query: typeof args.query === "string" ? args.query : null,
+    query: queryArg(args),
     id: idArg(args.id),
     take: typeof args.take === "number" ? args.take : undefined,
     filters: isRecord(args.filters) ? args.filters : args,
   };
+}
+
+function queryArg(args: JsonRecord) {
+  return typeof args.query === "string"
+    ? args.query
+    : typeof args.externalIdentifier === "string"
+      ? args.externalIdentifier
+    : typeof args.clientId === "string" && !/^\d+$/.test(args.clientId.trim())
+      ? args.clientId
+    : typeof args.clientName === "string"
+      ? args.clientName
+      : typeof args.name === "string"
+        ? args.name
+        : null;
+}
+
+async function getClientHistory(args: JsonRecord, ctx: CrmAgentToolContext) {
+  return getClientScopedRead(args, ctx, async (accountId, payload) => ({ history: await readClientHistory(accountId, payload) }), "history");
+}
+
+async function getClientScopedRead(
+  args: JsonRecord,
+  ctx: CrmAgentToolContext,
+  reader: (accountId: number, payload: JsonRecord) => Promise<unknown>,
+  resultKey: string,
+) {
+  const directClientId = numberArg(args.clientId ?? args.id);
+  if (directClientId) return reader(ctx.accountId, { ...args, clientId: directClientId });
+
+  const resolved = await resolveCrmAgentClient(toolCtx(ctx), { query: queryArg(args), take: 1 });
+  const selected = isRecord(resolved) && isRecord(resolved.selected) ? resolved.selected : null;
+  const clientId = numberArg(selected?.id);
+  if (!clientId) return { [resultKey]: null, resolution: resolved };
+  const result = await reader(ctx.accountId, { ...args, clientId });
+  return isRecord(result) ? { ...result, resolution: resolved } : { [resultKey]: result, resolution: resolved };
 }
 
 function assertToolPermission(toolName: string, ctx: CrmAgentToolContext) {

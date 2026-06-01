@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -119,5 +120,8 @@ export async function POST(_request: Request, { params }: Params) {
   });
 
   const response = jsonOk({ status: "PAID" });
+  revalidatePath("/platform/billing");
+  revalidatePath("/platform/ai/accounts");
+  revalidatePath("/crm/assistant/site");
   return applyAccessCookie(response, auth);
 }

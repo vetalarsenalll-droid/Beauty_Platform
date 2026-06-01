@@ -77,7 +77,7 @@ export async function routeCrmAgentConversationTurn(
       completion = await requestRouterCompletion(input, completion.content);
       parsedDecision = parseCrmAgentRouteDecision(completion.content);
     }
-    const decision = parsedDecision ? coerceReadOnlyCrmQuestion(input.message, parsedDecision) : null;
+    const decision = parsedDecision ? coerceWriteCrmTask(input.message, coerceReadOnlyCrmQuestion(input.message, parsedDecision)) : null;
     if (!decision) {
       return {
         ok: true,
@@ -236,6 +236,19 @@ function coerceReadOnlyCrmQuestion(message: string, decision: CrmAgentRouteDecis
   };
 }
 
+function coerceWriteCrmTask(message: string, decision: CrmAgentRouteDecision): CrmAgentRouteDecision {
+  if ((decision.kind !== "smalltalk" && decision.kind !== "unsupported") || !looksLikeWriteCrmTaskRequest(message)) return decision;
+  if (!looksLikeCrmSubjectRequest(message)) return decision;
+  return {
+    kind: "crm_task",
+    confidence: Math.max(decision.confidence, 0.78),
+    reason: `${decision.reason} Server guard reclassified an explicit CRM write request to planner.`,
+    suggestedGoalType: decision.suggestedGoalType,
+    needsAccountContext: true,
+    allowedToolModes: ["read", "draft"],
+  };
+}
+
 function readOnlyCrmQuestionDecision(message: string): CrmAgentRouteDecision | null {
   const normalized = message.trim().toLocaleLowerCase("ru-RU");
   if (!normalized) return null;
@@ -255,6 +268,10 @@ function looksLikeReadOnlyCrmDataRequest(text: string) {
   const hasReadIntent = /(покажи|показать|выведи|дай|найди|посмотри|проверь|сколько|какие|кто|кого|список|перечень|статус|сводк|аналитик|отчет|отчёт)/iu.test(text);
   const hasCrmSubject = /(клиент|запис|визит|отзыв|услуг|мастер|специалист|филиал|локац|салон|расписан|загрузк|возврат|ретенш|retention|вернуть|вернулись)/iu.test(text);
   return hasReadIntent && hasCrmSubject;
+}
+
+function looksLikeCrmSubjectRequest(text: string) {
+  return /(клиент|контакт|запис|визит|отзыв|услуг|мастер|специалист|филиал|локац|салон|расписан|crm|црм)/iu.test(text);
 }
 
 function looksLikeWriteCrmTaskRequest(text: string) {

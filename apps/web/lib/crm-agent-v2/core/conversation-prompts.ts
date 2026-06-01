@@ -49,6 +49,8 @@ export function buildCrmAgentConversationDraftPrompt(input: {
     "answer: готовый пользовательский ответ на русском языке, сформулированный для текущего сообщения. Не копируй описание схемы и не возвращай placeholder.",
     "readToolRequests: массив объектов {toolName,args,reason}; для обычного разговора оставь пустым.",
     "Для поиска конкретного клиента используй clients.search с args {query: имя или фрагмент имени из сообщения}.",
+    "Если пользователь просит историю, заметки, согласия или теги клиента, используй client.view_history с args {query: имя клиента}.",
+    "Если пользователь просит визиты клиента, используй client.view_visits; платежи клиента - client.view_payments; отзывы клиента - client.view_reviews; бонусы/лояльность клиента - client.view_loyalty.",
     "shouldEscalateToPlanner: true только если пользователь реально просит CRM-действие или изменение данных.",
     "plannerHint: короткая подсказка planner только при shouldEscalateToPlanner=true, иначе пустая строка.",
     "Доступные read-only tools:",

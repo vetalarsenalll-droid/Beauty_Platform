@@ -523,6 +523,7 @@ function shouldHandleActiveTaskContinuation(
   if (!latestState || latestState.status === "completed" || latestState.status === "failed") return false;
   const missing = Array.isArray(latestState.missing) ? latestState.missing : [];
   if (!missing.length && latestState.status !== "collecting" && latestState.status !== "needs_clarification") return false;
+  if (missing.length) return true;
   return /^(сам|сама|сами|предложи|подбери|любой|любая|да|ок|хорошо|первый|первая|второй|вторая|\d+)(?:\s|$)/i.test(message.trim());
 }
 
@@ -867,7 +868,7 @@ function normalizeRuntimeToolArgs(
     };
   }
 
-  return args;
+  return resolveRuntimePlaceholders(args, previousResults);
 }
 
 function normalizeRuntimeActionPayloadFromMessage(
@@ -875,15 +876,54 @@ function normalizeRuntimeActionPayloadFromMessage(
   actionName: string,
   message: string,
 ) {
-  if (actionName !== "service.update_description") return;
-  const exactDescription = message.match(/(?:^|\s)на:\s*(.+?)\s*$/iu)?.[1]?.trim();
-  if (exactDescription) payload.description = exactDescription;
+  if (actionName === "service.update_description") {
+    const exactDescription = message.match(/(?:^|\s)на:\s*(.+?)\s*$/iu)?.[1]?.trim();
+    if (exactDescription) payload.description = exactDescription;
+  }
+  if (actionName === "client.update_note" && payload.note == null) {
+    const note = message.match(/:\s*(.+?)[.!?]?\s*$/u)?.[1]?.trim();
+    if (note) payload.note = note;
+  }
+  if (actionName === "client.add_tag" || actionName === "client.remove_tag" || actionName === "client.create_tag") {
+    const tagName = extractRuntimeClientTagName(message, actionName);
+    if (tagName && (payload.name == null || payload.name === "")) payload.name = tagName;
+  }
+  if (actionName === "client.update_consent") {
+    const consentType = message.match(/:\s*([A-Za-z0-9_.:-]+)\s+/u)?.[1]?.trim();
+    if (consentType && (payload.type == null || payload.type === "")) payload.type = consentType;
+    if (payload.granted == null) {
+      if (/(разрешено|дать|выдать|granted|true|yes)/iu.test(message)) payload.granted = true;
+      if (/(запрещено|отозвать|снять|false|no)/iu.test(message)) payload.granted = false;
+    }
+  }
+}
+
+function extractRuntimeClientTagName(message: string, actionName: string) {
+  const patterns =
+    actionName === "client.remove_tag"
+      ? [/тег\s+(.+?)\s+у\s+клиент/iu, /тег\s+(.+?)[.!?]?\s*$/iu]
+      : actionName === "client.add_tag"
+        ? [/тег\s+(.+?)(?:[.!?]\s*$|\s+клиенту|\s+у\s+клиент|$)/iu]
+        : [/тег\s+(.+?)[.!?]?\s*$/iu];
+  for (const pattern of patterns) {
+    const value = message.match(pattern)?.[1]?.trim();
+    if (value) return value.replace(/[.!?]+$/u, "").trim();
+  }
+  return null;
 }
 
 function resolveRuntimePlaceholders(value: Record<string, unknown>, previousResults: RuntimeStepResult[]) {
   const selected = selectedValuesByEntity(previousResults);
   return Object.fromEntries(
     Object.entries(value).map(([key, raw]) => {
+      if (isRecord(raw)) {
+        const scalar = raw.selectedId ?? raw.value ?? raw.query;
+        if (key.endsWith("Id")) {
+          const entity = key.slice(0, -2);
+          if (selected[entity] != null) return [key, selected[entity]];
+        }
+        if (scalar != null && typeof scalar !== "object") return [key, scalar];
+      }
       if (typeof raw !== "string") return [key, raw];
       const normalizedDate = key === "startAt" || key === "endAt" ? normalizeRuntimeDateValue(raw) : null;
       if (normalizedDate) return [key, normalizedDate];
@@ -892,8 +932,19 @@ function resolveRuntimePlaceholders(value: Record<string, unknown>, previousResu
         const entity = entityFromToolReference(toolReference[1]);
         return [key, entity ? selected[entity] ?? raw : raw];
       }
+      const slashToolReference = raw.match(/^\/([a-z_]+)\/(?:search|get|resolve)\/result\/([a-zA-Z0-9_]+)$/);
+      if (slashToolReference) {
+        const entity = entityFromToolReference(slashToolReference[1]);
+        return [key, entity ? selected[entity] ?? raw : raw];
+      }
       const placeholder = raw.match(/^#([A-Z_]+)#$/)?.[1];
-      if (!placeholder) return [key, raw];
+      if (!placeholder) {
+        if (key.endsWith("Id") && !/^\d+$/.test(raw.trim())) {
+          const entity = key.slice(0, -2);
+          return [key, selected[entity] ?? raw];
+        }
+        return [key, raw];
+      }
       if (placeholder === "START_AT") return [key, selected.timeStartAt ?? selected.startAt ?? raw];
       const entity = placeholder.toLowerCase().replace(/_id$/, "").replace(/_([a-z])/g, (_match, char: string) => char.toUpperCase());
       return [key, selected[entity] ?? raw];
@@ -1115,7 +1166,7 @@ function buildTaskState(input: {
     slots: normalizeSlots(input.plan.goal.slots),
     candidates: {},
     selected: {},
-    missing: input.plan.missingSlots,
+    missing: input.plan.missingSlots.map(normalizeEntitySlotName),
   };
   applyResolverResultsToState(state, input.stepResults);
   if (state.missing.length && state.status !== "failed") state.status = "needs_clarification";
@@ -1123,12 +1174,12 @@ function buildTaskState(input: {
 }
 
 function applyResolverResultsToState(state: CrmAgentTaskState, stepResults: RuntimeStepResult[]) {
-  const missing = new Set(state.missing);
+  const missing = new Set(state.missing.map(normalizeEntitySlotName));
   for (const stepResult of stepResults) {
     const resolution = extractResolutionLikeResult(stepResult);
     if (!resolution) continue;
 
-    const slotName = resolution.entity;
+    const slotName = normalizeEntitySlotName(resolution.entity);
     state.candidates[slotName] = resolution.candidates;
     state.slots[slotName] = {
       ...(state.slots[slotName] ?? {}),
@@ -1146,6 +1197,17 @@ function applyResolverResultsToState(state: CrmAgentTaskState, stepResults: Runt
     }
   }
   state.missing = [...missing];
+}
+
+function normalizeEntitySlotName(slot: string) {
+  const map: Record<string, string> = {
+    clientId: "client",
+    serviceId: "service",
+    specialistId: "specialist",
+    locationId: "location",
+    startAt: "time",
+  };
+  return map[slot] ?? slot;
 }
 
 function buildEmptyState(

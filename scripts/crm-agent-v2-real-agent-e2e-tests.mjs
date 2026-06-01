@@ -4,7 +4,9 @@ import { PrismaClient } from "@prisma/client";
 import { createJiti } from "jiti";
 
 const root = process.cwd();
-const reportPath = path.join(root, "docs/CRM_AGENT_V2_REAL_AGENT_E2E_TEST_REPORT.md");
+const scenarioFilterRaw = process.env.CRM_AGENT_V2_REAL_E2E_FILTER ?? "";
+const reportPath = path.join(root, scenarioFilterRaw ? "docs/CRM_AGENT_V2_REAL_AGENT_E2E_TEST_REPORT.filtered.md" : "docs/CRM_AGENT_V2_REAL_AGENT_E2E_TEST_REPORT.md");
+const diagnosticsPath = path.join(root, scenarioFilterRaw ? "docs/CRM_AGENT_V2_REAL_AGENT_E2E_DIAGNOSTICS.filtered.json" : "docs/CRM_AGENT_V2_REAL_AGENT_E2E_DIAGNOSTICS.json");
 const enabled = process.env.CRM_AGENT_V2_REAL_E2E === "1";
 
 loadEnv();
@@ -39,7 +41,9 @@ const created = {
   appointmentIds: [],
 };
 const resultsByAction = new Map();
+const scenarioResults = [];
 const architectureGuards = [];
+const failureDiagnostics = [];
 
 const scenarios = [
   {
@@ -53,6 +57,431 @@ const scenarios = [
         orderBy: { startedAt: "desc" },
       });
       if (!toolCall) throw new Error("Agent did not call a client search read tool.");
+    },
+  },
+  {
+    id: "client-view-real-dialog",
+    action: "client.view",
+    mode: "conversation",
+    message: "Покажи карточку клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: { in: ["client.view", "clients.get"] } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call a client view/get read tool.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id))) throw new Error(`client.view result does not include fixture client id. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-resolve-real-dialog",
+    action: "client.resolve",
+    mode: "conversation",
+    message: "Определи точного клиента по имени Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: { in: ["client.resolve", "clients.search"] } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call a client resolve/search read tool.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id))) throw new Error(`client.resolve result does not include fixture client id. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-create-real-dialog",
+    action: "client.create",
+    mode: "conversation_execute",
+    message: `Создай клиента Елена Реалова, телефон +79110000001, email elena-${runId}@example.test.`,
+    verify: async ({ account, action }) => {
+      const clientId = action?.result?.data?.clientId;
+      const payloadEmail = typeof action?.payload?.email === "string" ? action.payload.email : null;
+      const client = clientId
+        ? await prisma.client.findFirst({ where: { id: clientId, accountId: account.id } })
+        : payloadEmail
+          ? await prisma.client.findFirst({ where: { accountId: account.id, email: payloadEmail } })
+          : null;
+      if (!client) throw new Error("Client was not created in DB.");
+      if (client.firstName !== "Елена" || client.lastName !== "Реалова") {
+        throw new Error(`Created client name mismatch. Got: ${client.firstName ?? ""} ${client.lastName ?? ""}`.trim());
+      }
+    },
+  },
+  {
+    id: "client-update-real-dialog",
+    action: "client.update",
+    mode: "conversation_execute",
+    message: "Обнови карточку клиента Анна Тестовая: email anna.updated@example.test.",
+    verify: async ({ fixture }) => {
+      const client = await prisma.client.findUnique({ where: { id: fixture.client.id } });
+      if (client?.email !== "anna.updated@example.test") {
+        throw new Error(`Client email was not updated. Got: ${client?.email ?? "null"}`);
+      }
+    },
+  },
+  {
+    id: "client-archive-real-dialog",
+    action: "client.archive",
+    mode: "conversation_execute",
+    message: ({ fixture }) => `Архивируй клиента Анна Тестовая, телефон ${fixture.client.phone}.`,
+    verify: async ({ account, fixture }) => {
+      const tag = await prisma.clientTag.findFirst({ where: { accountId: account.id, name: "archived" } });
+      if (!tag) throw new Error("Archived tag was not created.");
+      const assignment = await prisma.clientTagAssignment.findFirst({ where: { clientId: fixture.client.id, tagId: tag.id } });
+      if (!assignment) throw new Error("Client was not archived with archived tag.");
+      const note = await prisma.clientNote.findFirst({ where: { clientId: fixture.client.id, note: "Archived by CRM Agent v2." } });
+      if (!note) throw new Error("Archive audit note was not created.");
+    },
+  },
+  {
+    id: "client-restore-real-dialog",
+    action: "client.restore",
+    mode: "conversation_execute",
+    message: "Восстанови клиента Ирина Архивная из архива.",
+    verify: async ({ fixture }) => {
+      const assignment = await prisma.clientTagAssignment.findFirst({ where: { clientId: fixture.archivedClient.id, tagId: fixture.archivedTag.id } });
+      if (assignment) throw new Error("Archived tag assignment was not removed.");
+      const note = await prisma.clientNote.findFirst({ where: { clientId: fixture.archivedClient.id, note: "Restored by CRM Agent v2." } });
+      if (!note) throw new Error("Restore audit note was not created.");
+    },
+  },
+  {
+    id: "client-add-contact-real-dialog",
+    action: "client.add_contact",
+    mode: "conversation_execute",
+    message: "Добавь клиенту Анна Тестовая контакт telegram @anna_real_e2e.",
+    verify: async ({ fixture, action }) => {
+      const contactId = action?.result?.data?.contactId;
+      const contact = contactId
+        ? await prisma.clientContact.findFirst({ where: { id: contactId, clientId: fixture.client.id } })
+        : await prisma.clientContact.findFirst({ where: { clientId: fixture.client.id, value: "@anna_real_e2e" } });
+      if (!contact) throw new Error("Client contact was not created.");
+      if (contact.type.toLowerCase() !== "telegram" || contact.value !== "@anna_real_e2e") {
+        throw new Error(`Created contact mismatch. Got: ${contact.type} ${contact.value}`);
+      }
+    },
+  },
+  {
+    id: "client-update-contact-real-dialog",
+    action: "client.update_contact",
+    mode: "conversation_execute",
+    message: ({ fixture }) => `Обнови контакт #${fixture.clientContact.id}: значение +79990001122.`,
+    verify: async ({ fixture }) => {
+      const contact = await prisma.clientContact.findUnique({ where: { id: fixture.clientContact.id } });
+      if (contact?.value !== "+79990001122") {
+        throw new Error(`Client contact was not updated. Got: ${contact?.value ?? "null"}`);
+      }
+    },
+  },
+  {
+    id: "client-delete-contact-real-dialog",
+    action: "client.delete_contact",
+    mode: "conversation_execute",
+    message: ({ fixture }) => `Удали контакт #${fixture.deleteContact.id} клиента Анна Тестовая.`,
+    verify: async ({ fixture }) => {
+      const contact = await prisma.clientContact.findUnique({ where: { id: fixture.deleteContact.id } });
+      if (contact) throw new Error("Client contact was not deleted.");
+    },
+  },
+  {
+    id: "client-add-note-real-dialog",
+    action: "client.add_note",
+    mode: "conversation_execute",
+    message: "Добавь заметку клиенту Анна Тестовая: любит утренние визиты.",
+    verify: async ({ fixture }) => {
+      const note = await prisma.clientNote.findFirst({ where: { clientId: fixture.client.id, note: { contains: "любит утренние визиты" } } });
+      if (!note) throw new Error("Client note was not created.");
+    },
+  },
+  {
+    id: "client-update-note-real-dialog",
+    action: "client.update_note",
+    mode: "conversation_execute",
+    message: ({ fixture }) => `Измени заметку #${fixture.updateNote.id}: нужен вечерний визит.`,
+    verify: async ({ fixture }) => {
+      const note = await prisma.clientNote.findUnique({ where: { id: fixture.updateNote.id } });
+      if (note?.note !== "нужен вечерний визит") {
+        throw new Error(`Client note was not updated. Got: ${note?.note ?? "null"}`);
+      }
+    },
+  },
+  {
+    id: "client-delete-note-real-dialog",
+    action: "client.delete_note",
+    mode: "conversation_execute",
+    message: ({ fixture }) => `Удали заметку #${fixture.deleteNote.id} клиента Анна Тестовая.`,
+    verify: async ({ fixture }) => {
+      const note = await prisma.clientNote.findUnique({ where: { id: fixture.deleteNote.id } });
+      if (note) throw new Error("Client note was not deleted.");
+    },
+  },
+  {
+    id: "client-add-tag-real-dialog",
+    action: "client.add_tag",
+    mode: "conversation_execute",
+    message: "Добавь клиенту Анна Тестовая тег VIP.",
+    verify: async ({ account, fixture }) => {
+      const tag = await prisma.clientTag.findFirst({ where: { accountId: account.id, name: "VIP" } });
+      if (!tag) throw new Error("Client tag VIP was not created.");
+      const assignment = await prisma.clientTagAssignment.findFirst({ where: { clientId: fixture.client.id, tagId: tag.id } });
+      if (!assignment) throw new Error("Client tag VIP was not assigned.");
+    },
+  },
+  {
+    id: "client-remove-tag-real-dialog",
+    action: "client.remove_tag",
+    mode: "conversation_execute",
+    message: "Убери тег Удалить после теста у клиента Анна Тестовая.",
+    verify: async ({ fixture }) => {
+      const assignment = await prisma.clientTagAssignment.findFirst({ where: { clientId: fixture.client.id, tagId: fixture.removeTag.id } });
+      if (assignment) throw new Error("Client tag assignment was not removed.");
+    },
+  },
+  {
+    id: "client-create-tag-real-dialog",
+    action: "client.create_tag",
+    mode: "conversation_execute",
+    message: "Создай тег Постоянный клиент.",
+    verify: async ({ account }) => {
+      const tag = await prisma.clientTag.findFirst({ where: { accountId: account.id, name: "Постоянный клиент" } });
+      if (!tag) throw new Error("Client tag was not created.");
+    },
+  },
+  {
+    id: "client-view-history-real-dialog",
+    action: "client.view_history",
+    mode: "conversation",
+    message: "Покажи историю и заметки клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: { in: ["clients.get", "client.view_history"] } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call a client history/view read tool.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id)) || !resultText.includes("история для просмотра")) {
+        throw new Error(`Client history result does not include expected fixture data. Got: ${resultText}`);
+      }
+    },
+  },
+  {
+    id: "client-merge-duplicates-real-dialog",
+    action: "client.merge_duplicates",
+    mode: "draft_only",
+    message: ({ fixture }) => `Подготовь объединение дублей клиентов: основной #${fixture.client.id}, дубль #${fixture.duplicateClient.id}.`,
+    verify: async ({ fixture, action }) => {
+      if (!action) throw new Error("Client merge draft was not created.");
+      if (action.status !== "PENDING") throw new Error(`Expected PENDING draft action, got ${action.status}.`);
+      if (action.payload?.targetClientId !== fixture.client.id || action.payload?.sourceClientId !== fixture.duplicateClient.id) {
+        throw new Error(`Client merge payload mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+    },
+  },
+  {
+    id: "client-view-visits-real-dialog",
+    action: "client.view_visits",
+    mode: "conversation",
+    message: "Покажи визиты клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: "client.view_visits" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call client.view_visits.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.fixtureAppointment.id))) throw new Error(`Client visits result does not include fixture appointment. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-view-payments-real-dialog",
+    action: "client.view_payments",
+    mode: "conversation",
+    message: "Покажи платежи клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: "client.view_payments" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call client.view_payments.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.paymentIntent.id))) throw new Error(`Client payments result does not include fixture payment. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-view-reviews-real-dialog",
+    action: "client.view_reviews",
+    mode: "conversation",
+    message: "Покажи отзывы клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: "client.view_reviews" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call client.view_reviews.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.review.id)) || !resultText.includes("Отзыв real E2E")) {
+        throw new Error(`Client reviews result does not include fixture review. Got: ${resultText}`);
+      }
+    },
+  },
+  {
+    id: "client-view-loyalty-real-dialog",
+    action: "client.view_loyalty",
+    mode: "conversation",
+    message: "Покажи бонусы и лояльность клиента Анна Тестовая.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: "client.view_loyalty" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Agent did not call client.view_loyalty.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.loyaltyWallet.id)) || !resultText.includes("real e2e bonus")) {
+        throw new Error(`Client loyalty result does not include fixture wallet. Got: ${resultText}`);
+      }
+    },
+  },
+  {
+    id: "client-update-consent-real-dialog",
+    action: "client.update_consent",
+    mode: "conversation_execute",
+    message: "Обнови согласие клиента Анна Тестовая: marketing_sms разрешено.",
+    verify: async ({ fixture }) => {
+      const consent = await prisma.clientConsent.findFirst({ where: { clientId: fixture.client.id, type: "marketing_sms" } });
+      if (!consent?.grantedAt || consent.revokedAt) {
+        throw new Error(`Client consent was not granted. Got: ${JSON.stringify(consent)}`);
+      }
+    },
+  },
+  {
+    id: "client-notify-real-dialog",
+    action: "client.notify",
+    mode: "draft_only",
+    message: "Подготовь SMS клиенту Анна Тестовая с текстом: Анна, напоминаем о записи завтра в 10:00.",
+    verify: async ({ fixture, action }) => {
+      if (!action) throw new Error("Client notify draft was not created.");
+      if (action.payload?.clientId !== fixture.client.id) {
+        throw new Error(`Client notify payload clientId mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+      if (action.payload?.channel !== "sms") {
+        throw new Error(`Client notify channel mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+      if (!String(action.payload?.bodyText ?? "").includes("напоминаем о записи")) {
+        throw new Error(`Client notify bodyText mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+    },
+  },
+  {
+    id: "client-create-segment-real-dialog",
+    action: "client.create_segment",
+    mode: "draft_only",
+    message: "Подготовь сегмент клиентов с названием Тестовый сегмент real E2E по тегу Удалить после теста.",
+    verify: async ({ fixture, action }) => {
+      if (!action) throw new Error("Client segment draft was not created.");
+      if (action.payload?.name !== "Тестовый сегмент real E2E") {
+        throw new Error(`Client segment name mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+      if (action.payload?.tagName !== fixture.removeTag.name) {
+        throw new Error(`Client segment tagName mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+    },
+  },
+  {
+    id: "client-export-segment-real-dialog",
+    action: "client.export_segment",
+    mode: "draft_only",
+    message: "Подготовь CSV экспорт клиентов с тегом Удалить после теста, максимум 50 строк.",
+    verify: async ({ fixture, action }) => {
+      if (!action) throw new Error("Client export draft was not created.");
+      if (action.payload?.format !== "csv") {
+        throw new Error(`Client export format mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+      if (action.payload?.tagName !== fixture.removeTag.name) {
+        throw new Error(`Client export tagName mismatch. Got: ${JSON.stringify(action.payload)}`);
+      }
+    },
+  },
+  {
+    id: "client-search-by-phone-paraphrase",
+    action: "client.search",
+    mode: "conversation",
+    matrix: false,
+    message: ({ fixture }) => `Нужно быстро найти, кто у нас с телефоном ${fixture.client.phone}.`,
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: "clients.search" },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Paraphrase did not call clients.search.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id))) throw new Error(`Phone search did not resolve fixture client. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-view-short-paraphrase",
+    action: "client.view",
+    mode: "conversation",
+    matrix: false,
+    message: "Открой Анну Тестовую в CRM.",
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: { in: ["clients.get", "clients.search"] } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Short view paraphrase did not call a client read tool.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id))) throw new Error(`Client view paraphrase did not include fixture client. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-add-note-paraphrase",
+    action: "client.add_note",
+    mode: "conversation_execute",
+    matrix: false,
+    message: "Зафиксируй по Анне Тестовой комментарий: предпочитает напоминание за день.",
+    verify: async ({ fixture }) => {
+      const note = await prisma.clientNote.findFirst({ where: { clientId: fixture.client.id, note: { contains: "предпочитает напоминание за день" } } });
+      if (!note) throw new Error("Client add note paraphrase did not create expected note.");
+    },
+  },
+  {
+    id: "client-notify-paraphrase",
+    action: "client.notify",
+    mode: "draft_only",
+    matrix: false,
+    message: "Собери черновик сообщения Анне Тестовой в телеграм: ждём вас завтра к 10:00.",
+    verify: async ({ fixture, action }) => {
+      if (action.payload?.clientId !== fixture.client.id) throw new Error(`Notify paraphrase clientId mismatch. Got: ${JSON.stringify(action.payload)}`);
+      if (!String(action.payload?.bodyText ?? "").includes("завтра к 10:00")) throw new Error(`Notify paraphrase body mismatch. Got: ${JSON.stringify(action.payload)}`);
+    },
+  },
+  {
+    id: "client-history-multiturn",
+    action: "client.view_history",
+    mode: "conversation",
+    matrix: false,
+    turns: ["Найди клиента Анна Тестовая.", "Покажи по ней историю и заметки."],
+    verify: async ({ account, fixture }) => {
+      const toolCall = await prisma.crmAgentToolCall.findFirst({
+        where: { accountId: account.id, toolName: { in: ["client.view_history", "clients.get"] } },
+        orderBy: { startedAt: "desc" },
+      });
+      if (!toolCall) throw new Error("Multi-turn history did not call history/view tool.");
+      const resultText = JSON.stringify(toolCall.result ?? {});
+      if (!resultText.includes(String(fixture.client.id))) throw new Error(`Multi-turn history did not include fixture client. Got: ${resultText}`);
+    },
+  },
+  {
+    id: "client-delete-note-ambiguous-negative",
+    action: "client.delete_note",
+    mode: "no_action",
+    matrix: false,
+    message: "Удали заметку у клиента.",
+    verify: async ({ response }) => {
+      if (!/уточ|какую|номер|id|замет/i.test(response.answer)) {
+        throw new Error(`Ambiguous delete note did not ask for clarification. Got: ${response.answer}`);
+      }
     },
   },
   {
@@ -93,9 +522,9 @@ const scenarios = [
     action: "service.search",
     mode: "conversation",
     message: "Найди услугу Маникюр.",
-    verify: async ({ account }) => {
+    verify: async ({ account, response }) => {
       const toolCall = await prisma.crmAgentToolCall.findFirst({
-        where: { accountId: account.id, toolName: { in: ["services.search", "services.get"] } },
+        where: { accountId: account.id, sessionId: response.sessionId, toolName: { in: ["services.search", "services.get"] } },
         orderBy: { startedAt: "desc" },
       });
       if (!toolCall) throw new Error("Agent did not call a service search read tool.");
@@ -153,6 +582,7 @@ async function main() {
   assertNoRuntimeDeterministicRecovery();
 
   const sectionActions = extractSection13Actions();
+  const activeScenarios = filterScenarios(scenarios, scenarioFilterRaw);
   const catalog = listCrmAgentCatalogActions();
   for (const action of sectionActions) {
     const definition = catalog.find((item) => item.name === action.name);
@@ -167,18 +597,34 @@ async function main() {
   }
 
   const fixture = await createFixture();
-  for (const scenario of scenarios) {
+  for (const scenario of activeScenarios) {
     await runScenario(fixture, scenario);
   }
 
-  writeReport(sectionActions);
-  const failures = [...resultsByAction.values()].filter((item) => item.e2eStatus === "failed");
+  writeReport(sectionActions, activeScenarios);
+  const failures = scenarioResults.filter((item) => item.e2eStatus === "failed");
   if (failures.length) {
     console.error(`CRM Agent v2 real E2E failed: ${failures.length}. Report: ${normalizePath(reportPath)}`);
     throw new Error(`real_e2e_failures:${failures.length}`);
   } else {
-    console.log(`CRM Agent v2 real E2E completed: ${scenarios.length} scenarios, ${normalizePath(reportPath)}`);
+    console.log(`CRM Agent v2 real E2E completed: ${activeScenarios.length} scenarios, ${normalizePath(reportPath)}`);
   }
+}
+
+function filterScenarios(allScenarios, rawFilter) {
+  const filters = rawFilter
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  if (!filters.length) return allScenarios;
+  const filterSet = new Set(filters);
+  const selected = allScenarios.filter((scenario) => filterSet.has(scenario.id) || filterSet.has(scenario.action));
+  const matched = new Set(selected.flatMap((scenario) => [scenario.id, scenario.action]).filter((value) => filterSet.has(value)));
+  const unknown = filters.filter((item) => !matched.has(item));
+  if (unknown.length) {
+    throw new Error(`Unknown CRM Agent v2 real E2E filter value(s): ${unknown.join(", ")}`);
+  }
+  return selected;
 }
 
 async function runScenario(fixture, scenario) {
@@ -189,18 +635,24 @@ async function runScenario(fixture, scenario) {
     scenario: scenario.id,
     details: "",
   };
-  resultsByAction.set(scenario.action, result);
+  if (scenario.matrix !== false) resultsByAction.set(scenario.action, result);
 
   let response = null;
   try {
-    response = await runCrmAgentTurn({
-      accountId: fixture.account.id,
-      userId: null,
-      permissions,
-      message: scenario.message,
-      timezone: "Europe/Moscow",
-    });
-    created.sessionIds.push(response.sessionId);
+    const turnResponses = [];
+    const messages = scenario.turns ?? [scenario.message];
+    for (const message of messages) {
+      response = await runCrmAgentTurn({
+        accountId: fixture.account.id,
+        userId: null,
+        permissions,
+        sessionId: response?.sessionId,
+        message: typeof message === "function" ? message({ fixture, response, responses: turnResponses }) : message,
+        timezone: "Europe/Moscow",
+      });
+      if (!created.sessionIds.includes(response.sessionId)) created.sessionIds.push(response.sessionId);
+      turnResponses.push(response);
+    }
 
     const pendingAction = await prisma.crmAgentAction.findFirst({
       where: { accountId: fixture.account.id, sessionId: response.sessionId, actionType: scenario.action },
@@ -210,7 +662,7 @@ async function runScenario(fixture, scenario) {
     let executedAction = pendingAction;
     if (scenario.mode === "conversation_execute") {
       if (!pendingAction) {
-        throw new Error(`Agent did not prepare expected action ${scenario.action}. ${await scenarioDiagnostics(fixture.account.id, response)}`);
+        throw new Error(`Agent did not prepare expected action ${scenario.action}.`);
       }
       const confirm = getCrmAgentExecuteToolHandler("actions.confirm");
       if (!confirm) throw new Error("actions.confirm handler is not available.");
@@ -219,22 +671,70 @@ async function runScenario(fixture, scenario) {
       if (executedAction?.status !== "EXECUTED") {
         throw new Error(`Expected EXECUTED action, got ${executedAction?.status ?? "missing"}: ${executedAction?.error ?? ""}`);
       }
+    } else if (scenario.mode === "draft_only") {
+      if (!pendingAction) {
+        throw new Error(`Agent did not prepare expected draft action ${scenario.action}.`);
+      }
+      if (pendingAction.status !== "PENDING") {
+        throw new Error(`Expected PENDING draft action, got ${pendingAction.status}: ${pendingAction.error ?? ""}`);
+      }
+    } else if (scenario.mode === "no_action") {
+      const action = await prisma.crmAgentAction.findFirst({
+        where: { accountId: fixture.account.id, sessionId: response.sessionId },
+        orderBy: { createdAt: "desc" },
+      });
+      if (action) {
+        throw new Error(`Expected no action draft, got ${action.actionType} #${action.id}.`);
+      }
     }
 
     await scenario.verify({ account: fixture.account, fixture, response, action: executedAction });
-    resultsByAction.set(scenario.action, {
+    const passedResult = {
       ...result,
       e2eStatus: "passed",
-      details: scenario.mode === "conversation_execute" ? `Prepared and executed action #${executedAction?.id}.` : "Agent produced the expected read/search behavior.",
-    });
+      details:
+        scenario.mode === "conversation_execute"
+          ? `Prepared and executed action #${executedAction?.id}.`
+          : scenario.mode === "draft_only"
+            ? `Prepared draft action #${executedAction?.id}.`
+            : scenario.mode === "no_action"
+              ? "Agent avoided unsafe action as expected."
+              : "Agent produced the expected read/search behavior.",
+    };
+    scenarioResults.push(passedResult);
+    if (scenario.matrix !== false) resultsByAction.set(scenario.action, passedResult);
   } catch (error) {
-    const diagnostics = response ? ` ${await scenarioDiagnostics(fixture.account.id, response)}` : "";
-    resultsByAction.set(scenario.action, {
+    const diagnosticId = response ? await recordFailureDiagnostic(fixture.account.id, scenario, response, error) : null;
+    const failedResult = {
       ...result,
       e2eStatus: "failed",
-      details: `${error instanceof Error ? error.message : String(error)}${diagnostics}`,
-    });
+      details: compactFailureDetails(error, diagnosticId),
+    };
+    scenarioResults.push(failedResult);
+    if (scenario.matrix !== false) resultsByAction.set(scenario.action, failedResult);
   }
+}
+
+async function recordFailureDiagnostic(accountId, scenario, response, error) {
+  const id = `failure-${failureDiagnostics.length + 1}`;
+  failureDiagnostics.push({
+    id,
+    scenarioId: scenario.id,
+    action: scenario.action,
+    error: error instanceof Error ? error.message : String(error),
+    diagnostics: await scenarioDiagnostics(accountId, response),
+  });
+  return id;
+}
+
+function compactFailureDetails(error, diagnosticId) {
+  const message = truncateText(String(error instanceof Error ? error.message : error).replace(/\s+/g, " "), 500);
+  if (!diagnosticId) return message;
+  return `${message} Diagnostic: ${diagnosticId}; see ${normalizePath(diagnosticsPath)}.`;
+}
+
+function truncateText(value, maxLength) {
+  return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
 }
 
 async function scenarioDiagnostics(accountId, response) {
@@ -276,7 +776,7 @@ async function scenarioDiagnostics(accountId, response) {
       select: { type: true, title: true, data: true },
     }),
   ]);
-  return JSON.stringify({
+  return {
     sessionId: response.sessionId,
     answer: response.answer,
     state: response.state,
@@ -305,7 +805,7 @@ async function scenarioDiagnostics(accountId, response) {
     })),
     actions,
     artifacts,
-  });
+  };
 }
 
 function assertNoRuntimeDeterministicRecovery() {
@@ -388,26 +888,144 @@ async function createFixture() {
     prisma.specialistService.create({ data: { specialistId: specialist.id, serviceId: haircut.id } }),
   ]);
 
-  return { account, client, location, service, haircut, specialist };
+  const [archivedClient, duplicateClient, archivedTag, clientContact, deleteContact, updateNote, deleteNote, removeTag] = await Promise.all([
+    prisma.client.create({ data: { accountId: account.id, firstName: "Ирина", lastName: "Архивная", phone: `+7901${suffix}` } }),
+    prisma.client.create({ data: { accountId: account.id, firstName: "Елена", lastName: "Дубль", phone: `+7902${suffix}` } }),
+    prisma.clientTag.create({ data: { accountId: account.id, name: "archived" } }),
+    prisma.clientContact.create({ data: { clientId: client.id, type: "phone", value: "+79990000001" } }),
+    prisma.clientContact.create({ data: { clientId: client.id, type: "phone", value: "+79990000002" } }),
+    prisma.clientNote.create({ data: { clientId: client.id, note: "исходная заметка для обновления" } }),
+    prisma.clientNote.create({ data: { clientId: client.id, note: "исходная заметка для удаления" } }),
+    prisma.clientTag.create({ data: { accountId: account.id, name: "Удалить после теста" } }),
+  ]);
+  await Promise.all([
+    prisma.clientTagAssignment.create({ data: { clientId: archivedClient.id, tagId: archivedTag.id } }),
+    prisma.clientTagAssignment.create({ data: { clientId: client.id, tagId: removeTag.id } }),
+    prisma.clientNote.create({ data: { clientId: client.id, note: "история для просмотра" } }),
+  ]);
+
+  const fixtureStartAt = new Date(Date.UTC(2030, 1, 20, 9, 0, 0));
+  const fixtureEndAt = new Date(Date.UTC(2030, 1, 20, 10, 0, 0));
+  const fixtureAppointment = await prisma.appointment.create({
+    data: {
+      accountId: account.id,
+      clientId: client.id,
+      specialistId: specialist.id,
+      locationId: location.id,
+      startAt: fixtureStartAt,
+      endAt: fixtureEndAt,
+      status: "CONFIRMED",
+      priceTotal: "2500",
+      durationTotalMin: 60,
+      source: "CRM_AGENT_V2_REAL_E2E_FIXTURE",
+      comment: "fixture visit for client view scenarios",
+      services: {
+        create: {
+          serviceId: service.id,
+          price: "2500",
+          durationMin: 60,
+          specialistId: specialist.id,
+        },
+      },
+      statusHistory: {
+        create: {
+          actorType: "SYSTEM",
+          toStatus: "CONFIRMED",
+          comment: "fixture status",
+        },
+      },
+    },
+  });
+  created.appointmentIds.push(fixtureAppointment.id);
+
+  const [paymentIntent, review, loyaltyWallet] = await Promise.all([
+    prisma.paymentIntent.create({
+      data: {
+        accountId: account.id,
+        appointmentId: fixtureAppointment.id,
+        clientId: client.id,
+        amount: "2500",
+        currency: "RUB",
+        scenario: "crm_agent_real_e2e",
+        provider: "manual",
+        status: "SUCCEEDED",
+      },
+    }),
+    prisma.review.create({
+      data: {
+        accountId: account.id,
+        clientId: client.id,
+        appointmentId: fixtureAppointment.id,
+        entityType: "service",
+        entityId: String(service.id),
+        rating: 5,
+        comment: "Отзыв real E2E",
+        status: "PUBLISHED",
+      },
+    }),
+    prisma.loyaltyWallet.create({
+      data: {
+        accountId: account.id,
+        clientId: client.id,
+        balance: "120",
+      },
+    }),
+  ]);
+  const loyaltyTransaction = await prisma.loyaltyTransaction.create({
+    data: {
+      walletId: loyaltyWallet.id,
+      type: "ADJUSTMENT",
+      amount: "120",
+      reason: "real e2e bonus",
+      sourceType: "crm_agent_real_e2e",
+    },
+  });
+
+  return {
+    account,
+    client,
+    archivedClient,
+    duplicateClient,
+    archivedTag,
+    clientContact,
+    deleteContact,
+    updateNote,
+    deleteNote,
+    removeTag,
+    fixtureAppointment,
+    paymentIntent,
+    review,
+    loyaltyWallet,
+    loyaltyTransaction,
+    location,
+    service,
+    haircut,
+    specialist,
+  };
 }
 
-function writeReport(sectionActions) {
+function writeReport(sectionActions, activeScenarios) {
   const rows = sectionActions.map((action) => resultsByAction.get(action.name));
   const counts = countBy(rows, (row) => row.e2eStatus);
+  const scenarioCounts = countBy(scenarioResults, (row) => row.e2eStatus);
   const report = [
     "# CRM Agent v2 Real Agent E2E Test Report",
     "",
     `Generated: ${new Date().toISOString()}`,
     `Run ID: ${runId}`,
+    scenarioFilterRaw ? `Scenario filter: ${scenarioFilterRaw}` : "Scenario filter: none",
+    failureDiagnostics.length ? `Diagnostics: ${normalizePath(diagnosticsPath)}` : "Diagnostics: none",
     "",
     "## Summary",
     "",
     markdownTable(
       [
         { metric: "Section 13 actions", value: rows.length },
-        { metric: "Real dialog scenarios", value: scenarios.length },
-        { metric: "Passed", value: rows.filter((row) => row.e2eStatus === "passed").length },
-        { metric: "Failed", value: rows.filter((row) => row.e2eStatus === "failed").length },
+        { metric: "Real dialog scenarios", value: activeScenarios.length },
+        { metric: "Scenario passed", value: scenarioCounts.get("passed") ?? 0 },
+        { metric: "Scenario failed", value: scenarioCounts.get("failed") ?? 0 },
+        { metric: "Action passed", value: rows.filter((row) => row.e2eStatus === "passed").length },
+        { metric: "Action failed", value: rows.filter((row) => row.e2eStatus === "failed").length },
         { metric: "Not covered yet", value: rows.filter((row) => row.e2eStatus === "not_covered_yet").length },
       ],
       [
@@ -436,9 +1054,18 @@ function writeReport(sectionActions) {
     "",
     "## Bugs / Deviations",
     "",
-    rows.some((row) => row.e2eStatus === "failed")
-      ? rows.filter((row) => row.e2eStatus === "failed").map((row) => `- ${row.action}: ${row.details}`).join("\n")
+    scenarioResults.some((row) => row.e2eStatus === "failed")
+      ? scenarioResults.filter((row) => row.e2eStatus === "failed").map((row) => `- ${row.scenario}: ${row.details}`).join("\n")
       : "_Нет зафиксированных падений в покрытых real-E2E сценариях._",
+    "",
+    "## Scenario Results",
+    "",
+    markdownTable(scenarioResults, [
+      { key: "action", title: "Action" },
+      { key: "scenario", title: "Scenario" },
+      { key: "e2eStatus", title: "Status" },
+      { key: "details", title: "Details" },
+    ]),
     "",
     "## Per-Action Matrix",
     "",
@@ -455,6 +1082,11 @@ function writeReport(sectionActions) {
 
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
   fs.writeFileSync(reportPath, report, "utf8");
+  if (failureDiagnostics.length) {
+    fs.writeFileSync(diagnosticsPath, JSON.stringify({ runId, generatedAt: new Date().toISOString(), failures: failureDiagnostics }, null, 2), "utf8");
+  } else if (fs.existsSync(diagnosticsPath)) {
+    fs.rmSync(diagnosticsPath);
+  }
 }
 
 function countBy(items, keyFn) {
@@ -482,6 +1114,13 @@ function normalizePath(file) {
 async function cleanup() {
   if (!created.accountId) return;
   await prisma.$transaction([
+    prisma.loyaltyTransaction.deleteMany({ where: { wallet: { accountId: created.accountId } } }),
+    prisma.loyaltyWallet.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.reviewVote.deleteMany({ where: { review: { accountId: created.accountId } } }),
+    prisma.review.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.refund.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.transaction.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.paymentIntent.deleteMany({ where: { accountId: created.accountId } }),
     prisma.appointmentStatusHistory.deleteMany({ where: { appointmentId: { in: created.appointmentIds } } }),
     prisma.appointmentService.deleteMany({ where: { appointmentId: { in: created.appointmentIds } } }),
     prisma.appointment.deleteMany({ where: { accountId: created.accountId } }),
@@ -500,6 +1139,11 @@ async function cleanup() {
     prisma.specialistProfile.deleteMany({ where: { accountId: created.accountId } }),
     prisma.service.deleteMany({ where: { accountId: created.accountId } }),
     prisma.location.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.clientTagAssignment.deleteMany({ where: { client: { accountId: created.accountId } } }),
+    prisma.clientTag.deleteMany({ where: { accountId: created.accountId } }),
+    prisma.clientContact.deleteMany({ where: { client: { accountId: created.accountId } } }),
+    prisma.clientNote.deleteMany({ where: { client: { accountId: created.accountId } } }),
+    prisma.clientConsent.deleteMany({ where: { client: { accountId: created.accountId } } }),
     prisma.client.deleteMany({ where: { accountId: created.accountId } }),
     prisma.aiAccountAccess.deleteMany({ where: { accountId: created.accountId } }),
     prisma.aiBalanceLedger.deleteMany({ where: { accountId: created.accountId } }),

@@ -22,6 +22,11 @@ export type CrmAgentToolDomain =
 export type CrmAgentToolName =
   | "clients.search"
   | "clients.get"
+  | "client.view_history"
+  | "client.view_visits"
+  | "client.view_payments"
+  | "client.view_reviews"
+  | "client.view_loyalty"
   | "services.search"
   | "services.get"
   | "specialists.search"
@@ -76,6 +81,51 @@ const crmAgentToolDefinitions = [
     domain: "clients",
     description: "Load one client profile with recent visits and relevant CRM facts.",
     permission: "crm.clients.read",
+    risk: "low",
+    inputSchema: looseObjectSchema,
+  }),
+  tool({
+    name: "client.view_history",
+    mode: "read",
+    domain: "clients",
+    description: "Load one client's notes, consents and tag history. Use args { clientId } or { query }.",
+    permission: "crm.clients.read",
+    risk: "low",
+    inputSchema: looseObjectSchema,
+  }),
+  tool({
+    name: "client.view_visits",
+    mode: "read",
+    domain: "clients",
+    description: "Load one client's appointments or visit history. Use args { clientId } or { query }.",
+    permission: "crm.clients.read",
+    risk: "low",
+    inputSchema: looseObjectSchema,
+  }),
+  tool({
+    name: "client.view_payments",
+    mode: "read",
+    domain: "clients",
+    description: "Load one client's payment intents. Use args { clientId } or { query }.",
+    permission: "crm.finance.read",
+    risk: "medium",
+    inputSchema: looseObjectSchema,
+  }),
+  tool({
+    name: "client.view_reviews",
+    mode: "read",
+    domain: "clients",
+    description: "Load reviews left by one client. Use args { clientId } or { query }.",
+    permission: "crm.reviews.read",
+    risk: "low",
+    inputSchema: looseObjectSchema,
+  }),
+  tool({
+    name: "client.view_loyalty",
+    mode: "read",
+    domain: "clients",
+    description: "Load one client's loyalty wallet and recent transactions. Use args { clientId } or { query }.",
+    permission: "crm.loyalty.read",
     risk: "low",
     inputSchema: looseObjectSchema,
   }),

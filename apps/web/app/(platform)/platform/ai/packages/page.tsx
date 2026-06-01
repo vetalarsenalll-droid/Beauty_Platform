@@ -1,12 +1,13 @@
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
 import { requirePlatformPermission } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import {
   archiveAiAccessPackage,
   createAiAccessPackage,
-  createAiProviderPool,
+  deleteUnusedAiAccessPackage,
   getArchivedAiAccessPackages,
   getAiAccessPackages,
-  getAiProviderPools,
   int,
   money,
   readCheckbox,
@@ -17,18 +18,45 @@ import {
   updateAiAccessPackage,
 } from "@/lib/ai-billing";
 
+function pricePerMillion(priceRub: unknown, tokens: unknown) {
+  const price = Number(priceRub ?? 0);
+  const tokenCount = Number(tokens ?? 0);
+  return price > 0 && tokenCount > 0 ? (price / tokenCount) * 1_000_000 : 0;
+}
+
 async function createPackageAction(formData: FormData) {
   "use server";
   await requirePlatformPermission("platform.ai.packages.manage");
-  const code = readText(formData.get("code"), 64).toLowerCase();
+  const code = `ai_${randomUUID().replaceAll("-", "").slice(0, 12)}`;
   const name = readText(formData.get("name"), 120);
   const priceRub = readPositiveNumber(formData.get("priceRub"));
-  const includedCreditRub = readPositiveNumber(formData.get("includedCreditRub"), priceRub);
   const displayTokens = readOptionalPositiveInt(formData.get("displayTokens"));
   const description = readText(formData.get("description"), 240) || null;
-  if (!code || !name || priceRub <= 0 || includedCreditRub <= 0) return;
-  await createAiAccessPackage({ code, name, priceRub, includedCreditRub, displayTokens, description });
+  if (!code || !name || priceRub <= 0 || !displayTokens) return;
+  await createAiAccessPackage({ code, name, priceRub, includedCreditRub: priceRub, displayTokens, description });
   revalidatePath("/platform/ai/packages");
+  revalidatePath("/crm/assistant/site");
+}
+
+function LabeledInput({
+  label,
+  name,
+  type,
+  step,
+  defaultValue,
+}: {
+  label: string;
+  name: string;
+  type: string;
+  step: string;
+  defaultValue: string | number;
+}) {
+  return (
+    <label className="grid gap-1 self-end">
+      <span className="text-xs text-[color:var(--bp-muted)]">{label}</span>
+      <input name={name} type={type} min="1" step={step} defaultValue={defaultValue} className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
+    </label>
+  );
 }
 
 async function updatePackageAction(formData: FormData) {
@@ -37,16 +65,15 @@ async function updatePackageAction(formData: FormData) {
   const id = readOptionalPositiveInt(formData.get("id"));
   const name = readText(formData.get("name"), 120);
   const priceRub = readPositiveNumber(formData.get("priceRub"));
-  const includedCreditRub = readPositiveNumber(formData.get("includedCreditRub"));
   const displayTokens = readOptionalPositiveInt(formData.get("displayTokens"));
   const sortOrder = Number(formData.get("sortOrder") ?? 0);
   const description = readText(formData.get("description"), 240) || null;
-  if (!id || !name || priceRub <= 0 || includedCreditRub <= 0) return;
+  if (!id || !name || priceRub <= 0 || !displayTokens) return;
   await updateAiAccessPackage({
     id,
     name,
     priceRub,
-    includedCreditRub,
+    includedCreditRub: priceRub,
     displayTokens,
     sortOrder: Number.isInteger(sortOrder) ? sortOrder : 0,
     isActive: readCheckbox(formData.get("isActive")),
@@ -54,6 +81,7 @@ async function updatePackageAction(formData: FormData) {
   });
   revalidatePath("/platform/ai/packages");
   revalidatePath("/crm/assistant/billing");
+  revalidatePath("/crm/assistant/site");
 }
 
 async function archivePackageAction(formData: FormData) {
@@ -64,6 +92,17 @@ async function archivePackageAction(formData: FormData) {
   await archiveAiAccessPackage(id);
   revalidatePath("/platform/ai/packages");
   revalidatePath("/crm/assistant/billing");
+  revalidatePath("/crm/assistant/site");
+}
+
+async function deletePackageAction(formData: FormData) {
+  "use server";
+  await requirePlatformPermission("platform.ai.packages.manage");
+  const id = readOptionalPositiveInt(formData.get("id"));
+  if (!id) return;
+  await deleteUnusedAiAccessPackage(id);
+  revalidatePath("/platform/ai/packages");
+  revalidatePath("/crm/assistant/site");
 }
 
 async function restorePackageAction(formData: FormData) {
@@ -74,69 +113,48 @@ async function restorePackageAction(formData: FormData) {
   await restoreAiAccessPackage(id);
   revalidatePath("/platform/ai/packages");
   revalidatePath("/crm/assistant/billing");
-}
-
-async function createPoolAction(formData: FormData) {
-  "use server";
-  await requirePlatformPermission("platform.ai.manage");
-  const provider = readText(formData.get("provider"), 40) || "gigachat";
-  const model = readText(formData.get("model"), 80) || "GigaChat";
-  const packageTokens = readOptionalPositiveInt(formData.get("packageTokens")) ?? 0;
-  const packageCostRub = readPositiveNumber(formData.get("packageCostRub"));
-  const notes = readText(formData.get("notes"), 240) || null;
-  if (packageTokens <= 0 || packageCostRub <= 0) return;
-  await createAiProviderPool({ provider, model, packageTokens, packageCostRub, notes });
-  revalidatePath("/platform/ai/packages");
-  revalidatePath("/platform/ai");
+  revalidatePath("/crm/assistant/site");
 }
 
 export default async function PlatformAiPackagesPage() {
   await requirePlatformPermission("platform.ai.read");
-  const [packages, archivedPackages, pools] = await Promise.all([
+  const [packages, archivedPackages, purchaseCountRows] = await Promise.all([
     getAiAccessPackages(false),
     getArchivedAiAccessPackages(),
-    getAiProviderPools(),
+    prisma.$queryRaw<Array<{ packageId: number | null; count: bigint | number }>>`
+      SELECT "packageId", COUNT(*) AS "count"
+      FROM "AiAccessPurchase"
+      WHERE "packageId" IS NOT NULL
+      GROUP BY "packageId"
+    `,
   ]);
+  const purchaseCountByPackageId = new Map(
+    purchaseCountRows
+      .filter((row) => row.packageId != null)
+      .map((row) => [row.packageId as number, Number(row.count)] as const),
+  );
 
   return (
     <div className="flex flex-col gap-6">
       <header>
         <p className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">AI / GigaChat</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Пакеты и пул провайдера</h1>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Пакеты AI и учет GigaChat</h1>
         <p className="mt-2 max-w-3xl text-sm text-[color:var(--bp-muted)]">
-          Пул провайдера описывает закупку у Сбера. Пакеты AI-доступа описывают, что покупают бизнес-аккаунты у платформы.
+          Здесь настраивается только то, что покупает бизнес-аккаунт внутри платформы. Реальные токены GigaChat покупаются и отображаются в кабинете Сбера.
         </p>
       </header>
 
-      <section className="grid gap-4 xl:grid-cols-2">
+      <section className="grid gap-4">
         <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Добавить AI-пакет</h2>
+          <h2 className="text-lg font-semibold">Добавить пакет для аккаунтов</h2>
           <form action={createPackageAction} className="mt-4 grid gap-3 text-sm">
-            <input name="code" placeholder="code, например ai_start" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             <input name="name" placeholder="Название пакета" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             <div className="grid gap-3 md:grid-cols-2">
-              <input name="priceRub" type="number" min="1" step="0.01" placeholder="Цена для салона, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-              <input name="includedCreditRub" type="number" min="1" step="0.01" placeholder="AI-баланс к начислению, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
+              <input name="priceRub" type="number" min="1" step="0.01" placeholder="Цена пакета, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
+              <input name="displayTokens" type="number" min="1" step="1" placeholder="Токенов в пакете" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             </div>
-            <input name="displayTokens" type="number" min="1" step="1" placeholder="Витринные токены, необязательно" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             <textarea name="description" placeholder="Описание" className="min-h-20 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             <button className="w-fit rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-medium text-white">Создать пакет</button>
-          </form>
-        </article>
-
-        <article className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Добавить закупку GigaChat</h2>
-          <form action={createPoolAction} className="mt-4 grid gap-3 text-sm">
-            <div className="grid gap-3 md:grid-cols-2">
-              <input name="provider" defaultValue="gigachat" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-              <input name="model" defaultValue={process.env.GIGACHAT_MODEL || "GigaChat"} className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <input name="packageTokens" type="number" min="1" step="1" placeholder="Куплено токенов у Сбера" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-              <input name="packageCostRub" type="number" min="1" step="0.01" placeholder="Стоимость закупки, ₽" className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-            </div>
-            <textarea name="notes" placeholder="Комментарий" className="min-h-20 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-            <button className="w-fit rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-medium text-white">Сохранить пул</button>
           </form>
         </article>
       </section>
@@ -145,15 +163,18 @@ export default async function PlatformAiPackagesPage() {
         <h2 className="text-lg font-semibold">AI-пакеты для бизнес-аккаунтов</h2>
         <div className="mt-4 grid gap-3">
           {packages.map((pack) => (
-            <form key={pack.id} action={updatePackageAction} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm xl:grid-cols-[1.2fr_0.7fr_0.7fr_0.7fr_0.4fr_0.5fr_auto]">
+            <form key={pack.id} action={updatePackageAction} className="grid gap-3 rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm xl:grid-cols-[1.2fr_0.7fr_0.7fr_0.7fr_0.5fr_auto]">
               <input type="hidden" name="id" value={pack.id} />
               <label className="grid gap-1">
-                <span className="text-xs text-[color:var(--bp-muted)]">{pack.code}</span>
+                <span className="text-xs text-[color:var(--bp-muted)]">Пакет #{pack.id}</span>
                 <input name="name" defaultValue={pack.name} className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
               </label>
-              <input name="priceRub" type="number" min="1" step="0.01" defaultValue={pack.priceRub.toString()} className="self-end rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-              <input name="includedCreditRub" type="number" min="1" step="0.01" defaultValue={pack.includedCreditRub.toString()} className="self-end rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
-              <input name="displayTokens" type="number" min="1" step="1" defaultValue={pack.displayTokens ?? ""} placeholder="tokens" className="self-end rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
+              <LabeledInput label="Цена пакета, ₽" name="priceRub" type="number" step="0.01" defaultValue={pack.priceRub.toString()} />
+              <LabeledInput label="Токенов" name="displayTokens" type="number" step="1" defaultValue={pack.displayTokens ?? ""} />
+              <div className="self-end rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2">
+                <div className="text-xs text-[color:var(--bp-muted)]">Цена 1 млн токенов</div>
+                <div className="font-medium">{money(pricePerMillion(pack.priceRub, pack.displayTokens))} ₽</div>
+              </div>
               <input name="sortOrder" type="number" step="1" defaultValue={pack.sortOrder} className="self-end rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
               <label className="flex items-center gap-2 self-end pb-2 text-xs">
                 <input name="isActive" type="checkbox" defaultChecked={pack.isActive} />
@@ -161,18 +182,32 @@ export default async function PlatformAiPackagesPage() {
               </label>
               <div className="flex items-end gap-2">
                 <button className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm hover:border-[color:var(--bp-accent)]">Сохранить</button>
-                <button
-                  form={`archive-ai-package-${pack.id}`}
-                  className="rounded-xl border border-rose-200 px-4 py-2 text-sm text-rose-700 hover:border-rose-400"
-                >
-                  Архив
-                </button>
+                {purchaseCountByPackageId.get(pack.id) ? (
+                  <button
+                    form={`archive-ai-package-${pack.id}`}
+                    className="rounded-xl border border-rose-200 px-4 py-2 text-sm text-rose-700 hover:border-rose-400"
+                  >
+                    Архив
+                  </button>
+                ) : (
+                  <button
+                    form={`delete-ai-package-${pack.id}`}
+                    className="rounded-xl border border-rose-200 px-4 py-2 text-sm text-rose-700 hover:border-rose-400"
+                  >
+                    Удалить
+                  </button>
+                )}
               </div>
-              <textarea name="description" defaultValue={pack.description ?? ""} placeholder="Описание" className="xl:col-span-7 min-h-16 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
+              <textarea name="description" defaultValue={pack.description ?? ""} placeholder="Описание" className="xl:col-span-6 min-h-16 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 outline-none" />
             </form>
           ))}
           {packages.map((pack) => (
             <form key={`archive-${pack.id}`} id={`archive-ai-package-${pack.id}`} action={archivePackageAction}>
+              <input type="hidden" name="id" value={pack.id} />
+            </form>
+          ))}
+          {packages.map((pack) => (
+            <form key={`delete-${pack.id}`} id={`delete-ai-package-${pack.id}`} action={deletePackageAction}>
               <input type="hidden" name="id" value={pack.id} />
             </form>
           ))}
@@ -189,7 +224,8 @@ export default async function PlatformAiPackagesPage() {
                 <tr>
                   <th className="py-2 pr-3">Пакет</th>
                   <th className="py-2 pr-3">Цена</th>
-                  <th className="py-2 pr-3">AI-баланс</th>
+                  <th className="py-2 pr-3">Токены</th>
+                  <th className="py-2 pr-3">Цена 1 млн</th>
                   <th className="py-2 pr-3">Архивирован</th>
                   <th className="py-2 pr-3">Действия</th>
                 </tr>
@@ -199,18 +235,29 @@ export default async function PlatformAiPackagesPage() {
                   <tr key={pack.id} className="border-t border-[color:var(--bp-stroke)]">
                     <td className="py-2 pr-3">
                       <div className="font-medium">{pack.name}</div>
-                      <div className="text-xs text-[color:var(--bp-muted)]">{pack.code} · #{pack.id}</div>
+                      <div className="text-xs text-[color:var(--bp-muted)]">Пакет #{pack.id}</div>
                     </td>
                     <td className="py-2 pr-3">{money(pack.priceRub)} ₽</td>
-                    <td className="py-2 pr-3">{money(pack.includedCreditRub)} ₽</td>
+                    <td className="py-2 pr-3">{pack.displayTokens ? int(pack.displayTokens) : "—"}</td>
+                    <td className="py-2 pr-3">{money(pricePerMillion(pack.priceRub, pack.displayTokens))} ₽</td>
                     <td className="py-2 pr-3">{pack.archivedAt?.toLocaleString("ru-RU") ?? "—"}</td>
                     <td className="py-2 pr-3">
-                      <form action={restorePackageAction}>
-                        <input type="hidden" name="id" value={pack.id} />
-                        <button className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs hover:border-[color:var(--bp-accent)]">
-                          Вернуть
-                        </button>
-                      </form>
+                      <div className="flex flex-wrap gap-2">
+                        <form action={restorePackageAction}>
+                          <input type="hidden" name="id" value={pack.id} />
+                          <button className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-1.5 text-xs hover:border-[color:var(--bp-accent)]">
+                            Вернуть
+                          </button>
+                        </form>
+                        {!purchaseCountByPackageId.get(pack.id) ? (
+                          <form action={deletePackageAction}>
+                            <input type="hidden" name="id" value={pack.id} />
+                            <button className="rounded-xl border border-rose-200 px-3 py-1.5 text-xs text-rose-700 hover:border-rose-400">
+                              Удалить
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -219,21 +266,6 @@ export default async function PlatformAiPackagesPage() {
           </div>
         </section>
       ) : null}
-
-      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Закупки GigaChat</h2>
-        <div className="mt-4 grid gap-3">
-          {pools.map((pool) => (
-            <div key={pool.id} className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-sm">
-              <div className="font-medium">{pool.provider} / {pool.model}</div>
-              <div className="mt-1 text-[color:var(--bp-muted)]">
-                {int(pool.packageTokens)} токенов за {money(pool.packageCostRub)} ₽. Себестоимость 1 млн токенов: {money((Number(pool.packageCostRub) / Math.max(1, pool.packageTokens)) * 1_000_000)} ₽.
-              </div>
-            </div>
-          ))}
-          {!pools.length ? <div className="text-sm text-[color:var(--bp-muted)]">Пулы пока не добавлены. До этого используются значения из `.env`.</div> : null}
-        </div>
-      </section>
     </div>
   );
 }
