@@ -1,6 +1,7 @@
 import { requireCrmPermission } from "@/lib/auth";
 import { money } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
+import AccountPaymentsClient from "./account-payments-client";
 import SubscriptionCheckout from "./subscription-checkout";
 
 const invoiceStatusLabels: Record<string, string> = {
@@ -13,7 +14,7 @@ const invoiceStatusLabels: Record<string, string> = {
 export default async function CrmPaymentsPage() {
   const session = await requireCrmPermission("crm.payments.read");
 
-  const [account, plans, subscription, invoices] = await Promise.all([
+  const [account, plans, subscription, invoices, accountPaymentConnections] = await Promise.all([
     prisma.account.findUnique({
       where: { id: session.accountId },
       select: { planId: true, plan: { select: { name: true } } },
@@ -46,9 +47,36 @@ export default async function CrmPaymentsPage() {
         paidAt: true,
       },
     }),
+    prisma.accountPaymentConnection.findMany({
+      where: { accountId: session.accountId },
+      orderBy: [{ isDefault: "desc" }, { id: "asc" }],
+      select: {
+        id: true,
+        provider: true,
+        mode: true,
+        title: true,
+        isEnabled: true,
+        isDefault: true,
+        credentialsMasked: true,
+        receiptEnabled: true,
+        receiptVat: true,
+        receiptTaxationSystem: true,
+        currency: true,
+        lastTestedAt: true,
+        lastTestStatus: true,
+      },
+    }),
   ]);
 
   const currentPlanId = subscription?.planId ?? account?.planId ?? null;
+  const paymentConnections = accountPaymentConnections.map((connection) => ({
+    ...connection,
+    credentialsMasked:
+      connection.credentialsMasked && typeof connection.credentialsMasked === "object" && !Array.isArray(connection.credentialsMasked)
+        ? (connection.credentialsMasked as Record<string, unknown>)
+        : null,
+    lastTestedAt: connection.lastTestedAt?.toISOString() ?? null,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -78,6 +106,8 @@ export default async function CrmPaymentsPage() {
           </article>
         ) : null}
       </section>
+
+      <AccountPaymentsClient initialConnections={paymentConnections} />
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Счета платформы</h2>

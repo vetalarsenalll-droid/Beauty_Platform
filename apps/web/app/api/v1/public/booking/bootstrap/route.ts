@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const slotStepMinutes = await getAccountSlotStepMinutes(account.id);
   const publicAccount = { ...account, slotStepMinutes };
 
-  const [locationsRaw, legalDocs, platformLegalDocs, services, specialists] = await Promise.all([
+  const [locationsRaw, legalDocs, platformLegalDocs, services, specialists, accountSettings, defaultPaymentConnection] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: account.id, status: "ACTIVE" },
       orderBy: { createdAt: "asc" },
@@ -135,6 +135,24 @@ export async function GET(request: NextRequest) {
             profile: { select: { firstName: true, lastName: true, avatarUrl: true } },
           },
         },
+      },
+    }),
+    prisma.accountSetting.findUnique({
+      where: { accountId: account.id },
+      select: {
+        requireDeposit: true,
+        requirePaymentToConfirm: true,
+      },
+    }),
+    prisma.accountPaymentConnection.findFirst({
+      where: {
+        accountId: account.id,
+        isEnabled: true,
+      },
+      orderBy: [{ isDefault: "desc" }, { id: "asc" }],
+      select: {
+        provider: true,
+        mode: true,
       },
     }),
   ]);
@@ -312,6 +330,13 @@ export async function GET(request: NextRequest) {
 
   return jsonOk({
     account: publicAccount,
+    payments: {
+      requireDeposit: accountSettings?.requireDeposit ?? false,
+      requirePaymentToConfirm: accountSettings?.requirePaymentToConfirm ?? false,
+      onlinePaymentAvailable: Boolean(defaultPaymentConnection),
+      provider: defaultPaymentConnection?.provider ?? null,
+      mode: defaultPaymentConnection?.mode ?? null,
+    },
     locations,
     legalDocuments,
     platformLegalDocuments,

@@ -128,6 +128,7 @@ type ContextData = {
   locations: Location[];
   legalDocuments?: LegalDocument[];
   platformLegalDocuments?: LegalDocument[];
+  payments?: PublicPaymentSettings;
   workPhotos?: BookingWorkPhotos;
 };
 
@@ -142,6 +143,22 @@ type SpecialistsData = {
 type BootstrapData = ContextData & {
   services?: Array<Service & { locationIds?: number[] }>;
   specialists?: Array<Specialist & { locationIds?: number[] }>;
+};
+
+type PublicPaymentSettings = {
+  requireDeposit: boolean;
+  requirePaymentToConfirm: boolean;
+  onlinePaymentAvailable: boolean;
+  provider: string | null;
+  mode: string | null;
+};
+
+type PublicPaymentCheckoutData = {
+  intentId: number;
+  status: string;
+  paymentUrl: string | null;
+  provider: string;
+  providerStatus: string | null;
 };
 
 type SlotsData = {
@@ -1199,6 +1216,10 @@ export default function BookingClient({
   );
   const [loadingContext, setLoadingContext] = useState(!initialContext);
   const [contextError, setContextError] = useState<string | null>(null);
+  const paymentSettings = context?.payments ?? null;
+  const shouldStartOnlinePaymentAfterBooking =
+    Boolean(paymentSettings?.requirePaymentToConfirm) &&
+    Boolean(paymentSettings?.onlinePaymentAvailable);
 
   const [locationId, setLocationId] = useState<number | null>(() => {
     const firstId = initialContext?.locations.length === 1 ? Number(initialContext.locations[0].id) : null;
@@ -4769,6 +4790,34 @@ export default function BookingClient({
     }
   };
 
+  const startAppointmentPayment = async (appointmentId: number) => {
+    if (!shouldStartOnlinePaymentAfterBooking) return false;
+
+    const checkout = await fetchJson<PublicPaymentCheckoutData>(
+      buildUrl("/api/v1/public/payments/checkout", { account: accountSlug ?? "" }),
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId,
+          method: "card",
+          customer: {
+            name: clientName.trim(),
+            phone: clientPhone.trim(),
+            email: clientEmail.trim() || undefined,
+          },
+        }),
+      }
+    );
+
+    if (checkout.paymentUrl) {
+      window.location.href = checkout.paymentUrl;
+      return true;
+    }
+
+    throw new Error("Платеж создан, но банк не вернул ссылку на оплату.");
+  };
+
   const submitAppointment = async () => {
     if (isGroupService) {
       if (!canSubmit) {
@@ -4899,6 +4948,10 @@ export default function BookingClient({
         });
 
         clearAvailabilityCaches();
+        if (appointmentIds.length === 1) {
+          const paymentStarted = await startAppointmentPayment(appointmentIds[0]);
+          if (paymentStarted) return;
+        }
         setSubmitSuccess(true);
         setMobileSummaryExpanded(true);
         idempotencyKeyRef.current = null;
@@ -4995,6 +5048,8 @@ export default function BookingClient({
         payload: { appointmentId },
       });
       clearAvailabilityCaches();
+      const paymentStarted = await startAppointmentPayment(appointmentId);
+      if (paymentStarted) return;
       setSubmitSuccess(true);
       setMobileSummaryExpanded(true);
       idempotencyKeyRef.current = null;

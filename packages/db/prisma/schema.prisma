@@ -149,6 +149,38 @@ enum RefundStatus {
   FAILED
 }
 
+enum AccountPaymentProvider {
+  YOOKASSA
+  TBANK
+  SBER
+  ALFA
+}
+
+enum PaymentConnectionMode {
+  TEST
+  LIVE
+}
+
+enum ReceiptVatCode {
+  NONE
+  VAT_0
+  VAT_5
+  VAT_7
+  VAT_10
+  VAT_18
+  VAT_20
+}
+
+enum ReceiptTaxationSystem {
+  DEFAULT
+  OSN
+  USN_INCOME
+  USN_INCOME_OUTCOME
+  ENVD
+  ESN
+  PATENT
+}
+
 enum NotificationChannel {
   IN_APP
   EMAIL
@@ -642,11 +674,13 @@ model Account {
   scheduleNonWorkingTypes ScheduleNonWorkingType[]
   blockedSlots            BlockedSlot[]
   userSessions            UserSession[]
+  paymentConnections      AccountPaymentConnection[]
   paymentIntents          PaymentIntent[]
   transactions            Transaction[]
   refunds                 Refund[]
   receipts                Receipt[]
   paymentMethods          PaymentMethod[]
+  paymentWebhookEvents     PaymentWebhookEvent[]
   promotions              Promotion[]
   promoCodes              PromoCode[]
   referrals               Referral[]
@@ -1870,9 +1904,41 @@ model BlockedSlot {
   @@index([accountId, specialistId, startAt])
 }
 
+model AccountPaymentConnection {
+  id                    Int                    @id @default(autoincrement())
+  accountId             Int
+  provider              AccountPaymentProvider
+  mode                  PaymentConnectionMode  @default(TEST)
+  title                 String?
+  isEnabled             Boolean                @default(false)
+  isDefault             Boolean                @default(false)
+  credentialsEncrypted  String
+  credentialsMasked     Json?
+  publicConfig          Json?
+  receiptEnabled        Boolean                @default(false)
+  receiptVat            ReceiptVatCode         @default(NONE)
+  receiptTaxationSystem ReceiptTaxationSystem  @default(DEFAULT)
+  receiptFfdVersion     String?
+  paymentSubject        String?
+  paymentMethod         String?
+  currency              String                 @default("RUB")
+  webhookSecret         String?
+  lastTestedAt          DateTime?
+  lastTestStatus        String?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  account        Account         @relation(fields: [accountId], references: [id])
+  paymentIntents PaymentIntent[]
+
+  @@index([accountId, provider])
+  @@index([accountId, isEnabled])
+}
+
 model PaymentIntent {
   id            Int                 @id @default(autoincrement())
   accountId     Int
+  connectionId  Int?
   appointmentId Int?
   clientId      Int?
   amount        Decimal             @db.Decimal(12, 2)
@@ -1881,16 +1947,31 @@ model PaymentIntent {
   scenario      String
   provider      String?
   providerRef   String?
+  providerStatus String?
+  providerPayload Json?
+  paymentUrl    String?
+  returnUrl     String?
+  failUrl       String?
+  idempotencyKey String?
+  paidAt        DateTime?
+  expiresAt     DateTime?
+  receiptRequested Boolean           @default(false)
+  receiptPayload Json?
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
   account      Account       @relation(fields: [accountId], references: [id])
+  connection   AccountPaymentConnection? @relation(fields: [connectionId], references: [id])
   appointment  Appointment?  @relation(fields: [appointmentId], references: [id])
   client       Client?       @relation(fields: [clientId], references: [id])
   transactions Transaction[]
   refunds      Refund[]
+  webhookEvents PaymentWebhookEvent[]
 
   @@index([accountId, status])
+  @@index([connectionId])
+  @@index([provider, providerRef])
+  @@unique([idempotencyKey])
 }
 
 model Transaction {
@@ -1901,6 +1982,9 @@ model Transaction {
   amount      Decimal         @db.Decimal(12, 2)
   currency    String          @default("RUB")
   providerRef String?
+  providerStatus String?
+  providerPayload Json?
+  paidAt      DateTime?
   createdAt   DateTime        @default(now())
 
   account  Account        @relation(fields: [accountId], references: [id])
@@ -1919,6 +2003,10 @@ model Refund {
   amount        Decimal      @db.Decimal(12, 2)
   status        RefundStatus @default(PENDING)
   reason        String?
+  providerRef     String?
+  providerStatus  String?
+  providerPayload Json?
+  completedAt     DateTime?
   createdAt     DateTime     @default(now())
 
   account     Account        @relation(fields: [accountId], references: [id])
@@ -1931,8 +2019,14 @@ model Receipt {
   accountId     Int
   transactionId Int?
   provider      String
+  providerRef    String?
+  status         String?
   receiptUrl    String?
   payload       Json?
+  fiscalPayload  Json?
+  fiscalNumber   String?
+  fiscalDocument String?
+  fiscalSign     String?
   createdAt     DateTime @default(now())
 
   account     Account      @relation(fields: [accountId], references: [id])
@@ -1957,8 +2051,20 @@ model PaymentWebhookEvent {
   id              Int      @id @default(autoincrement())
   provider        String
   providerEventId String   @unique
+  accountId       Int?
+  intentId        Int?
   payload         Json
   receivedAt      DateTime @default(now())
+  processedAt     DateTime?
+  processingStatus String?
+  processingError  String?
+
+  account Account?       @relation(fields: [accountId], references: [id])
+  intent  PaymentIntent? @relation(fields: [intentId], references: [id])
+
+  @@index([accountId, receivedAt])
+  @@index([intentId])
+  @@index([provider, receivedAt])
 }
 
 model Promotion {
