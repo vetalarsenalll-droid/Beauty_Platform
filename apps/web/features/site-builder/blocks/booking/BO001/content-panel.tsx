@@ -277,14 +277,22 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
           <FlatCheckbox
             checked={bookingPayment.bookingAllowPrepaymentFixed}
             onChange={(checked) =>
-              setBookingPayment((current) => ({ ...current, bookingAllowPrepaymentFixed: checked }))
+              setBookingPayment((current) => ({
+                ...current,
+                bookingAllowPrepaymentFixed: checked,
+                bookingAllowPrepaymentPercent: checked ? false : current.bookingAllowPrepaymentPercent,
+              }))
             }
             label="Предоплата фиксированной суммой"
           />
           <FlatCheckbox
             checked={bookingPayment.bookingAllowPrepaymentPercent}
             onChange={(checked) =>
-              setBookingPayment((current) => ({ ...current, bookingAllowPrepaymentPercent: checked }))
+              setBookingPayment((current) => ({
+                ...current,
+                bookingAllowPrepaymentFixed: checked ? false : current.bookingAllowPrepaymentFixed,
+                bookingAllowPrepaymentPercent: checked,
+              }))
             }
             label="Предоплата процентом"
           />

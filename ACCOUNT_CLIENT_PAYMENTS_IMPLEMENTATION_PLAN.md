@@ -968,6 +968,90 @@ Manual E2E:
 
 ## 22. Progress Journal
 
+### 2026-06-03 - hide optional API URL in CRM payment settings
+
+Status: completed
+
+Done:
+
+- Removed the optional `API URL` credential field from the CRM payment connection form.
+- Existing saved credentials are still supported, but `apiUrl` is filtered out of the saved credentials preview so `apiUrl: null` is no longer shown to salon users.
+
+Changed files:
+
+- `apps/web/app/(crm)/crm/payments/account-payments-client.tsx`
+
+Verified:
+
+- `npm run typecheck` passed.
+
+Next:
+
+- No follow-up required for this UI cleanup.
+
+### 2026-06-03 - payment return site link uses public slug
+
+Status: completed
+
+Done:
+
+- Fixed account payment success/fail pages: the `На сайт` link now points to the technical public site slug with account id, for example `/severnaya-orhideya_2`, instead of the internal account slug `/severnaya-orhideya`.
+- This fixes the 404 after a successful T-Bank payment when returning from `/payment/success?intentId=...`.
+
+Changed files:
+
+- `apps/web/app/payment/success/page.tsx`
+- `apps/web/app/payment/fail/page.tsx`
+
+Verified:
+
+- `npm run typecheck` passed.
+
+Next:
+
+- Reopen `/payment/success?intentId=32` and click `На сайт`; it should route to the published site.
+
+Blockers:
+
+- None.
+
+### 2026-06-02 - public booking payment retry continues existing appointment
+
+Status: completed
+
+Done:
+
+- Fixed public published booking data so `payments` settings are included in server-rendered booking pages, not only CRM builder preview.
+- Fixed public booking payment retry: if an online `NEW` appointment already exists for the same client, slot and service, `/api/v1/public/booking/appointments` returns that existing `appointmentId` instead of blocking payment with `TIME_BUSY`/hold errors.
+- Added checkout reuse for existing active appointment payment intents so repeat clicks can return the same provider `paymentUrl` instead of creating duplicate payment intents.
+- Verified T-Bank account checkout for appointment `#151` returns a hosted payment URL: `https://pay.tbank.ru/bVMflVOq`.
+
+Changed files:
+
+- `apps/web/app/api/v1/public/booking/appointments/route.ts`
+- `apps/web/app/api/v1/public/payments/checkout/route.ts`
+- `apps/web/app/[publicSlug]/_shared/public-data.ts`
+- `apps/web/app/[publicSlug]/_shared/public-render.tsx`
+- `apps/web/app/[publicSlug]/_shared/public-page-shell.tsx`
+- `apps/web/app/[publicSlug]/_shared/menu-render.tsx`
+- `apps/web/components/public-booking-client.tsx`
+- `apps/web/features/site-builder/shared/site-data.ts`
+
+Verified:
+
+- `npm run typecheck` passed.
+- Local API retry for existing booking slot returned `appointmentId: 151`.
+- Local public checkout for appointment `#151` returned T-Bank `paymentUrl`.
+
+Next:
+
+- Browser-test the full public booking flow after refreshing the published booking page.
+- Add clearer UI feedback for `TIME_BUSY`/existing unpaid appointment states if users repeatedly click after creating a booking.
+
+Blockers:
+
+- Automatic T-Bank webhook delivery still requires public HTTPS URL or tunnel on localhost; success/fail pages can refresh status after redirect.
+
 ### 2026-06-02 - booking payment rules connected end-to-end
 
 Status: completed

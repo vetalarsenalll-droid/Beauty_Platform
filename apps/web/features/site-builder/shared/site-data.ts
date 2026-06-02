@@ -185,6 +185,22 @@ export type SiteLegalDocumentItem = {
   publishedAt: string;
 };
 
+export type SitePaymentSettings = {
+  requireDeposit: boolean;
+  requirePaymentToConfirm: boolean;
+  bookingOnlinePaymentMode: "DISABLED" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
+  bookingAllowPayLater: boolean;
+  bookingAllowPrepaymentFixed: boolean;
+  bookingAllowPrepaymentPercent: boolean;
+  bookingAllowFullPayment: boolean;
+  bookingPrepaymentAmount: number | null;
+  bookingPrepaymentPercent: number | null;
+  bookingFullPaymentDiscountPercent: number | null;
+  onlinePaymentAvailable: boolean;
+  provider: string | null;
+  mode: string | null;
+};
+
 export type PublicSiteData = {
   account: SiteAccountInfo;
   publicSlug: string;
@@ -199,4 +215,5 @@ export type PublicSiteData = {
   workPhotos: SiteWorkPhotos;
   legalDocuments: SiteLegalDocumentItem[];
   platformLegalDocuments: SiteLegalDocumentItem[];
+  payments: SitePaymentSettings;
 };

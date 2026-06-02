@@ -1228,9 +1228,6 @@ export default function BookingClient({
   const [contextError, setContextError] = useState<string | null>(null);
   const paymentSettings = context?.payments ?? null;
   const [bookingPaymentChoice, setBookingPaymentChoice] = useState<BookingPaymentChoice>("PAY_LATER");
-  const shouldStartOnlinePaymentAfterBooking =
-    bookingPaymentChoice !== "PAY_LATER" &&
-    Boolean(paymentSettings?.onlinePaymentAvailable);
 
   const [locationId, setLocationId] = useState<number | null>(() => {
     const firstId = initialContext?.locations.length === 1 ? Number(initialContext.locations[0].id) : null;
@@ -4355,11 +4352,16 @@ export default function BookingClient({
     if (!paymentSettings || !Number.isFinite(total) || total <= 0) return [];
 
     const legacyMode = paymentSettings.bookingOnlinePaymentMode;
-    const allowPayLater = paymentSettings.bookingAllowPayLater !== false;
-    const allowFixed =
-      Boolean(paymentSettings.bookingAllowPrepaymentFixed) || legacyMode === "PREPAYMENT_FIXED";
-    const allowPercent =
+    const allowPayLater =
+      typeof paymentSettings.bookingAllowPayLater === "boolean"
+        ? paymentSettings.bookingAllowPayLater
+        : legacyMode === "DISABLED";
+    const allowPercentRaw =
       Boolean(paymentSettings.bookingAllowPrepaymentPercent) || legacyMode === "PREPAYMENT_PERCENT";
+    const allowFixed =
+      (Boolean(paymentSettings.bookingAllowPrepaymentFixed) || legacyMode === "PREPAYMENT_FIXED") &&
+      !allowPercentRaw;
+    const allowPercent = allowPercentRaw;
     const allowFull = Boolean(paymentSettings.bookingAllowFullPayment) || legacyMode === "FULL_PAYMENT";
     const onlineUnavailableText = paymentSettings.onlinePaymentAvailable
       ? ""
@@ -4370,6 +4372,7 @@ export default function BookingClient({
       title: string;
       text: string;
       disabled: boolean;
+      actionLabel: string;
     }> = [];
 
     if (allowPayLater) {
@@ -4378,6 +4381,7 @@ export default function BookingClient({
         title: "Записаться без онлайн-оплаты",
         text: "Оплата после визита или другим способом салона.",
         disabled: false,
+        actionLabel: "Записаться",
       });
     }
 
@@ -4390,6 +4394,7 @@ export default function BookingClient({
           title: "Онлайн-предоплата",
           text: `К оплате сейчас ${formatMoneyRub(amount)}. Остаток ${formatMoneyRub(remaining)} оплачивается в салоне.${onlineUnavailableText}`,
           disabled: !paymentSettings.onlinePaymentAvailable,
+          actionLabel: "Внести предоплату и записаться",
         });
       }
     }
@@ -4404,6 +4409,7 @@ export default function BookingClient({
           title: `Онлайн-предоплата ${percent}%`,
           text: `К оплате сейчас ${formatMoneyRub(amount)}. Остаток ${formatMoneyRub(remaining)} оплачивается в салоне.${onlineUnavailableText}`,
           disabled: !paymentSettings.onlinePaymentAvailable,
+          actionLabel: "Внести предоплату и записаться",
         });
       }
     }
@@ -4423,6 +4429,7 @@ export default function BookingClient({
             ? `К оплате ${formatMoneyRub(amount)} со скидкой ${discountPercent}% вместо ${formatMoneyRub(total)}.${onlineUnavailableText}`
             : `К оплате вся стоимость визита: ${formatMoneyRub(amount)}.${onlineUnavailableText}`,
         disabled: !paymentSettings.onlinePaymentAvailable,
+        actionLabel: "Оплатить и записаться",
       });
     }
 
@@ -4438,6 +4445,30 @@ export default function BookingClient({
       setBookingPaymentChoice(bookingPaymentOptions[0]?.value ?? "PAY_LATER");
     }
   }, [bookingPaymentChoice, bookingPaymentOptions]);
+  const bookingSubmitOptions =
+    bookingPaymentOptions.length > 0
+      ? bookingPaymentOptions
+      : [
+          {
+            value: "PAY_LATER" as BookingPaymentChoice,
+            title: "Записаться",
+            text: "",
+            disabled: false,
+            actionLabel: "Записаться",
+          },
+        ];
+
+  const getBookingPaymentBlockingMessage = (paymentChoice: BookingPaymentChoice) => {
+    if (paymentChoice === "PAY_LATER") return null;
+
+    const selectedOption = bookingPaymentOptions.find((option) => option.value === paymentChoice);
+    if (!selectedOption) return "Выбранный способ оплаты недоступен.";
+    if (selectedOption.disabled || !paymentSettings?.onlinePaymentAvailable) {
+      return "Онлайн-оплата пока не подключена салоном.";
+    }
+    if (isGroupService) return "Онлайн-оплата групповых записей пока не поддержана.";
+    return null;
+  };
   const serviceDurationLabel =
     effectiveServiceDuration != null
       ? `${showApproxTotals ? "от " : ""}${effectiveServiceDuration} мин`
@@ -4889,8 +4920,11 @@ export default function BookingClient({
     }
   };
 
-  const startAppointmentPayment = async (appointmentId: number) => {
-    if (!shouldStartOnlinePaymentAfterBooking) return false;
+  const startAppointmentPayment = async (appointmentId: number, paymentChoice: BookingPaymentChoice) => {
+    if (paymentChoice === "PAY_LATER") return false;
+
+    const paymentBlockingMessage = getBookingPaymentBlockingMessage(paymentChoice);
+    if (paymentBlockingMessage) throw new Error(paymentBlockingMessage);
 
     const checkout = await fetchJson<PublicPaymentCheckoutData>(
       buildUrl("/api/v1/public/payments/checkout", { account: accountSlug ?? "" }),
@@ -4900,7 +4934,7 @@ export default function BookingClient({
         body: JSON.stringify({
           appointmentId,
           method: "card",
-          paymentOption: bookingPaymentChoice,
+          paymentOption: paymentChoice,
           customer: {
             name: clientName.trim(),
             phone: clientPhone.trim(),
@@ -4918,14 +4952,17 @@ export default function BookingClient({
     throw new Error("Платеж создан, но банк не вернул ссылку на оплату.");
   };
 
-  const submitAppointment = async () => {
+  const submitAppointment = async (paymentChoiceOverride?: BookingPaymentChoice) => {
+    const paymentChoice = paymentChoiceOverride ?? bookingPaymentChoice;
+
     if (isGroupService) {
       if (!canSubmit) {
         setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
         return;
       }
-      if (bookingPaymentChoice !== "PAY_LATER" && !paymentSettings?.onlinePaymentAvailable) {
-        setSubmitError("Онлайн-оплата пока не подключена салоном. Выберите запись без онлайн-оплаты.");
+      const paymentBlockingMessage = getBookingPaymentBlockingMessage(paymentChoice);
+      if (paymentBlockingMessage) {
+        setSubmitError(paymentBlockingMessage);
         return;
       }
       setSubmitting(true);
@@ -4979,8 +5016,9 @@ export default function BookingClient({
       setSubmitError("Выберите корректные дату и время.");
       return;
     }
-    if (bookingPaymentChoice !== "PAY_LATER" && !paymentSettings?.onlinePaymentAvailable) {
-      setSubmitError("Онлайн-оплата пока не подключена салоном. Выберите запись без онлайн-оплаты.");
+    const paymentBlockingMessage = getBookingPaymentBlockingMessage(paymentChoice);
+    if (paymentBlockingMessage) {
+      setSubmitError(paymentBlockingMessage);
       return;
     }
 
@@ -5057,7 +5095,7 @@ export default function BookingClient({
 
         clearAvailabilityCaches();
         if (appointmentIds.length === 1) {
-          const paymentStarted = await startAppointmentPayment(appointmentIds[0]);
+          const paymentStarted = await startAppointmentPayment(appointmentIds[0], paymentChoice);
           if (paymentStarted) return;
         }
         setSubmitSuccess(true);
@@ -5156,7 +5194,7 @@ export default function BookingClient({
         payload: { appointmentId },
       });
       clearAvailabilityCaches();
-      const paymentStarted = await startAppointmentPayment(appointmentId);
+      const paymentStarted = await startAppointmentPayment(appointmentId, paymentChoice);
       if (paymentStarted) return;
       setSubmitSuccess(true);
       setMobileSummaryExpanded(true);
@@ -5206,6 +5244,58 @@ export default function BookingClient({
             </label>
           ))}
         </div>
+      </div>
+    );
+  };
+
+  const renderBookingSubmitButtons = (options?: { expandMobileOnError?: boolean }) => {
+    if (submitSuccess) {
+      return (
+        <button
+          type="button"
+          onClick={resetAll}
+          className="booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm"
+        >
+          Новая запись
+        </button>
+      );
+    }
+
+    return (
+      <div className="space-y-2">
+        {bookingSubmitOptions.map((option) => {
+          const blockedByForm = !canSubmit;
+          const blockedByPayment = getBookingPaymentBlockingMessage(option.value);
+          const visuallyDisabled = blockedByForm || Boolean(blockedByPayment) || option.disabled;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                setBookingPaymentChoice(option.value);
+                if (blockedByForm) {
+                  if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
+                  setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
+                  return;
+                }
+                if (blockedByPayment) {
+                  if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
+                  setSubmitError(blockedByPayment);
+                  return;
+                }
+                void submitAppointment(option.value);
+              }}
+              disabled={submitting}
+              aria-disabled={visuallyDisabled}
+              className={cn(
+                "booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40",
+                visuallyDisabled && "cursor-not-allowed opacity-40"
+              )}
+            >
+              {submitting && bookingPaymentChoice === option.value ? "Отправляем..." : option.actionLabel}
+            </button>
+          );
+        })}
       </div>
     );
   };
@@ -6457,29 +6547,7 @@ export default function BookingClient({
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (submitSuccess) {
-                        resetAll();
-                        return;
-                      }
-                      if (!canSubmit) {
-                        setSubmitError(
-                          summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
-                        );
-                        return;
-                      }
-                      void submitAppointment();
-                    }}
-                    disabled={submitSuccess ? false : submitting}
-                    aria-disabled={!submitSuccess && !canSubmit}
-                    className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
-                      !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
-                    }`}
-                  >
-                    {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
-                  </button>
+                  {renderBookingSubmitButtons()}
                 </div>
               </div>
             ) : (
@@ -6562,29 +6630,7 @@ export default function BookingClient({
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (submitSuccess) {
-                      resetAll();
-                      return;
-                    }
-                    if (!canSubmit) {
-                      setSubmitError(
-                        summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
-                      );
-                      return;
-                    }
-                    void submitAppointment();
-                  }}
-                  disabled={submitSuccess ? false : submitting}
-                  aria-disabled={!submitSuccess && !canSubmit}
-                  className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
-                    !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
-                  }`}
-                >
-                  {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
-                </button>
+                {renderBookingSubmitButtons()}
               </div>
             </div>
 
@@ -6635,30 +6681,7 @@ export default function BookingClient({
 
               {isMobileFinalSummary ? (
                 <div className="booking-summary-mobile-action mt-3 space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (submitSuccess) {
-                        resetAll();
-                        return;
-                      }
-                      if (!canSubmit) {
-                        setMobileSummaryExpanded(true);
-                        setSubmitError(
-                          summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля."
-                        );
-                        return;
-                      }
-                      void submitAppointment();
-                    }}
-                    disabled={submitSuccess ? false : submitting}
-                    aria-disabled={!submitSuccess && !canSubmit}
-                    className={`booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40${
-                      !submitSuccess && !canSubmit ? " opacity-40 cursor-not-allowed" : ""
-                    }`}
-                  >
-                    {submitSuccess ? "Новая запись" : submitting ? "Отправляем..." : "Записаться"}
-                  </button>
+                  {renderBookingSubmitButtons({ expandMobileOnError: true })}
                 </div>
               ) : null}
             </div>
@@ -6684,11 +6707,6 @@ export default function BookingClient({
     </div>
   );
 }
-
-
-
-
-
 
 
 

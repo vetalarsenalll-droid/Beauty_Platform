@@ -56,10 +56,13 @@ export function getAllowedBookingPaymentOptions(
 ): BookingPaymentOption[] {
   if (!settings) return ["PAY_LATER"];
   const legacyMode = settings.bookingOnlinePaymentMode;
+  const allowPrepaymentPercent = settings.bookingAllowPrepaymentPercent || legacyMode === "PREPAYMENT_PERCENT";
+  const allowPrepaymentFixed =
+    (settings.bookingAllowPrepaymentFixed || legacyMode === "PREPAYMENT_FIXED") && !allowPrepaymentPercent;
   const options: BookingPaymentOption[] = [];
   if (settings.bookingAllowPayLater !== false) options.push("PAY_LATER");
-  if (settings.bookingAllowPrepaymentFixed || legacyMode === "PREPAYMENT_FIXED") options.push("PREPAYMENT_FIXED");
-  if (settings.bookingAllowPrepaymentPercent || legacyMode === "PREPAYMENT_PERCENT") options.push("PREPAYMENT_PERCENT");
+  if (allowPrepaymentFixed) options.push("PREPAYMENT_FIXED");
+  if (allowPrepaymentPercent) options.push("PREPAYMENT_PERCENT");
   if (settings.bookingAllowFullPayment || legacyMode === "FULL_PAYMENT") options.push("FULL_PAYMENT");
   return options.length > 0 ? options : ["PAY_LATER"];
 }

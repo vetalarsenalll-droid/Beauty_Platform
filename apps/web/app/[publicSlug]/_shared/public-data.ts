@@ -8,6 +8,7 @@ import type {
   SiteBranding as Branding,
   SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
+  SitePaymentSettings as PaymentSettings,
   SitePromoItem as PromoItem,
   SiteReviewItem as ReviewItem,
   SiteServiceItem as ServiceItem,
@@ -60,6 +61,8 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     branding,
     legalDocs,
     platformLegalDocs,
+    accountSettings,
+    defaultPaymentConnection,
   ] = await Promise.all([
     getAccountSlotStepMinutes(account.id),
     prisma.location.findMany({
@@ -182,6 +185,32 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
           take: 1,
           select: { id: true, version: true, content: true, publishedAt: true },
         },
+      },
+    }),
+    prisma.accountSetting.findUnique({
+      where: { accountId: account.id },
+      select: {
+        requireDeposit: true,
+        requirePaymentToConfirm: true,
+        bookingOnlinePaymentMode: true,
+        bookingAllowPayLater: true,
+        bookingAllowPrepaymentFixed: true,
+        bookingAllowPrepaymentPercent: true,
+        bookingAllowFullPayment: true,
+        bookingPrepaymentAmount: true,
+        bookingPrepaymentPercent: true,
+        bookingFullPaymentDiscountPercent: true,
+      },
+    }),
+    prisma.accountPaymentConnection.findFirst({
+      where: {
+        accountId: account.id,
+        isEnabled: true,
+      },
+      orderBy: [{ isDefault: "desc" }, { id: "asc" }],
+      select: {
+        provider: true,
+        mode: true,
       },
     }),
   ]);
@@ -550,6 +579,34 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     };
   });
 
+  const payments: PaymentSettings = {
+    requireDeposit: accountSettings?.requireDeposit ?? false,
+    requirePaymentToConfirm: accountSettings?.requirePaymentToConfirm ?? false,
+    bookingOnlinePaymentMode: accountSettings?.bookingOnlinePaymentMode ?? "DISABLED",
+    bookingAllowPayLater: accountSettings?.bookingAllowPayLater ?? true,
+    bookingAllowPrepaymentFixed:
+      accountSettings?.bookingAllowPrepaymentFixed ??
+      accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
+    bookingAllowPrepaymentPercent:
+      accountSettings?.bookingAllowPrepaymentPercent ??
+      accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
+    bookingAllowFullPayment:
+      accountSettings?.bookingAllowFullPayment ??
+      accountSettings?.bookingOnlinePaymentMode === "FULL_PAYMENT",
+    bookingPrepaymentAmount: accountSettings?.bookingPrepaymentAmount
+      ? Number(accountSettings.bookingPrepaymentAmount)
+      : null,
+    bookingPrepaymentPercent: accountSettings?.bookingPrepaymentPercent
+      ? Number(accountSettings.bookingPrepaymentPercent)
+      : null,
+    bookingFullPaymentDiscountPercent: accountSettings?.bookingFullPaymentDiscountPercent
+      ? Number(accountSettings.bookingFullPaymentDiscountPercent)
+      : null,
+    onlinePaymentAvailable: Boolean(defaultPaymentConnection),
+    provider: defaultPaymentConnection?.provider ?? null,
+    mode: defaultPaymentConnection?.mode ?? null,
+  };
+
   return {
     account: { ...account, slotStepMinutes },
     publicSlug,
@@ -564,6 +621,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     workPhotos,
     legalDocuments,
     platformLegalDocuments,
+    payments,
   };
 }
 

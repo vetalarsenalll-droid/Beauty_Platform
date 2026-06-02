@@ -73,10 +73,15 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
   const [message, setMessage] = useState<string | null>(null);
   const [publicOrigin, setPublicOrigin] = useState("");
 
-  const selected = useMemo(
-    () => connections.find((item) => providerFromDb[item.provider] === provider) ?? null,
-    [connections, provider],
-  );
+  const selected = useMemo(() => {
+    const item = connections.find((entry) => providerFromDb[entry.provider] === provider) ?? null;
+    if (!item?.credentialsMasked) return item;
+
+    const credentialsMasked = Object.fromEntries(
+      Object.entries(item.credentialsMasked).filter(([key]) => key !== "apiUrl"),
+    );
+    return { ...item, credentialsMasked };
+  }, [connections, provider]);
 
   useEffect(() => {
     setPublicOrigin(window.location.origin);
@@ -277,6 +282,9 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
                   setBookingPayment((current) => ({
                     ...current,
                     bookingAllowPrepaymentFixed: event.target.checked,
+                    bookingAllowPrepaymentPercent: event.target.checked
+                      ? false
+                      : current.bookingAllowPrepaymentPercent,
                   }))
                 }
               />
@@ -307,6 +315,9 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
                 onChange={(event) =>
                   setBookingPayment((current) => ({
                     ...current,
+                    bookingAllowPrepaymentFixed: event.target.checked
+                      ? false
+                      : current.bookingAllowPrepaymentFixed,
                     bookingAllowPrepaymentPercent: event.target.checked,
                   }))
                 }
@@ -387,12 +398,10 @@ function CredentialFields({
         ? [
             ["terminalKey", "Terminal Key"],
             ["password", "Пароль"],
-            ["apiUrl", "API URL"],
           ]
         : [
             ["apiLogin", "Логин API"],
             ["apiPassword", "Пароль API"],
-            ["apiUrl", "API URL"],
           ];
 
   return (

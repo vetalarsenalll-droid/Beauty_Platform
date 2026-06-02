@@ -31,6 +31,13 @@ const toNumber = (value: unknown) => {
   return Number.isFinite(num) ? num : 0;
 };
 
+const sameNumberSet = (left: number[], right: number[]) => {
+  if (left.length !== right.length) return false;
+  const sortedLeft = [...left].sort((a, b) => a - b);
+  const sortedRight = [...right].sort((a, b) => a - b);
+  return sortedLeft.every((value, index) => value === sortedRight[index]);
+};
+
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -142,9 +149,6 @@ export async function POST(request: Request) {
     !timeValue
   ) {
     return jsonError("INVALID_REQUEST", "Некорректные параметры.", null, 400);
-  }
-  if (!holdId) {
-    return jsonError("HOLD_REQUIRED", "Сначала зарезервируйте слот.", null, 400);
   }
 
   if (clientName.length < 2 || !clientPhone) {
@@ -346,6 +350,40 @@ export async function POST(request: Request) {
   const endAtUtc = new Date(startAtUtc);
   endAtUtc.setUTCMinutes(endAtUtc.getUTCMinutes() + durationMin);
 
+  const existingOnlineAppointment = await prisma.appointment.findFirst({
+    where: {
+      accountId: resolved.account.id,
+      locationId,
+      specialistId,
+      startAt: startAtUtc,
+      endAt: endAtUtc,
+      status: "NEW",
+      source: "online",
+      OR: [
+        ...(clientPhone ? [{ client: { phone: clientPhone } }] : []),
+        ...(clientEmail ? [{ client: { email: clientEmail } }] : []),
+      ],
+    },
+    select: {
+      id: true,
+      services: { select: { serviceId: true } },
+    },
+  });
+
+  if (
+    existingOnlineAppointment &&
+    sameNumberSet(
+      existingOnlineAppointment.services.map((item) => item.serviceId),
+      selectedServiceIds
+    )
+  ) {
+    return NextResponse.json({ data: { appointmentId: existingOnlineAppointment.id } });
+  }
+
+  if (!holdId) {
+    return jsonError("HOLD_REQUIRED", "Сначала зарезервируйте слот.", null, 400);
+  }
+
   const cookieStore = await cookies();
   const holdProof = cookieStore.get(BOOKING_HOLD_COOKIE)?.value ?? "";
   const holdProofValid = verifyHoldProofToken(holdProof, {
@@ -499,10 +537,31 @@ export async function POST(request: Request) {
           startAt: { lt: endAtUtc },
           endAt: { gt: startAtUtc },
         },
-        select: { id: true },
+        select: {
+          id: true,
+          status: true,
+          source: true,
+          client: { select: { phone: true, email: true } },
+          services: { select: { serviceId: true } },
+        },
       });
 
       if (conflictAppt) {
+        const sameServices = sameNumberSet(
+          conflictAppt.services.map((item) => item.serviceId),
+          selectedServiceIds
+        );
+        const sameClient =
+          Boolean(clientPhone && conflictAppt.client?.phone === clientPhone) ||
+          Boolean(clientEmail && conflictAppt.client?.email === clientEmail);
+        if (
+          conflictAppt.status === "NEW" &&
+          conflictAppt.source === "online" &&
+          sameServices &&
+          sameClient
+        ) {
+          return { ok: true as const, appointmentId: conflictAppt.id };
+        }
         return {
           ok: false as const,
           error: jsonError("TIME_BUSY", "Выбранное время уже занято.", null, 409),

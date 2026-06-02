@@ -112,6 +112,8 @@ export async function PATCH(request: Request) {
   if (bookingAllowPrepaymentPercent !== null) data.bookingAllowPrepaymentPercent = bookingAllowPrepaymentPercent;
   if (bookingAllowFullPayment !== null) data.bookingAllowFullPayment = bookingAllowFullPayment;
   if (bookingOnlinePaymentMode !== null) data.bookingOnlinePaymentMode = bookingOnlinePaymentMode;
+  if (data.bookingAllowPrepaymentFixed === true) data.bookingAllowPrepaymentPercent = false;
+  if (data.bookingAllowPrepaymentPercent === true) data.bookingAllowPrepaymentFixed = false;
   if (bookingPrepaymentAmount !== null) data.bookingPrepaymentAmount = Math.max(0, bookingPrepaymentAmount);
   if (bookingPrepaymentPercent !== null) data.bookingPrepaymentPercent = Math.min(100, Math.max(0, bookingPrepaymentPercent));
   if (bookingFullPaymentDiscountPercent !== null) {

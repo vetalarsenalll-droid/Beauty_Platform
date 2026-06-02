@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { refreshAccountPaymentIntent } from "@/lib/account-payments/checkout";
+import { buildPublicSlugId } from "@/lib/public-slug";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ async function loadIntent(intentId: number) {
   return prisma.paymentIntent.findUnique({
     where: { id: intentId },
     include: {
-      account: { select: { name: true, slug: true } },
+      account: { select: { id: true, name: true, slug: true } },
     },
   });
 }
@@ -47,6 +48,9 @@ export default async function AccountPaymentFailPage({ searchParams }: PageProps
   }
 
   const isPaid = intent?.status === "SUCCEEDED";
+  const siteHref = intent?.account
+    ? `/${buildPublicSlugId(intent.account.slug, intent.account.id)}`
+    : null;
 
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl items-center justify-center px-4 py-10">
@@ -80,8 +84,8 @@ export default async function AccountPaymentFailPage({ searchParams }: PageProps
               Повторить оплату
             </Link>
           ) : null}
-          {intent?.account.slug ? (
-            <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href={`/${intent.account.slug}`}>
+          {siteHref ? (
+            <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href={siteHref}>
               На сайт
             </Link>
           ) : null}

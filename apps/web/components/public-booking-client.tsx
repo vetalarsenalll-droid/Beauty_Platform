@@ -55,6 +55,21 @@ type PublicBookingClientProps = {
       content?: string;
       publishedAt: string;
     }>;
+    payments?: {
+      requireDeposit: boolean;
+      requirePaymentToConfirm: boolean;
+      bookingOnlinePaymentMode?: "DISABLED" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
+      bookingAllowPayLater?: boolean;
+      bookingAllowPrepaymentFixed?: boolean;
+      bookingAllowPrepaymentPercent?: boolean;
+      bookingAllowFullPayment?: boolean;
+      bookingPrepaymentAmount?: number | null;
+      bookingPrepaymentPercent?: number | null;
+      bookingFullPaymentDiscountPercent?: number | null;
+      onlinePaymentAvailable: boolean;
+      provider: string | null;
+      mode: string | null;
+    };
     workPhotos?: {
       locations?: Array<{ entityId: string; url: string }>;
       services?: Array<{ entityId: string; url: string }>;

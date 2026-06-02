@@ -318,6 +318,7 @@ export async function renderPublicPageShell({
           data.locations,
           data.legalDocuments,
           data.platformLegalDocuments,
+          data.payments,
           data.services,
           data.specialists,
           data.promos,

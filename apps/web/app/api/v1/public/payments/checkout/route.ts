@@ -90,6 +90,24 @@ export async function POST(request: Request) {
             ? `${calculation.descriptionPrefix}: ${serviceNames.join(", ")}`.slice(0, 250)
             : `${calculation.descriptionPrefix} #${appointment.id}`;
 
+      const existingIntent = appointment.paymentIntents[0] ?? null;
+      if (existingIntent?.paymentUrl) {
+        return NextResponse.json({
+          data: {
+            intentId: existingIntent.id,
+            status: existingIntent.status,
+            paymentUrl: existingIntent.paymentUrl,
+            provider: existingIntent.provider,
+            providerStatus: existingIntent.providerStatus,
+            amountRub: calculation.amountRub,
+            originalAmountRub: calculation.originalAmountRub,
+            discountAmountRub: calculation.discountAmountRub,
+            remainingAmountRub: calculation.remainingAmountRub,
+            scenario: calculation.scenario,
+          },
+        });
+      }
+
       const intent = await createAccountCheckout({
         accountId: resolved.account.id,
         appointmentId: appointment.id,
@@ -197,6 +215,18 @@ async function prismaAppointmentForCheckout(appointmentId: number, accountId: nu
       services: {
         include: { service: { select: { name: true } } },
         orderBy: { orderIndex: "asc" },
+      },
+      paymentIntents: {
+        where: { status: { in: ["CREATED", "REQUIRES_ACTION", "PROCESSING"] } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          provider: true,
+          providerStatus: true,
+          paymentUrl: true,
+        },
       },
     },
   });
