@@ -21,6 +21,7 @@ export type CreateAccountCheckoutInput = {
   clientId?: number | null;
   customer?: AccountPaymentCustomerInput;
   receiptItems?: AccountReceiptItemInput[];
+  metadata?: Prisma.InputJsonValue;
   returnUrl?: string;
   failUrl?: string;
   idempotencyKey?: string;
@@ -63,6 +64,7 @@ export async function createAccountCheckout(input: CreateAccountCheckoutInput) {
       scenario: input.scenario,
       status: "CREATED",
       provider: loaded.snapshot.provider,
+      metadata: input.metadata ?? undefined,
       idempotencyKey: input.idempotencyKey ?? `account_checkout_${input.accountId}_${Date.now()}`,
       returnUrl: input.returnUrl ?? null,
       failUrl: input.failUrl ?? null,
@@ -173,6 +175,17 @@ export async function applyAccountPaymentState(input: {
           providerPayload: jsonOrNull(input.raw),
           paidAt: intent.paidAt ?? new Date(),
         },
+      });
+    }
+
+    if (intent.appointmentId && intent.scenario.startsWith("appointment_")) {
+      await tx.appointment.updateMany({
+        where: {
+          id: intent.appointmentId,
+          accountId: intent.accountId,
+          status: "NEW",
+        },
+        data: { status: "CONFIRMED" },
       });
     }
 

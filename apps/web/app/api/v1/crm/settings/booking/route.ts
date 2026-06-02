@@ -15,6 +15,41 @@ const toBool = (value: unknown) => {
   return null;
 };
 
+const bookingPaymentModes = new Set(["DISABLED", "PREPAYMENT_FIXED", "PREPAYMENT_PERCENT", "FULL_PAYMENT"]);
+
+const toNumber = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const n = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const toBookingPaymentMode = (value: unknown) => {
+  if (typeof value !== "string") return null;
+  const mode = value.trim().toUpperCase();
+  return bookingPaymentModes.has(mode) ? mode : null;
+};
+
+function legacyAllows(settings: { bookingOnlinePaymentMode?: string | null } | null | undefined) {
+  const mode = settings?.bookingOnlinePaymentMode ?? "DISABLED";
+  return {
+    bookingAllowPayLater: true,
+    bookingAllowPrepaymentFixed: mode === "PREPAYMENT_FIXED",
+    bookingAllowPrepaymentPercent: mode === "PREPAYMENT_PERCENT",
+    bookingAllowFullPayment: mode === "FULL_PAYMENT",
+  };
+}
+
+function deriveLegacyMode(input: {
+  bookingAllowPrepaymentFixed?: boolean | null;
+  bookingAllowPrepaymentPercent?: boolean | null;
+  bookingAllowFullPayment?: boolean | null;
+}) {
+  if (input.bookingAllowFullPayment) return "FULL_PAYMENT";
+  if (input.bookingAllowPrepaymentPercent) return "PREPAYMENT_PERCENT";
+  if (input.bookingAllowPrepaymentFixed) return "PREPAYMENT_FIXED";
+  return "DISABLED";
+}
+
 export async function GET() {
   const session = await requireCrmPermission("crm.settings.read");
 
@@ -27,6 +62,16 @@ export async function GET() {
       slotStepMinutes: settings?.slotStepMinutes ?? 15,
       requireDeposit: settings?.requireDeposit ?? false,
       requirePaymentToConfirm: settings?.requirePaymentToConfirm ?? false,
+      bookingOnlinePaymentMode: settings?.bookingOnlinePaymentMode ?? "DISABLED",
+      bookingAllowPayLater: settings?.bookingAllowPayLater ?? legacyAllows(settings).bookingAllowPayLater,
+      bookingAllowPrepaymentFixed:
+        settings?.bookingAllowPrepaymentFixed ?? legacyAllows(settings).bookingAllowPrepaymentFixed,
+      bookingAllowPrepaymentPercent:
+        settings?.bookingAllowPrepaymentPercent ?? legacyAllows(settings).bookingAllowPrepaymentPercent,
+      bookingAllowFullPayment: settings?.bookingAllowFullPayment ?? legacyAllows(settings).bookingAllowFullPayment,
+      bookingPrepaymentAmount: settings?.bookingPrepaymentAmount ? Number(settings.bookingPrepaymentAmount) : null,
+      bookingPrepaymentPercent: settings?.bookingPrepaymentPercent ? Number(settings.bookingPrepaymentPercent) : null,
+      bookingFullPaymentDiscountPercent: settings?.bookingFullPaymentDiscountPercent ? Number(settings.bookingFullPaymentDiscountPercent) : null,
       cancellationWindowHours: settings?.cancellationWindowHours ?? null,
       rescheduleWindowHours: settings?.rescheduleWindowHours ?? null,
       holdTtlMinutes: settings?.holdTtlMinutes ?? null,
@@ -45,6 +90,14 @@ export async function PATCH(request: Request) {
   const slotStepMinutes = toInt(body.slotStepMinutes);
   const requireDeposit = toBool(body.requireDeposit);
   const requirePaymentToConfirm = toBool(body.requirePaymentToConfirm);
+  const bookingOnlinePaymentMode = toBookingPaymentMode(body.bookingOnlinePaymentMode);
+  const bookingAllowPayLater = toBool(body.bookingAllowPayLater);
+  const bookingAllowPrepaymentFixed = toBool(body.bookingAllowPrepaymentFixed);
+  const bookingAllowPrepaymentPercent = toBool(body.bookingAllowPrepaymentPercent);
+  const bookingAllowFullPayment = toBool(body.bookingAllowFullPayment);
+  const bookingPrepaymentAmount = toNumber(body.bookingPrepaymentAmount);
+  const bookingPrepaymentPercent = toNumber(body.bookingPrepaymentPercent);
+  const bookingFullPaymentDiscountPercent = toNumber(body.bookingFullPaymentDiscountPercent);
   const cancellationWindowHours = toInt(body.cancellationWindowHours);
   const rescheduleWindowHours = toInt(body.rescheduleWindowHours);
   const holdTtlMinutes = toInt(body.holdTtlMinutes);
@@ -54,10 +107,43 @@ export async function PATCH(request: Request) {
   if (slotStepMinutes !== null) data.slotStepMinutes = slotStepMinutes;
   if (requireDeposit !== null) data.requireDeposit = requireDeposit;
   if (requirePaymentToConfirm !== null) data.requirePaymentToConfirm = requirePaymentToConfirm;
+  if (bookingAllowPayLater !== null) data.bookingAllowPayLater = bookingAllowPayLater;
+  if (bookingAllowPrepaymentFixed !== null) data.bookingAllowPrepaymentFixed = bookingAllowPrepaymentFixed;
+  if (bookingAllowPrepaymentPercent !== null) data.bookingAllowPrepaymentPercent = bookingAllowPrepaymentPercent;
+  if (bookingAllowFullPayment !== null) data.bookingAllowFullPayment = bookingAllowFullPayment;
+  if (bookingOnlinePaymentMode !== null) data.bookingOnlinePaymentMode = bookingOnlinePaymentMode;
+  if (bookingPrepaymentAmount !== null) data.bookingPrepaymentAmount = Math.max(0, bookingPrepaymentAmount);
+  if (bookingPrepaymentPercent !== null) data.bookingPrepaymentPercent = Math.min(100, Math.max(0, bookingPrepaymentPercent));
+  if (bookingFullPaymentDiscountPercent !== null) {
+    data.bookingFullPaymentDiscountPercent = Math.min(100, Math.max(0, bookingFullPaymentDiscountPercent));
+  }
   data.cancellationWindowHours = cancellationWindowHours;
   data.rescheduleWindowHours = rescheduleWindowHours;
   data.holdTtlMinutes = holdTtlMinutes;
   data.defaultReminderHours = defaultReminderHours;
+
+  const nextAllows = {
+    bookingAllowPayLater:
+      (data.bookingAllowPayLater as boolean | undefined) ??
+      (bookingOnlinePaymentMode === "DISABLED" ? true : undefined),
+    bookingAllowPrepaymentFixed:
+      (data.bookingAllowPrepaymentFixed as boolean | undefined) ?? bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
+    bookingAllowPrepaymentPercent:
+      (data.bookingAllowPrepaymentPercent as boolean | undefined) ?? bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
+    bookingAllowFullPayment:
+      (data.bookingAllowFullPayment as boolean | undefined) ?? bookingOnlinePaymentMode === "FULL_PAYMENT",
+  };
+  if (
+    nextAllows.bookingAllowPayLater === false &&
+    !nextAllows.bookingAllowPrepaymentFixed &&
+    !nextAllows.bookingAllowPrepaymentPercent &&
+    !nextAllows.bookingAllowFullPayment
+  ) {
+    data.bookingAllowPayLater = true;
+  }
+  if (bookingOnlinePaymentMode === null) {
+    data.bookingOnlinePaymentMode = deriveLegacyMode(nextAllows);
+  }
 
   const updated = await prisma.accountSetting.upsert({
     where: { accountId: session.accountId },
@@ -70,6 +156,14 @@ export async function PATCH(request: Request) {
       slotStepMinutes: updated.slotStepMinutes,
       requireDeposit: updated.requireDeposit,
       requirePaymentToConfirm: updated.requirePaymentToConfirm,
+      bookingOnlinePaymentMode: updated.bookingOnlinePaymentMode,
+      bookingAllowPayLater: updated.bookingAllowPayLater,
+      bookingAllowPrepaymentFixed: updated.bookingAllowPrepaymentFixed,
+      bookingAllowPrepaymentPercent: updated.bookingAllowPrepaymentPercent,
+      bookingAllowFullPayment: updated.bookingAllowFullPayment,
+      bookingPrepaymentAmount: updated.bookingPrepaymentAmount ? Number(updated.bookingPrepaymentAmount) : null,
+      bookingPrepaymentPercent: updated.bookingPrepaymentPercent ? Number(updated.bookingPrepaymentPercent) : null,
+      bookingFullPaymentDiscountPercent: updated.bookingFullPaymentDiscountPercent ? Number(updated.bookingFullPaymentDiscountPercent) : null,
       cancellationWindowHours: updated.cancellationWindowHours,
       rescheduleWindowHours: updated.rescheduleWindowHours,
       holdTtlMinutes: updated.holdTtlMinutes,

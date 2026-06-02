@@ -89,6 +89,20 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
         location: true,
         specialist: { include: { user: { include: { profile: true } } } },
         services: { include: { service: true } },
+        paymentIntents: {
+          select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            scenario: true,
+            provider: true,
+            providerStatus: true,
+            paidAt: true,
+            metadata: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { startAt: "asc" },
     }),
@@ -186,6 +200,17 @@ export default async function CrmCalendarPage({ searchParams }: CrmCalendarPageP
       serviceIds: appointment.services.map((item) => item.service.id),
       priceTotal: appointment.priceTotal.toString(),
       durationMin: appointment.durationTotalMin,
+      paymentIntents: appointment.paymentIntents.map((intent) => ({
+        id: intent.id,
+        amount: intent.amount.toString(),
+        currency: intent.currency,
+        status: intent.status,
+        scenario: intent.scenario,
+        provider: intent.provider,
+        providerStatus: intent.providerStatus,
+        paidAt: intent.paidAt?.toISOString() ?? null,
+        metadata: intent.metadata,
+      })),
     };
   });
 

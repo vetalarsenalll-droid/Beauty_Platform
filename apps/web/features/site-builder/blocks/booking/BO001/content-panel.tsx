@@ -16,6 +16,30 @@ type LegalDoc = {
   version?: number | null;
 };
 
+type BookingOnlinePaymentMode = "DISABLED" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
+
+type BookingPaymentSettings = {
+  bookingOnlinePaymentMode: BookingOnlinePaymentMode;
+  bookingAllowPayLater: boolean;
+  bookingAllowPrepaymentFixed: boolean;
+  bookingAllowPrepaymentPercent: boolean;
+  bookingAllowFullPayment: boolean;
+  bookingPrepaymentAmount: number | null;
+  bookingPrepaymentPercent: number | null;
+  bookingFullPaymentDiscountPercent: number | null;
+};
+
+const defaultBookingPaymentSettings: BookingPaymentSettings = {
+  bookingOnlinePaymentMode: "DISABLED",
+  bookingAllowPayLater: true,
+  bookingAllowPrepaymentFixed: false,
+  bookingAllowPrepaymentPercent: false,
+  bookingAllowFullPayment: false,
+  bookingPrepaymentAmount: null,
+  bookingPrepaymentPercent: null,
+  bookingFullPaymentDiscountPercent: null,
+};
+
 const slugify = (value: string) =>
   value
     .toLowerCase()
@@ -33,6 +57,13 @@ const labelClass =
 
 function updateDocAt(docs: LegalDoc[], index: number, patch: Partial<LegalDoc>) {
   return docs.map((doc, docIndex) => (docIndex === index ? { ...doc, ...patch } : doc));
+}
+
+function deriveBookingOnlinePaymentMode(settings: BookingPaymentSettings): BookingOnlinePaymentMode {
+  if (settings.bookingAllowFullPayment) return "FULL_PAYMENT";
+  if (settings.bookingAllowPrepaymentPercent) return "PREPAYMENT_PERCENT";
+  if (settings.bookingAllowPrepaymentFixed) return "PREPAYMENT_FIXED";
+  return "DISABLED";
 }
 
 function renderTextInput(
@@ -60,8 +91,11 @@ function renderTextInput(
 
 export function BO001ContentPanel(ctx: CrmPanelCtx) {
   const [legalDocs, setLegalDocs] = useState<LegalDoc[]>([]);
+  const [bookingPayment, setBookingPayment] = useState<BookingPaymentSettings>(defaultBookingPaymentSettings);
   const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingBookingPayment, setSavingBookingPayment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const sectionTitle = ctx.currentPanelSections[0]?.label ?? "Документы и согласия";
 
@@ -79,6 +113,49 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setBookingLoading(true);
+    fetch("/api/v1/crm/settings/booking")
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) {
+          throw new Error(payload?.message ?? payload?.error?.message ?? "Failed to load booking settings");
+        }
+        return payload;
+      })
+      .then((payload) => {
+        if (cancelled) return;
+        const legacyMode =
+          payload?.data?.bookingOnlinePaymentMode ?? defaultBookingPaymentSettings.bookingOnlinePaymentMode;
+        setBookingPayment({
+          bookingOnlinePaymentMode: legacyMode,
+          bookingAllowPayLater: payload?.data?.bookingAllowPayLater ?? true,
+          bookingAllowPrepaymentFixed:
+            payload?.data?.bookingAllowPrepaymentFixed ?? legacyMode === "PREPAYMENT_FIXED",
+          bookingAllowPrepaymentPercent:
+            payload?.data?.bookingAllowPrepaymentPercent ?? legacyMode === "PREPAYMENT_PERCENT",
+          bookingAllowFullPayment: payload?.data?.bookingAllowFullPayment ?? legacyMode === "FULL_PAYMENT",
+          bookingPrepaymentAmount:
+            payload?.data?.bookingPrepaymentAmount ?? defaultBookingPaymentSettings.bookingPrepaymentAmount,
+          bookingPrepaymentPercent:
+            payload?.data?.bookingPrepaymentPercent ?? defaultBookingPaymentSettings.bookingPrepaymentPercent,
+          bookingFullPaymentDiscountPercent:
+            payload?.data?.bookingFullPaymentDiscountPercent ??
+            defaultBookingPaymentSettings.bookingFullPaymentDiscountPercent,
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setMessage("Не удалось загрузить правила онлайн-оплаты.");
+      })
+      .finally(() => {
+        if (!cancelled) setBookingLoading(false);
       });
     return () => {
       cancelled = true;
@@ -119,6 +196,34 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
     }
   };
 
+  const saveBookingPayment = async () => {
+    setSavingBookingPayment(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/v1/crm/settings/booking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...bookingPayment,
+          bookingOnlinePaymentMode: deriveBookingOnlinePaymentMode(bookingPayment),
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: Partial<BookingPaymentSettings>; message?: string; error?: { message?: string } }
+        | null;
+      if (!response.ok || !payload?.data) {
+        setMessage(payload?.error?.message ?? payload?.message ?? "Не удалось сохранить правила онлайн-оплаты.");
+        return;
+      }
+      setBookingPayment((current) => ({ ...current, ...payload.data }));
+      setMessage("Правила онлайн-оплаты записи сохранены.");
+    } catch {
+      setMessage("Не удалось сохранить правила онлайн-оплаты.");
+    } finally {
+      setSavingBookingPayment(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-8" onClick={(event) => event.stopPropagation()}>
       <div className="border-b border-[color:var(--bp-stroke)] pb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">
@@ -141,6 +246,125 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
           {message}
         </div>
       ) : null}
+
+      <div className="border-b border-[color:var(--bp-stroke)] pb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Онлайн-оплата записи</div>
+            <div className="mt-2 text-xs leading-5 text-[color:var(--bp-muted)]">
+              Эти правила показываются в публичной онлайн-записи. Подключение ЮKassa, Т-Банка,
+              Сбера или Альфы настраивается в разделе Оплаты/Финансы.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={saveBookingPayment}
+            disabled={savingBookingPayment || bookingLoading}
+            className="shrink-0 rounded-none bg-[color:var(--bp-ink)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {savingBookingPayment ? "Сохранение..." : "Сохранить оплату"}
+          </button>
+        </div>
+
+        <div className="mt-4 grid gap-3 text-sm text-[color:var(--bp-ink)]">
+          <FlatCheckbox
+            checked={bookingPayment.bookingAllowPayLater}
+            onChange={(checked) =>
+              setBookingPayment((current) => ({ ...current, bookingAllowPayLater: checked }))
+            }
+            label="Можно записаться без онлайн-оплаты"
+          />
+          <FlatCheckbox
+            checked={bookingPayment.bookingAllowPrepaymentFixed}
+            onChange={(checked) =>
+              setBookingPayment((current) => ({ ...current, bookingAllowPrepaymentFixed: checked }))
+            }
+            label="Предоплата фиксированной суммой"
+          />
+          <FlatCheckbox
+            checked={bookingPayment.bookingAllowPrepaymentPercent}
+            onChange={(checked) =>
+              setBookingPayment((current) => ({ ...current, bookingAllowPrepaymentPercent: checked }))
+            }
+            label="Предоплата процентом"
+          />
+          <FlatCheckbox
+            checked={bookingPayment.bookingAllowFullPayment}
+            onChange={(checked) =>
+              setBookingPayment((current) => ({ ...current, bookingAllowFullPayment: checked }))
+            }
+            label="Полная онлайн-оплата"
+          />
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <label className={labelClass}>
+            <div className="min-h-[32px] leading-4">Предоплата, ₽</div>
+            <div className={fieldWrapClass}>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                value={bookingPayment.bookingPrepaymentAmount ?? ""}
+                onChange={(event) =>
+                  setBookingPayment((current) => ({
+                    ...current,
+                    bookingPrepaymentAmount: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+                disabled={!bookingPayment.bookingAllowPrepaymentFixed || bookingLoading}
+                className={fieldClass}
+                style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+              />
+            </div>
+          </label>
+
+          <label className={labelClass}>
+            <div className="min-h-[32px] leading-4">Предоплата, %</div>
+            <div className={fieldWrapClass}>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={bookingPayment.bookingPrepaymentPercent ?? ""}
+                onChange={(event) =>
+                  setBookingPayment((current) => ({
+                    ...current,
+                    bookingPrepaymentPercent: event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+                disabled={!bookingPayment.bookingAllowPrepaymentPercent || bookingLoading}
+                className={fieldClass}
+                style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+              />
+            </div>
+          </label>
+
+          <label className={labelClass}>
+            <div className="min-h-[32px] leading-4">Скидка полной оплаты, %</div>
+            <div className={fieldWrapClass}>
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="0.01"
+                value={bookingPayment.bookingFullPaymentDiscountPercent ?? ""}
+                onChange={(event) =>
+                  setBookingPayment((current) => ({
+                    ...current,
+                    bookingFullPaymentDiscountPercent:
+                      event.target.value === "" ? null : Number(event.target.value),
+                  }))
+                }
+                disabled={!bookingPayment.bookingAllowFullPayment || bookingLoading}
+                className={fieldClass}
+                style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+              />
+            </div>
+          </label>
+        </div>
+      </div>
 
       {loading ? (
         <div className="text-sm text-[color:var(--bp-muted)]">Загрузка документов...</div>

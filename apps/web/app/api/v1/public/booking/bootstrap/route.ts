@@ -142,6 +142,14 @@ export async function GET(request: NextRequest) {
       select: {
         requireDeposit: true,
         requirePaymentToConfirm: true,
+        bookingOnlinePaymentMode: true,
+        bookingAllowPayLater: true,
+        bookingAllowPrepaymentFixed: true,
+        bookingAllowPrepaymentPercent: true,
+        bookingAllowFullPayment: true,
+        bookingPrepaymentAmount: true,
+        bookingPrepaymentPercent: true,
+        bookingFullPaymentDiscountPercent: true,
       },
     }),
     prisma.accountPaymentConnection.findFirst({
@@ -333,6 +341,22 @@ export async function GET(request: NextRequest) {
     payments: {
       requireDeposit: accountSettings?.requireDeposit ?? false,
       requirePaymentToConfirm: accountSettings?.requirePaymentToConfirm ?? false,
+      bookingOnlinePaymentMode: accountSettings?.bookingOnlinePaymentMode ?? "DISABLED",
+      bookingAllowPayLater: accountSettings?.bookingAllowPayLater ?? true,
+      bookingAllowPrepaymentFixed:
+        accountSettings?.bookingAllowPrepaymentFixed ??
+        accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
+      bookingAllowPrepaymentPercent:
+        accountSettings?.bookingAllowPrepaymentPercent ??
+        accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
+      bookingAllowFullPayment:
+        accountSettings?.bookingAllowFullPayment ??
+        accountSettings?.bookingOnlinePaymentMode === "FULL_PAYMENT",
+      bookingPrepaymentAmount: accountSettings?.bookingPrepaymentAmount ? Number(accountSettings.bookingPrepaymentAmount) : null,
+      bookingPrepaymentPercent: accountSettings?.bookingPrepaymentPercent ? Number(accountSettings.bookingPrepaymentPercent) : null,
+      bookingFullPaymentDiscountPercent: accountSettings?.bookingFullPaymentDiscountPercent
+        ? Number(accountSettings.bookingFullPaymentDiscountPercent)
+        : null,
       onlinePaymentAvailable: Boolean(defaultPaymentConnection),
       provider: defaultPaymentConnection?.provider ?? null,
       mode: defaultPaymentConnection?.mode ?? null,

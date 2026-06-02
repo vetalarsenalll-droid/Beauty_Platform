@@ -58,6 +58,17 @@ type JournalAppointment = {
   clientPhone: string;
   clientEmail: string;
   comment?: string;
+  paymentIntents?: {
+    id: number;
+    amount: string;
+    currency: string;
+    status: string;
+    scenario: string;
+    provider: string | null;
+    providerStatus: string | null;
+    paidAt: string | null;
+    metadata?: unknown;
+  }[];
 };
 
 type GroupSessionItem = {
@@ -398,6 +409,13 @@ function buildMonthMatrix(date: Date) {
   const matrix: Date[] = [];
   for (let i = 0; i < 42; i += 1) matrix.push(addDays(startWeek, i));
   return matrix;
+}
+
+function formatRubAmount(value: number) {
+  return `${value.toLocaleString("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} ₽`;
 }
 
 type SlotSelection = {
@@ -1826,7 +1844,11 @@ export default function JournalView({
           if (response.ok) {
             const updated = (await response.json()) as JournalAppointment;
             setAppointmentItems((prev) =>
-              prev.map((item) => (item.id === updated.id ? updated : item))
+              prev.map((item) =>
+                item.id === updated.id
+                  ? { ...item, ...updated, paymentIntents: updated.paymentIntents ?? item.paymentIntents }
+                  : item
+              )
             );
             return;
           }
@@ -2185,7 +2207,11 @@ export default function JournalView({
     if (response.ok) {
       const updated = (await response.json()) as JournalAppointment;
       setAppointmentItems((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) =>
+          item.id === updated.id
+            ? { ...item, ...updated, paymentIntents: updated.paymentIntents ?? item.paymentIntents }
+            : item
+        )
       );
       setEditorState(null);
     } else {
@@ -2253,7 +2279,11 @@ export default function JournalView({
     if (response.ok) {
       const updated = (await response.json()) as JournalAppointment;
       setAppointmentItems((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) =>
+          item.id === updated.id
+            ? { ...item, ...updated, paymentIntents: updated.paymentIntents ?? item.paymentIntents }
+            : item
+        )
       );
       setStatusMenuId(null);
     }
@@ -2262,6 +2292,33 @@ export default function JournalView({
   const isEditorLocked =
     (editorState?.mode === "edit" &&
       isTerminalAppointmentStatus(editorState.appointment.status));
+  const appointmentPaymentSummary = useMemo(() => {
+    if (!editorForm || editorState?.mode !== "edit") return null;
+    const intents = editorState.appointment.paymentIntents ?? [];
+    const onlineIntents = intents.filter((intent) => intent.scenario.startsWith("appointment_"));
+    const paidIntents = onlineIntents.filter((intent) => intent.status === "SUCCEEDED");
+    const pendingIntents = onlineIntents.filter((intent) =>
+      ["CREATED", "PENDING", "AUTHORIZED"].includes(intent.status)
+    );
+    const failedIntents = onlineIntents.filter((intent) =>
+      ["FAILED", "CANCELED", "EXPIRED"].includes(intent.status)
+    );
+    const total = Number(editorForm.priceTotal);
+    const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
+    const paidOnline = paidIntents.reduce((sum, intent) => {
+      const value = Number(intent.amount);
+      return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+    return {
+      hasOnlinePayment: onlineIntents.length > 0,
+      total: safeTotal,
+      paidOnline,
+      remaining: Math.max(0, safeTotal - paidOnline),
+      pendingCount: pendingIntents.length,
+      failedCount: failedIntents.length,
+      latest: onlineIntents[0] ?? null,
+    };
+  }, [editorForm, editorState]);
   const rawStatusOptions =
     editorState?.mode === "new"
       ? getNewAppointmentStatusOptions(editorForm?.status ?? "NEW")
@@ -3376,6 +3433,59 @@ export default function JournalView({
 
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white p-4">
                   <div className="text-sm font-semibold">Оплата визита</div>
+                  {appointmentPaymentSummary ? (
+                    <div className="mt-3 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="font-medium">Онлайн-оплата</div>
+                        <div
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            appointmentPaymentSummary.paidOnline > 0
+                              ? "bg-emerald-100 text-emerald-800"
+                              : appointmentPaymentSummary.pendingCount > 0
+                                ? "bg-amber-100 text-amber-800"
+                                : appointmentPaymentSummary.failedCount > 0
+                                  ? "bg-rose-100 text-rose-800"
+                                  : "bg-slate-100 text-slate-700"
+                          }`}
+                        >
+                          {appointmentPaymentSummary.paidOnline > 0
+                            ? "Оплачено онлайн"
+                            : appointmentPaymentSummary.pendingCount > 0
+                              ? "Ожидает оплаты"
+                              : appointmentPaymentSummary.failedCount > 0
+                                ? "Оплата не прошла"
+                                : "Онлайн-оплаты нет"}
+                        </div>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-[color:var(--bp-muted)] sm:grid-cols-3">
+                        <div>
+                          <div>Стоимость визита</div>
+                          <div className="mt-1 text-sm font-semibold text-[color:var(--bp-ink)]">
+                            {formatRubAmount(appointmentPaymentSummary.total)}
+                          </div>
+                        </div>
+                        <div>
+                          <div>Оплачено онлайн</div>
+                          <div className="mt-1 text-sm font-semibold text-emerald-700">
+                            {formatRubAmount(appointmentPaymentSummary.paidOnline)}
+                          </div>
+                        </div>
+                        <div>
+                          <div>Остаток</div>
+                          <div className="mt-1 text-sm font-semibold text-[color:var(--bp-ink)]">
+                            {formatRubAmount(appointmentPaymentSummary.remaining)}
+                          </div>
+                        </div>
+                      </div>
+                      {appointmentPaymentSummary.latest ? (
+                        <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
+                          Провайдер: {appointmentPaymentSummary.latest.provider ?? "не указан"} · статус:{" "}
+                          {appointmentPaymentSummary.latest.providerStatus ??
+                            appointmentPaymentSummary.latest.status}
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="mt-3 grid gap-2 sm:grid-cols-3">
                     <button className="rounded-2xl border border-[color:var(--bp-stroke)] bg-white px-4 py-3 text-sm">
                       Карта

@@ -161,6 +161,13 @@ enum PaymentConnectionMode {
   LIVE
 }
 
+enum BookingOnlinePaymentMode {
+  DISABLED
+  PREPAYMENT_FIXED
+  PREPAYMENT_PERCENT
+  FULL_PAYMENT
+}
+
 enum ReceiptVatCode {
   NONE
   VAT_0
@@ -732,6 +739,14 @@ model AccountSetting {
   slotStepMinutes           Int      @default(15)
   requireDeposit            Boolean  @default(false)
   requirePaymentToConfirm   Boolean  @default(false)
+  bookingOnlinePaymentMode  BookingOnlinePaymentMode @default(DISABLED)
+  bookingAllowPayLater      Boolean  @default(true)
+  bookingAllowPrepaymentFixed Boolean @default(false)
+  bookingAllowPrepaymentPercent Boolean @default(false)
+  bookingAllowFullPayment   Boolean  @default(false)
+  bookingPrepaymentAmount   Decimal? @db.Decimal(12, 2)
+  bookingPrepaymentPercent  Decimal? @db.Decimal(5, 2)
+  bookingFullPaymentDiscountPercent Decimal? @db.Decimal(5, 2)
   cancellationWindowHours   Int?
   rescheduleWindowHours     Int?
   holdTtlMinutes            Int?
@@ -1949,6 +1964,7 @@ model PaymentIntent {
   providerRef   String?
   providerStatus String?
   providerPayload Json?
+  metadata      Json?
   paymentUrl    String?
   returnUrl     String?
   failUrl       String?

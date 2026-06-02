@@ -14,7 +14,7 @@ const invoiceStatusLabels: Record<string, string> = {
 export default async function CrmPaymentsPage() {
   const session = await requireCrmPermission("crm.payments.read");
 
-  const [account, plans, subscription, invoices, accountPaymentConnections] = await Promise.all([
+  const [account, plans, subscription, invoices, accountPaymentConnections, accountSettings] = await Promise.all([
     prisma.account.findUnique({
       where: { id: session.accountId },
       select: { planId: true, plan: { select: { name: true } } },
@@ -66,6 +66,19 @@ export default async function CrmPaymentsPage() {
         lastTestStatus: true,
       },
     }),
+    prisma.accountSetting.findUnique({
+      where: { accountId: session.accountId },
+      select: {
+        bookingOnlinePaymentMode: true,
+        bookingAllowPayLater: true,
+        bookingAllowPrepaymentFixed: true,
+        bookingAllowPrepaymentPercent: true,
+        bookingAllowFullPayment: true,
+        bookingPrepaymentAmount: true,
+        bookingPrepaymentPercent: true,
+        bookingFullPaymentDiscountPercent: true,
+      },
+    }),
   ]);
 
   const currentPlanId = subscription?.planId ?? account?.planId ?? null;
@@ -107,7 +120,27 @@ export default async function CrmPaymentsPage() {
         ) : null}
       </section>
 
-      <AccountPaymentsClient initialConnections={paymentConnections} />
+      <AccountPaymentsClient
+        initialConnections={paymentConnections}
+        initialBookingPayment={{
+          bookingOnlinePaymentMode: accountSettings?.bookingOnlinePaymentMode ?? "DISABLED",
+          bookingAllowPayLater: accountSettings?.bookingAllowPayLater ?? true,
+          bookingAllowPrepaymentFixed:
+            accountSettings?.bookingAllowPrepaymentFixed ??
+            accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
+          bookingAllowPrepaymentPercent:
+            accountSettings?.bookingAllowPrepaymentPercent ??
+            accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
+          bookingAllowFullPayment:
+            accountSettings?.bookingAllowFullPayment ??
+            accountSettings?.bookingOnlinePaymentMode === "FULL_PAYMENT",
+          bookingPrepaymentAmount: accountSettings?.bookingPrepaymentAmount ? Number(accountSettings.bookingPrepaymentAmount) : null,
+          bookingPrepaymentPercent: accountSettings?.bookingPrepaymentPercent ? Number(accountSettings.bookingPrepaymentPercent) : null,
+          bookingFullPaymentDiscountPercent: accountSettings?.bookingFullPaymentDiscountPercent
+            ? Number(accountSettings.bookingFullPaymentDiscountPercent)
+            : null,
+        }}
+      />
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Счета платформы</h2>

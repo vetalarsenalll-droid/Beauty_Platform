@@ -148,10 +148,20 @@ type BootstrapData = ContextData & {
 type PublicPaymentSettings = {
   requireDeposit: boolean;
   requirePaymentToConfirm: boolean;
+  bookingOnlinePaymentMode?: "DISABLED" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
+  bookingAllowPayLater?: boolean;
+  bookingAllowPrepaymentFixed?: boolean;
+  bookingAllowPrepaymentPercent?: boolean;
+  bookingAllowFullPayment?: boolean;
+  bookingPrepaymentAmount?: number | null;
+  bookingPrepaymentPercent?: number | null;
+  bookingFullPaymentDiscountPercent?: number | null;
   onlinePaymentAvailable: boolean;
   provider: string | null;
   mode: string | null;
 };
+
+type BookingPaymentChoice = "PAY_LATER" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
 
 type PublicPaymentCheckoutData = {
   intentId: number;
@@ -1217,8 +1227,9 @@ export default function BookingClient({
   const [loadingContext, setLoadingContext] = useState(!initialContext);
   const [contextError, setContextError] = useState<string | null>(null);
   const paymentSettings = context?.payments ?? null;
+  const [bookingPaymentChoice, setBookingPaymentChoice] = useState<BookingPaymentChoice>("PAY_LATER");
   const shouldStartOnlinePaymentAfterBooking =
-    Boolean(paymentSettings?.requirePaymentToConfirm) &&
+    bookingPaymentChoice !== "PAY_LATER" &&
     Boolean(paymentSettings?.onlinePaymentAvailable);
 
   const [locationId, setLocationId] = useState<number | null>(() => {
@@ -4339,6 +4350,94 @@ export default function BookingClient({
     effectiveServicePrice != null
       ? `${showApproxTotals ? "от " : ""}${formatMoneyRub(effectiveServicePrice)}`
       : "—";
+  const bookingPaymentOptions = useMemo(() => {
+    const total = Number(effectiveServicePrice ?? 0);
+    if (!paymentSettings || !Number.isFinite(total) || total <= 0) return [];
+
+    const legacyMode = paymentSettings.bookingOnlinePaymentMode;
+    const allowPayLater = paymentSettings.bookingAllowPayLater !== false;
+    const allowFixed =
+      Boolean(paymentSettings.bookingAllowPrepaymentFixed) || legacyMode === "PREPAYMENT_FIXED";
+    const allowPercent =
+      Boolean(paymentSettings.bookingAllowPrepaymentPercent) || legacyMode === "PREPAYMENT_PERCENT";
+    const allowFull = Boolean(paymentSettings.bookingAllowFullPayment) || legacyMode === "FULL_PAYMENT";
+    const onlineUnavailableText = paymentSettings.onlinePaymentAvailable
+      ? ""
+      : " Онлайн-оплата пока не подключена салоном.";
+
+    const options: Array<{
+      value: BookingPaymentChoice;
+      title: string;
+      text: string;
+      disabled: boolean;
+    }> = [];
+
+    if (allowPayLater) {
+      options.push({
+        value: "PAY_LATER",
+        title: "Записаться без онлайн-оплаты",
+        text: "Оплата после визита или другим способом салона.",
+        disabled: false,
+      });
+    }
+
+    if (allowFixed) {
+      const amount = Math.min(total, Math.max(0, Number(paymentSettings.bookingPrepaymentAmount ?? 0)));
+      if (amount > 0) {
+        const remaining = Math.max(0, total - amount);
+        options.push({
+          value: "PREPAYMENT_FIXED",
+          title: "Онлайн-предоплата",
+          text: `К оплате сейчас ${formatMoneyRub(amount)}. Остаток ${formatMoneyRub(remaining)} оплачивается в салоне.${onlineUnavailableText}`,
+          disabled: !paymentSettings.onlinePaymentAvailable,
+        });
+      }
+    }
+
+    if (allowPercent) {
+      const percent = Math.min(100, Math.max(0, Number(paymentSettings.bookingPrepaymentPercent ?? 0)));
+      if (percent > 0) {
+        const amount = Math.min(total, Math.round(total * percent) / 100);
+        const remaining = Math.max(0, total - amount);
+        options.push({
+          value: "PREPAYMENT_PERCENT",
+          title: `Онлайн-предоплата ${percent}%`,
+          text: `К оплате сейчас ${formatMoneyRub(amount)}. Остаток ${formatMoneyRub(remaining)} оплачивается в салоне.${onlineUnavailableText}`,
+          disabled: !paymentSettings.onlinePaymentAvailable,
+        });
+      }
+    }
+
+    if (allowFull) {
+      const discountPercent = Math.min(
+        100,
+        Math.max(0, Number(paymentSettings.bookingFullPaymentDiscountPercent ?? 0))
+      );
+      const discountAmount = Math.round(total * discountPercent) / 100;
+      const amount = Math.max(0, total - discountAmount);
+      options.push({
+        value: "FULL_PAYMENT",
+        title: "Полная онлайн-оплата",
+        text:
+          discountPercent > 0
+            ? `К оплате ${formatMoneyRub(amount)} со скидкой ${discountPercent}% вместо ${formatMoneyRub(total)}.${onlineUnavailableText}`
+            : `К оплате вся стоимость визита: ${formatMoneyRub(amount)}.${onlineUnavailableText}`,
+        disabled: !paymentSettings.onlinePaymentAvailable,
+      });
+    }
+
+    return options;
+  }, [effectiveServicePrice, paymentSettings]);
+
+  useEffect(() => {
+    if (bookingPaymentOptions.length === 0) {
+      if (bookingPaymentChoice !== "PAY_LATER") setBookingPaymentChoice("PAY_LATER");
+      return;
+    }
+    if (!bookingPaymentOptions.some((option) => option.value === bookingPaymentChoice)) {
+      setBookingPaymentChoice(bookingPaymentOptions[0]?.value ?? "PAY_LATER");
+    }
+  }, [bookingPaymentChoice, bookingPaymentOptions]);
   const serviceDurationLabel =
     effectiveServiceDuration != null
       ? `${showApproxTotals ? "от " : ""}${effectiveServiceDuration} мин`
@@ -4801,6 +4900,7 @@ export default function BookingClient({
         body: JSON.stringify({
           appointmentId,
           method: "card",
+          paymentOption: bookingPaymentChoice,
           customer: {
             name: clientName.trim(),
             phone: clientPhone.trim(),
@@ -4822,6 +4922,10 @@ export default function BookingClient({
     if (isGroupService) {
       if (!canSubmit) {
         setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
+        return;
+      }
+      if (bookingPaymentChoice !== "PAY_LATER" && !paymentSettings?.onlinePaymentAvailable) {
+        setSubmitError("Онлайн-оплата пока не подключена салоном. Выберите запись без онлайн-оплаты.");
         return;
       }
       setSubmitting(true);
@@ -4873,6 +4977,10 @@ export default function BookingClient({
     }
     if (!isChainMode && (isPastYmd(dateYmd, todayYmdTz) || isPastTimeOnDate(dateYmd, timeChoice!, nowTz))) {
       setSubmitError("Выберите корректные дату и время.");
+      return;
+    }
+    if (bookingPaymentChoice !== "PAY_LATER" && !paymentSettings?.onlinePaymentAvailable) {
+      setSubmitError("Онлайн-оплата пока не подключена салоном. Выберите запись без онлайн-оплаты.");
       return;
     }
 
@@ -5065,6 +5173,43 @@ export default function BookingClient({
     stepsWithScenario.length <= 1
       ? 0
       : stepIndex / (stepsWithScenario.length - 1);
+
+  const renderBookingPaymentOptions = () => {
+    if (!bookingPaymentOptions.length) return null;
+
+    return (
+      <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-xs text-[color:var(--bp-muted)]">
+        <div className="mb-2 font-semibold text-[color:var(--bp-ink)]">Оплата записи</div>
+        <div className="space-y-2">
+          {bookingPaymentOptions.map((option) => (
+            <label
+              key={option.value}
+              className={cn(
+                "flex cursor-pointer gap-2 rounded-xl border border-[color:var(--bp-stroke)] p-2",
+                bookingPaymentChoice === option.value && "border-[color:var(--bp-ink)]",
+                option.disabled && "cursor-not-allowed opacity-60"
+              )}
+            >
+              <input
+                type="radio"
+                name="bookingPaymentChoice"
+                value={option.value}
+                checked={bookingPaymentChoice === option.value}
+                disabled={option.disabled}
+                onChange={() => setBookingPaymentChoice(option.value)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block font-semibold text-[color:var(--bp-ink)]">{option.title}</span>
+                <span className="mt-1 block">{option.text}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       ref={bookingRootRef}
@@ -6295,6 +6440,7 @@ export default function BookingClient({
                 </div>
 
                 <div className="booking-route-action mt-auto space-y-3">
+                  {renderBookingPaymentOptions()}
                   {submitError && <div className="text-sm text-red-600">{submitError}</div>}
                   {submitSuccess && <div className="text-sm text-green-700">Запись оформлена</div>}
                   {groupAlreadyBooked && !submitSuccess && (
@@ -6394,6 +6540,7 @@ export default function BookingClient({
                   label={isVisitPlanMode ? "Общая стоимость" : "Стоимость"}
                   value={servicePriceLabel}
                 />
+                {renderBookingPaymentOptions()}
               </div>
 
               <div className="booking-summary-action mt-auto space-y-3">
@@ -6466,6 +6613,7 @@ export default function BookingClient({
 
               {isMobileFinalSummary && mobileSummaryExpanded ? (
                 <div className="booking-summary-mobile-feedback mt-2 space-y-1 text-xs text-[color:var(--bp-muted)]">
+                  {renderBookingPaymentOptions()}
                   {submitError && <div className="text-sm text-red-600">{submitError}</div>}
                   {submitSuccess && (
                     <div className="text-sm text-green-700">Запись оформлена</div>
@@ -6536,7 +6684,6 @@ export default function BookingClient({
     </div>
   );
 }
-
 
 
 

@@ -869,34 +869,51 @@ Manual E2E:
 
 ### Этап 1. Каркас
 
-- [ ] Добавить Prisma-модели и миграцию.
-- [ ] Добавить шифрование credentials.
-- [ ] Добавить общий интерфейс провайдера.
-- [ ] Добавить CRM UI `Оплата клиентов`.
-- [ ] Добавить API для сохранения подключений.
+- [x] Добавить Prisma-модели и миграцию.
+- [x] Применить миграцию и обновить Prisma Client.
+- [x] Добавить шифрование credentials владельцев аккаунтов.
+- [x] Добавить общий интерфейс провайдера.
+- [x] Добавить реестр провайдеров.
+- [x] Добавить CRM UI `Оплата клиентов`.
+- [x] Добавить API для сохранения подключений.
+- [x] Не хранить credentials аккаунтов в `.env`: владелец аккаунта вводит их в CRM, платформа хранит их в БД в зашифрованном виде.
 
 ### Этап 2. ЮKassa
 
-- [ ] Реализовать `providers/yookassa.ts`.
-- [ ] Создавать платеж через API.
-- [ ] Обрабатывать `payment.succeeded`.
-- [ ] Обрабатывать `payment.canceled`.
-- [ ] Добавить возврат.
-- [ ] Добавить передачу чеков при включенной настройке.
+- [x] Реализовать `providers/yookassa.ts`.
+- [x] Создавать платеж через API.
+- [x] Обрабатывать `payment.succeeded` через общий webhook и server-side проверку статуса.
+- [x] Обрабатывать `payment.canceled` через общий webhook и server-side проверку статуса.
+- [x] Добавить возврат через adapter API.
+- [x] Добавить передачу чеков при включенной настройке.
+- [ ] Пройти реальный тестовый сценарий ЮKassa на тестовом магазине владельца аккаунта.
 
 ### Этап 3. Публичная оплата записи
 
-- [ ] Подключить создание `PaymentIntent` к онлайн-записи.
-- [ ] Сделать success/fail страницы.
-- [ ] Подтверждать запись после успешной оплаты.
-- [ ] Показывать статус оплаты в CRM.
+- [x] Добавить публичный checkout API для оплаты записи.
+- [x] Подключить создание `PaymentIntent` к онлайн-записи для одиночной записи.
+- [x] Сделать success/fail страницы.
+- [x] На success-странице проверять статус платежа через API провайдера, если webhook на localhost не дошел.
+- [x] Подтверждать оплату в `PaymentIntent`/`Transaction` после успешного статуса.
+- [x] Добавить основную настройку правил оплаты записи на странице CRM `Оплаты/Финансы`.
+- [x] Продублировать настройку правил оплаты в шторке конструктора сайта, блок `Онлайн-запись`, как часть контента онлайн-записи.
+- [x] Поддержать независимые варианты оплаты: запись без онлайн-оплаты, частичная предоплата фиксированной суммой, частичная предоплата процентом, полная онлайн-оплата.
+- [x] Поддержать скидку за полную онлайн-оплату: процент задается в настройках, сумма оплаты и итоговая цена считаются сервером.
+- [x] Показывать условие оплаты и скидку на публичном шаге онлайн-записи до подтверждения записи.
+- [x] Связать успешную оплату с финальным статусом записи по выбранной бизнес-логике.
+- [ ] Поддержать оплату цепочки из нескольких записей одним платежом.
+- [x] Расширить блок `Оплата визита` в модалке `Журнал записи`: добавить `Онлайн-оплата`, оплачено онлайн, сумма онлайн-оплаты, остаток к оплате, провайдер и статус.
+- [ ] Показывать статус оплаты в карточке записи и списке записей CRM.
 
 ### Этап 4. T-Банк для аккаунтов
 
-- [ ] Переиспользовать опыт платформенного T-Банка, но не использовать терминал платформы.
-- [ ] Добавить отдельные credentials аккаунта.
-- [ ] Реализовать webhook и GetState.
-- [ ] Добавить возвраты.
+- [x] Переиспользовать опыт платформенного T-Банка, но не использовать терминал платформы.
+- [x] Добавить отдельные credentials аккаунта.
+- [x] Реализовать Init.
+- [x] Реализовать GetState.
+- [x] Реализовать webhook.
+- [x] Добавить возвраты через adapter API.
+- [ ] Пройти тестовый сценарий T-Банка на тестовом терминале владельца аккаунта.
 
 ### Этап 5. Сбер
 
@@ -916,11 +933,14 @@ Manual E2E:
 
 ### Этап 7. Полировка
 
-- [ ] Добавить аудит изменений.
-- [ ] Добавить диагностику ошибок.
+- [ ] Добавить аудит изменений платежных настроек.
+- [ ] Добавить диагностику ошибок подключения провайдера.
 - [ ] Добавить фильтры платежей.
-- [ ] Добавить повтор оплаты.
+- [x] Добавить повтор оплаты через fail-страницу.
 - [ ] Добавить частичные возвраты, если провайдер поддерживает.
+- [ ] Добавить оплату товаров.
+- [ ] Добавить оплату сертификатов.
+- [x] Добавить UI настройки правил оплаты записи: можно одновременно разрешить запись без оплаты, предоплату суммой, предоплату процентом и полную оплату со скидкой.
 
 ## 20. Зафиксированные решения
 
@@ -947,6 +967,82 @@ Manual E2E:
 Не отмечать пункт выполненным заранее.
 
 ## 22. Progress Journal
+
+### 2026-06-02 - booking payment rules connected end-to-end
+
+Status: completed
+
+Done:
+
+- Added shared server-side booking payment calculator in `apps/web/lib/account-payments/booking-payment.ts`.
+- Public appointment checkout now calculates payable amount on the backend from account settings instead of trusting frontend amount/scenario.
+- Supported additive booking payment options: pay later, fixed prepayment, percent prepayment and full online payment.
+- Added migration `packages/db/prisma/migrations/20260602194000_booking_payment_options/migration.sql` to store additive payment options separately from legacy `bookingOnlinePaymentMode`.
+- Full online payment discount percent is supported and included in the server-side calculation snapshot.
+- On successful appointment payment, `applyAccountPaymentState` confirms the appointment by moving `NEW` to `CONFIRMED`.
+- `/crm/payments` now has booking online-payment rules near the account payment provider settings.
+- Online-booking content drawer now duplicates booking payment rules, while provider credentials remain on `Оплаты/Финансы`.
+- Public booking bootstrap exposes safe payment settings and whether online payment is available.
+- Public booking UI shows all allowed payment options before final booking. If the account has no configured payment provider, online options stay visible but disabled; pay-later remains available if the owner enabled it.
+- Public checkout receives the selected payment option and normalizes it server-side before calculating the amount.
+- CRM calendar appointment modal now shows online payment status in `Оплата визита`: paid online, remaining amount, provider and provider status.
+
+Changed files:
+
+- `packages/db/prisma/schema.prisma`
+- `packages/db/prisma/migrations/20260602182500_booking_online_payment_rules/migration.sql`
+- `packages/db/prisma/migrations/20260602194000_booking_payment_options/migration.sql`
+- `apps/web/lib/account-payments/booking-payment.ts`
+- `apps/web/lib/account-payments/checkout.ts`
+- `apps/web/app/api/v1/crm/settings/booking/route.ts`
+- `apps/web/app/api/v1/public/booking/bootstrap/route.ts`
+- `apps/web/app/api/v1/public/payments/checkout/route.ts`
+- `apps/web/app/booking/booking-client.tsx`
+- `apps/web/app/(crm)/crm/payments/page.tsx`
+- `apps/web/app/(crm)/crm/payments/account-payments-client.tsx`
+- `apps/web/app/(crm)/crm/calendar/page.tsx`
+- `apps/web/app/(crm)/crm/calendar/journal-view.tsx`
+- `apps/web/features/site-builder/blocks/booking/BO001/content-panel.tsx`
+
+Verified:
+
+- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 migrate-deploy` passed.
+- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 generate` passed.
+- `npx prisma migrate deploy --schema packages/db/prisma/schema.prisma` passed.
+- `npx prisma generate --schema packages/db/prisma/schema.prisma` passed.
+- `npm run prisma:validate` passed.
+- `npm run typecheck` passed.
+- `npm --workspace apps/web run typecheck` passed.
+
+Next:
+
+- Add payment status badges to appointment cards/list views, not only the appointment modal.
+- Implement one payment for a multi-appointment visit chain with correct total, receipt items and appointment status updates.
+- Test the full public booking payment flow with a real account payment provider test shop/terminal after credentials are configured.
+- Continue provider-specific work for Sber and Alfa only after their exact API/webhook/refund fields are verified.
+
+Blockers:
+
+- Automatic provider webhook delivery still requires public HTTPS URL in production or an HTTPS tunnel during local tests.
+- Multi-appointment chain payments need a visit/order-level grouping entity or a safe way to link one `PaymentIntent` to several appointments.
+
+### 2026-06-02 - booking payment rules schema
+
+Status: completed
+
+Done:
+
+- `packages/db/prisma/schema.prisma` now has `BookingOnlinePaymentMode`.
+- `AccountSetting` now stores the account-level booking payment rule: disabled, fixed prepayment, percent prepayment, or full online payment with optional discount percent.
+- `PaymentIntent` now has `metadata` for the server-side calculation snapshot: original amount, paid amount, discount, remaining amount and selected booking payment mode.
+- Migration `packages/db/prisma/migrations/20260602182500_booking_online_payment_rules/migration.sql` was applied after removing UTF-8 BOM from the migration file.
+- Prisma Client was regenerated and `npm run prisma:validate` passed.
+
+Next:
+
+- Add a shared backend calculator for appointment payment amount.
+- Use that calculator in public checkout instead of trusting frontend amount/scenario.
+- Add CRM settings UI on `Оплаты/Финансы` and duplicate it in the online-booking content drawer.
 
 ### 2026-06-02 - public booking starts online checkout
 
