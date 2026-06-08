@@ -482,6 +482,8 @@ function getNowInTimeZone(timeZone: string) {
   }
 }
 
+const HYDRATION_SAFE_NOW = { ymd: "0000-00-00", minutes: -1 };
+
 function isPastYmd(ymd: string, nowYmd: string) {
   return ymd < nowYmd;
 }
@@ -521,6 +523,10 @@ function getLocationOpenStatus(
   now: { ymd: string; minutes: number },
   timeZone: string
 ) {
+  if (now.minutes < 0) {
+    return { label: "График работы", open: false };
+  }
+
   const parseRangeStatus = (startRaw: string | null, endRaw: string | null) => {
     const start = startRaw ? timeToMinutes(startRaw) : null;
     const end = endRaw ? timeToMinutes(endRaw) : null;
@@ -1538,7 +1544,13 @@ export default function BookingClient({
     () => context?.platformLegalDocuments ?? [],
     [context?.platformLegalDocuments]
   );
-  const nowTz = useMemo(() => getNowInTimeZone(accountTz), [accountTz]);
+  const [nowTz, setNowTz] = useState(HYDRATION_SAFE_NOW);
+  useEffect(() => {
+    const updateNow = () => setNowTz(getNowInTimeZone(accountTz));
+    updateNow();
+    const timer = window.setInterval(updateNow, 60_000);
+    return () => window.clearInterval(timer);
+  }, [accountTz]);
   const todayYmdTz = nowTz.ymd;
   const holdOwnerMarker = clientProfile?.id ?? null;
   const effectiveInlineLoader =
@@ -1731,6 +1743,7 @@ export default function BookingClient({
   const didInitDateRef = useRef(false);
   useEffect(() => {
     if (!context?.account?.timeZone) return;
+    if (nowTz.minutes < 0) return;
     if (didInitDateRef.current) return;
     didInitDateRef.current = true;
 
@@ -1740,7 +1753,7 @@ export default function BookingClient({
       if (isPastYmd(prev, todayYmdTz)) return todayYmdTz;
       return prev;
     });
-  }, [context?.account?.timeZone, todayYmdTz]);
+  }, [context?.account?.timeZone, nowTz.minutes, todayYmdTz]);
 
   useEffect(() => {
     const next = monthStartYmd(dateYmd);
@@ -4920,11 +4933,14 @@ export default function BookingClient({
     }
   };
 
-  const startAppointmentPayment = async (appointmentId: number, paymentChoice: BookingPaymentChoice) => {
+  const startAppointmentPayment = async (appointmentIdsInput: number | number[], paymentChoice: BookingPaymentChoice) => {
     if (paymentChoice === "PAY_LATER") return false;
 
     const paymentBlockingMessage = getBookingPaymentBlockingMessage(paymentChoice);
     if (paymentBlockingMessage) throw new Error(paymentBlockingMessage);
+    const appointmentIds = Array.isArray(appointmentIdsInput) ? appointmentIdsInput : [appointmentIdsInput];
+    const primaryAppointmentId = appointmentIds[0];
+    if (!primaryAppointmentId) return false;
 
     const checkout = await fetchJson<PublicPaymentCheckoutData>(
       buildUrl("/api/v1/public/payments/checkout", { account: accountSlug ?? "" }),
@@ -4932,7 +4948,8 @@ export default function BookingClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          appointmentId,
+          appointmentId: primaryAppointmentId,
+          appointmentIds,
           method: "card",
           paymentOption: paymentChoice,
           customer: {
@@ -5094,10 +5111,8 @@ export default function BookingClient({
         });
 
         clearAvailabilityCaches();
-        if (appointmentIds.length === 1) {
-          const paymentStarted = await startAppointmentPayment(appointmentIds[0], paymentChoice);
-          if (paymentStarted) return;
-        }
+        const paymentStarted = await startAppointmentPayment(appointmentIds, paymentChoice);
+        if (paymentStarted) return;
         setSubmitSuccess(true);
         setMobileSummaryExpanded(true);
         idempotencyKeyRef.current = null;
@@ -5216,7 +5231,7 @@ export default function BookingClient({
     if (!bookingPaymentOptions.length) return null;
 
     return (
-      <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-xs text-[color:var(--bp-muted)]">
+      <div className="booking-payment-options rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-3 text-xs text-[color:var(--bp-muted)]">
         <div className="mb-2 font-semibold text-[color:var(--bp-ink)]">Оплата записи</div>
         <div className="space-y-2">
           {bookingPaymentOptions.map((option) => (
@@ -5261,42 +5276,42 @@ export default function BookingClient({
       );
     }
 
+    const selectedOption =
+      bookingSubmitOptions.find((option) => option.value === bookingPaymentChoice) ??
+      bookingSubmitOptions[0] ??
+      null;
+    const selectedPaymentChoice = selectedOption?.value ?? "PAY_LATER";
+    const blockedByForm = !canSubmit;
+    const blockedByPayment = selectedOption
+      ? getBookingPaymentBlockingMessage(selectedPaymentChoice)
+      : "Выбранный способ оплаты недоступен.";
+    const visuallyDisabled = blockedByForm || Boolean(blockedByPayment) || Boolean(selectedOption?.disabled);
+
     return (
-      <div className="space-y-2">
-        {bookingSubmitOptions.map((option) => {
-          const blockedByForm = !canSubmit;
-          const blockedByPayment = getBookingPaymentBlockingMessage(option.value);
-          const visuallyDisabled = blockedByForm || Boolean(blockedByPayment) || option.disabled;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => {
-                setBookingPaymentChoice(option.value);
-                if (blockedByForm) {
-                  if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
-                  setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
-                  return;
-                }
-                if (blockedByPayment) {
-                  if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
-                  setSubmitError(blockedByPayment);
-                  return;
-                }
-                void submitAppointment(option.value);
-              }}
-              disabled={submitting}
-              aria-disabled={visuallyDisabled}
-              className={cn(
-                "booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40",
-                visuallyDisabled && "cursor-not-allowed opacity-40"
-              )}
-            >
-              {submitting && bookingPaymentChoice === option.value ? "Отправляем..." : option.actionLabel}
-            </button>
-          );
-        })}
-      </div>
+      <button
+        type="button"
+        onClick={() => {
+          if (blockedByForm) {
+            if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
+            setSubmitError(summaryHint || submitBlockingReasons[0] || "Проверьте обязательные поля.");
+            return;
+          }
+          if (blockedByPayment) {
+            if (options?.expandMobileOnError) setMobileSummaryExpanded(true);
+            setSubmitError(blockedByPayment);
+            return;
+          }
+          void submitAppointment(selectedPaymentChoice);
+        }}
+        disabled={submitting}
+        aria-disabled={visuallyDisabled}
+        className={cn(
+          "booking-primary-button w-full rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)] transition hover:-translate-y-[1px] hover:shadow-sm disabled:opacity-40",
+          visuallyDisabled && "cursor-not-allowed opacity-40"
+        )}
+      >
+        {submitting ? "Отправляем..." : "Записаться"}
+      </button>
     );
   };
 
@@ -6635,14 +6650,14 @@ export default function BookingClient({
             </div>
 
             <div className="booking-summary-mobile hidden">
-              <div className="booking-summary-mobile-head flex items-center justify-between gap-3">
+              <div className="booking-summary-mobile-head flex items-center justify-start gap-2 pr-24">
                 <div className="text-sm font-semibold">
                   {mobileSummaryExpanded || isMobileFinalSummary ? "Сводка записи" : stepsWithScenario[stepIndex]?.title || "Сводка"}
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileSummaryExpanded((value) => !value)}
-                  className="booking-nav-secondary-button rounded-2xl border px-3 py-1.5 text-xs"
+                  className="booking-nav-secondary-button shrink-0 rounded-2xl border px-2.5 py-1 text-[11px]"
                   aria-expanded={mobileSummaryExpanded}
                 >
                   {mobileSummaryExpanded ? "Свернуть" : "Развернуть"}
@@ -6707,9 +6722,3 @@ export default function BookingClient({
     </div>
   );
 }
-
-
-
-
-
-

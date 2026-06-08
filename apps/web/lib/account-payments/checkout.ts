@@ -53,6 +53,21 @@ export async function createAccountCheckout(input: CreateAccountCheckoutInput) {
   if (!loaded) throw new Error("Account payment connection is not configured");
 
   const method = input.method ?? "card";
+  const receiptItems =
+    input.receiptItems ??
+    (loaded.connection.receiptEnabled
+      ? [
+          {
+            name: input.description,
+            quantity: 1,
+            unitPriceRub: input.amountRub,
+            amountRub: input.amountRub,
+            vat: loaded.connection.receiptVat,
+            paymentSubject: loaded.connection.paymentSubject,
+            paymentMethod: loaded.connection.paymentMethod,
+          },
+        ]
+      : undefined);
   const intent = await prisma.paymentIntent.create({
     data: {
       accountId: input.accountId,
@@ -68,8 +83,8 @@ export async function createAccountCheckout(input: CreateAccountCheckoutInput) {
       idempotencyKey: input.idempotencyKey ?? `account_checkout_${input.accountId}_${Date.now()}`,
       returnUrl: input.returnUrl ?? null,
       failUrl: input.failUrl ?? null,
-      receiptRequested: Boolean(input.receiptItems?.length && loaded.connection.receiptEnabled),
-      receiptPayload: input.receiptItems ? { items: input.receiptItems } : undefined,
+      receiptRequested: Boolean(receiptItems?.length && loaded.connection.receiptEnabled),
+      receiptPayload: receiptItems ? { items: receiptItems } : undefined,
     },
   });
 
@@ -92,7 +107,7 @@ export async function createAccountCheckout(input: CreateAccountCheckoutInput) {
     },
     method,
     customer: input.customer,
-    receiptItems: input.receiptItems,
+    receiptItems,
     webhookUrl: accountPaymentWebhookUrl(loaded.snapshot.provider),
   });
 
@@ -179,9 +194,10 @@ export async function applyAccountPaymentState(input: {
     }
 
     if (intent.appointmentId && intent.scenario.startsWith("appointment_")) {
+      const appointmentIds = metadataAppointmentIds(intent.metadata);
       await tx.appointment.updateMany({
         where: {
-          id: intent.appointmentId,
+          id: { in: appointmentIds.length ? appointmentIds : [intent.appointmentId] },
           accountId: intent.accountId,
           status: "NEW",
         },
@@ -191,6 +207,13 @@ export async function applyAccountPaymentState(input: {
 
     return intent;
   });
+}
+
+function metadataAppointmentIds(value: unknown) {
+  if (!value || typeof value !== "object") return [];
+  const ids = (value as { appointmentIds?: unknown }).appointmentIds;
+  if (!Array.isArray(ids)) return [];
+  return ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
 }
 
 function jsonOrNull(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {

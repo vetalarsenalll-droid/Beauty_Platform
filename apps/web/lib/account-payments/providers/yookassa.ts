@@ -1,4 +1,3 @@
-import { rubToKopecks } from "@/lib/payments/money";
 import {
   normalizePhoneForReceipt,
   sanitizeReceiptItemName,
@@ -23,11 +22,13 @@ type YooKassaPaymentResponse = {
   confirmation?: {
     confirmation_url?: string;
   };
+  metadata?: Record<string, unknown>;
 };
 
 type YooKassaRefundResponse = {
   id: string;
   status: string;
+  payment_id?: string;
   created_at?: string;
 };
 
@@ -56,7 +57,7 @@ function buildReceipt(input: CreateAccountPaymentInput, items: AccountReceiptIte
   const phone = normalizePhoneForReceipt(input.customer?.phone);
   if (email) customer.email = email;
   if (phone) customer.phone = phone;
-  if (!customer.email && !customer.phone) return undefined;
+  if (!customer.email) return undefined;
 
   const taxSystemCode = yookassaTaxation(input.connection.receiptTaxationSystem);
   return {
@@ -65,7 +66,7 @@ function buildReceipt(input: CreateAccountPaymentInput, items: AccountReceiptIte
     items: items.map((item) => ({
       description: sanitizeReceiptItemName(item.name),
       quantity: String(item.quantity),
-      amount: amount(item.amountRub, input.intent.currency),
+      amount: amount(item.unitPriceRub, input.intent.currency),
       vat_code: yookassaVat(item.vat),
       payment_subject: item.paymentSubject || input.connection.paymentSubject || "service",
       payment_mode: item.paymentMethod || input.connection.paymentMethod || "full_payment",
@@ -114,6 +115,7 @@ export const yookassaAccountPaymentProvider: AccountPaymentProviderAdapter = {
       },
     ];
 
+    const receipt = buildReceipt(input, receiptItems);
     const payload: Record<string, unknown> = {
       amount: amount(input.intent.amountRub, input.intent.currency),
       capture: true,
@@ -127,7 +129,7 @@ export const yookassaAccountPaymentProvider: AccountPaymentProviderAdapter = {
         paymentIntentId: String(input.intent.id),
         scenario: input.intent.scenario,
       },
-      ...(buildReceipt(input, receiptItems) ? { receipt: buildReceipt(input, receiptItems) } : {}),
+      ...(receipt ? { receipt } : {}),
     };
 
     const payment = await yookassaRequest<YooKassaPaymentResponse>(
@@ -181,7 +183,7 @@ export const yookassaAccountPaymentProvider: AccountPaymentProviderAdapter = {
     return {
       providerRef: refund.id,
       providerStatus: refund.status,
-      normalizedStatus: normalizeYooKassaStatus(refund.status),
+      normalizedStatus: refund.status === "succeeded" ? "refunded" : normalizeYooKassaStatus(refund.status),
       raw: refund,
     };
   },
@@ -189,17 +191,52 @@ export const yookassaAccountPaymentProvider: AccountPaymentProviderAdapter = {
   async verifyWebhook(input) {
     const body = input.body as {
       event?: string;
-      object?: { id?: string; status?: string; paid?: boolean; metadata?: Record<string, unknown> };
+      object?: {
+        id?: string;
+        payment_id?: string;
+        status?: string;
+        paid?: boolean;
+        metadata?: Record<string, unknown>;
+      };
     };
-    const providerRef = body.object?.id ?? null;
-    const providerStatus = body.object?.status ?? body.event ?? null;
+    const credentials = assertCredentials(input.credentials);
+    const event = body.event ?? "";
+    const isRefundEvent = event.startsWith("refund.");
+    const providerRef = isRefundEvent ? body.object?.payment_id ?? null : body.object?.id ?? null;
+    if (!providerRef) {
+      throw new Error("YooKassa webhook payment id is missing");
+    }
+
+    if (isRefundEvent) {
+      const providerStatus = body.object?.status ?? event;
+      return {
+        provider: "yookassa",
+        providerRef,
+        orderId: null,
+        providerStatus,
+        normalizedStatus: event === "refund.succeeded" || providerStatus === "succeeded" ? "refunded" : "processing",
+        raw: body,
+      };
+    }
+
+    const payment = await yookassaRequest<YooKassaPaymentResponse>(
+      credentials,
+      `/payments/${encodeURIComponent(providerRef)}`,
+      null,
+    );
+    const providerStatus = payment.status ?? body.object?.status ?? event;
     return {
       provider: "yookassa",
       providerRef,
-      orderId: typeof body.object?.metadata?.paymentIntentId === "string" ? body.object.metadata.paymentIntentId : null,
+      orderId:
+        typeof payment.metadata?.paymentIntentId === "string"
+          ? payment.metadata.paymentIntentId
+          : typeof body.object?.metadata?.paymentIntentId === "string"
+            ? body.object.metadata.paymentIntentId
+            : null,
       providerStatus,
-      normalizedStatus: providerStatus ? normalizeYooKassaStatus(providerStatus, body.object?.paid) : null,
-      raw: body,
+      normalizedStatus: providerStatus ? normalizeYooKassaStatus(providerStatus, payment.paid) : null,
+      raw: { webhook: body, payment },
     };
   },
 };

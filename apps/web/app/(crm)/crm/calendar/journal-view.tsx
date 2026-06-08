@@ -418,6 +418,59 @@ function formatRubAmount(value: number) {
   })} ₽`;
 }
 
+function getAppointmentPaymentSummary(appointment: Pick<JournalAppointment, "paymentIntents" | "priceTotal">) {
+  const intents = appointment.paymentIntents ?? [];
+  const onlineIntents = intents.filter((intent) => intent.scenario.startsWith("appointment_"));
+  const paidIntents = onlineIntents.filter((intent) => intent.status === "SUCCEEDED");
+  const pendingIntents = onlineIntents.filter((intent) =>
+    ["CREATED", "REQUIRES_ACTION", "PROCESSING", "PENDING", "AUTHORIZED"].includes(intent.status)
+  );
+  const failedIntents = onlineIntents.filter((intent) =>
+    ["FAILED", "CANCELLED", "CANCELED", "EXPIRED"].includes(intent.status)
+  );
+  const total = Number(appointment.priceTotal);
+  const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
+  const paidOnline = paidIntents.reduce((sum, intent) => {
+    const value = Number(intent.amount);
+    return sum + (Number.isFinite(value) ? value : 0);
+  }, 0);
+  return {
+    hasOnlinePayment: onlineIntents.length > 0,
+    total: safeTotal,
+    paidOnline,
+    remaining: Math.max(0, safeTotal - paidOnline),
+    pendingCount: pendingIntents.length,
+    failedCount: failedIntents.length,
+    latest: onlineIntents[0] ?? null,
+  };
+}
+
+function paymentBadgeMeta(summary: ReturnType<typeof getAppointmentPaymentSummary>) {
+  if (!summary.hasOnlinePayment) return null;
+  if (summary.paidOnline > 0) {
+    return {
+      label: summary.remaining > 0 ? `Оплачено ${formatRubAmount(summary.paidOnline)}` : "Оплачено онлайн",
+      className: "border border-emerald-200 bg-emerald-50 text-emerald-800",
+    };
+  }
+  if (summary.pendingCount > 0) {
+    return {
+      label: "Ожидает оплаты",
+      className: "border border-amber-200 bg-amber-50 text-amber-900",
+    };
+  }
+  if (summary.failedCount > 0) {
+    return {
+      label: "Оплата не прошла",
+      className: "border border-rose-200 bg-rose-50 text-rose-900",
+    };
+  }
+  return {
+    label: "Онлайн-оплата",
+    className: "border border-slate-200 bg-slate-50 text-slate-700",
+  };
+}
+
 type SlotSelection = {
   date: Date;
   staffId: number;
@@ -1349,6 +1402,8 @@ export default function JournalView({
       const durationMinutes = (end.getTime() - start.getTime()) / (60 * 1000);
 
       const statusMeta = STATUS_META[appointment.status] ?? STATUS_META.NEW;
+      const paymentSummary = getAppointmentPaymentSummary(appointment);
+      const paymentBadge = paymentBadgeMeta(paymentSummary);
       const sourceTone =
         appointment.source === "online"
           ? "bg-violet-200/60"
@@ -1361,6 +1416,7 @@ export default function JournalView({
         gridRowStart: slotIndex + 1,
         durationMinutes,
         statusMeta,
+        paymentBadge,
         sourceTone,
       };
     });
@@ -2294,30 +2350,10 @@ export default function JournalView({
       isTerminalAppointmentStatus(editorState.appointment.status));
   const appointmentPaymentSummary = useMemo(() => {
     if (!editorForm || editorState?.mode !== "edit") return null;
-    const intents = editorState.appointment.paymentIntents ?? [];
-    const onlineIntents = intents.filter((intent) => intent.scenario.startsWith("appointment_"));
-    const paidIntents = onlineIntents.filter((intent) => intent.status === "SUCCEEDED");
-    const pendingIntents = onlineIntents.filter((intent) =>
-      ["CREATED", "PENDING", "AUTHORIZED"].includes(intent.status)
-    );
-    const failedIntents = onlineIntents.filter((intent) =>
-      ["FAILED", "CANCELED", "EXPIRED"].includes(intent.status)
-    );
-    const total = Number(editorForm.priceTotal);
-    const safeTotal = Number.isFinite(total) ? Math.max(0, total) : 0;
-    const paidOnline = paidIntents.reduce((sum, intent) => {
-      const value = Number(intent.amount);
-      return sum + (Number.isFinite(value) ? value : 0);
-    }, 0);
-    return {
-      hasOnlinePayment: onlineIntents.length > 0,
-      total: safeTotal,
-      paidOnline,
-      remaining: Math.max(0, safeTotal - paidOnline),
-      pendingCount: pendingIntents.length,
-      failedCount: failedIntents.length,
-      latest: onlineIntents[0] ?? null,
-    };
+    return getAppointmentPaymentSummary({
+      paymentIntents: editorState.appointment.paymentIntents,
+      priceTotal: editorForm.priceTotal,
+    });
   }, [editorForm, editorState]);
   const rawStatusOptions =
     editorState?.mode === "new"
@@ -2937,6 +2973,14 @@ export default function JournalView({
                             )}{" "}
                             ₽
                           </div>
+
+                          {card.paymentBadge ? (
+                            <div className="mt-1">
+                              <span className={`inline-flex max-w-full rounded-full px-2 py-0.5 text-[10px] font-semibold ${card.paymentBadge.className}`}>
+                                {card.paymentBadge.label}
+                              </span>
+                            </div>
+                          ) : null}
                         </div>
 
                         {statusMenuId === card.appointment.id && canChangeStatus ? (

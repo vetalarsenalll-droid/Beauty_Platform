@@ -1,6 +1,7 @@
 import { jsonError, jsonOk } from "@/lib/api";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { createAccountCheckout } from "@/lib/account-payments/checkout";
+import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
@@ -33,6 +34,16 @@ export async function POST(request: Request) {
       failUrl: typeof body.failUrl === "string" ? body.failUrl : undefined,
     });
 
+    if (intent.connectionId) {
+      await prisma.accountPaymentConnection.update({
+        where: { id: intent.connectionId },
+        data: {
+          lastTestedAt: new Date(),
+          lastTestStatus: `CHECKOUT_CREATED:${intent.providerStatus ?? intent.status}`,
+        },
+      });
+    }
+
     return applyCrmAccessCookie(
       jsonOk({
         intent: {
@@ -47,6 +58,10 @@ export async function POST(request: Request) {
       auth,
     );
   } catch (error) {
+    await markDefaultConnectionTestFailed(
+      auth.session.accountId,
+      error instanceof Error ? error.message : "Failed to create checkout",
+    );
     return jsonError(
       "ACCOUNT_PAYMENT_CHECKOUT_FAILED",
       error instanceof Error ? error.message : "Failed to create checkout",
@@ -56,3 +71,25 @@ export async function POST(request: Request) {
   }
 }
 
+async function markDefaultConnectionTestFailed(accountId: number, message: string) {
+  const connection =
+    (await prisma.accountPaymentConnection.findFirst({
+      where: { accountId, isEnabled: true, isDefault: true },
+      orderBy: { id: "asc" },
+      select: { id: true },
+    })) ??
+    (await prisma.accountPaymentConnection.findFirst({
+      where: { accountId, isEnabled: true },
+      orderBy: { id: "asc" },
+      select: { id: true },
+    }));
+  if (!connection) return;
+
+  await prisma.accountPaymentConnection.update({
+    where: { id: connection.id },
+    data: {
+      lastTestedAt: new Date(),
+      lastTestStatus: `CHECKOUT_FAILED:${message}`.slice(0, 500),
+    },
+  });
+}

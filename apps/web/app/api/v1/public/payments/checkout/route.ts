@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import {
+  bookingChainPaymentMetadata,
   bookingPaymentMetadata,
   bookingPaymentReceiptItem,
   calculateAppointmentOnlinePayment,
@@ -14,6 +15,7 @@ export const runtime = "nodejs";
 
 type CheckoutBody = {
   appointmentId?: number;
+  appointmentIds?: number[];
   amountRub?: number;
   description?: string;
   scenario?: string;
@@ -22,12 +24,23 @@ type CheckoutBody = {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  customer?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
   returnUrl?: string;
   failUrl?: string;
 };
 
 function normalizeMethod(value: unknown): AccountPaymentMethodCode {
   return value === "sbp" || value === "tpay" || value === "sberpay" ? value : "card";
+}
+
+function intentMethod(value: unknown): AccountPaymentMethodCode | null {
+  if (!value || typeof value !== "object") return null;
+  const method = (value as { method?: unknown }).method;
+  return method === "card" || method === "sbp" || method === "tpay" || method === "sberpay" ? method : null;
 }
 
 function cleanUrl(value: unknown) {
@@ -56,6 +69,37 @@ function receiptItemsForManualCheckout(input: { description: string; amountRub: 
   ];
 }
 
+function bodyCustomer(body: CheckoutBody) {
+  return {
+    fullName: body.customer?.name ?? body.customerName ?? null,
+    email: body.customer?.email ?? body.customerEmail ?? null,
+    phone: body.customer?.phone ?? body.customerPhone ?? null,
+  };
+}
+
+function normalizeAppointmentIds(body: CheckoutBody) {
+  const ids = Array.isArray(body.appointmentIds) ? body.appointmentIds : [body.appointmentId];
+  return Array.from(
+    new Set(
+      ids
+        .map((id) => Number(id))
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  );
+}
+
+function metadataAppointmentIds(value: unknown) {
+  if (!value || typeof value !== "object") return [];
+  const ids = (value as { appointmentIds?: unknown }).appointmentIds;
+  if (!Array.isArray(ids)) return [];
+  return ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function sameIds(a: number[], b: number[]) {
+  if (a.length !== b.length) return false;
+  return a.every((id, index) => id === b[index]);
+}
+
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -63,18 +107,26 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as CheckoutBody | null;
   if (!body) return jsonError("INVALID_BODY", "Некорректный запрос.", null, 400);
 
-  const appointmentId = Number(body.appointmentId);
+  const appointmentIds = normalizeAppointmentIds(body);
   const method = normalizeMethod(body.method);
 
   try {
-    if (Number.isInteger(appointmentId) && appointmentId > 0) {
-      const appointment = await prismaAppointmentForCheckout(appointmentId, resolved.account.id);
-      if (!appointment) {
+    if (appointmentIds.length > 0) {
+      const appointments = await prismaAppointmentsForCheckout(appointmentIds, resolved.account.id);
+      if (appointments.length !== appointmentIds.length) {
         return jsonError("APPOINTMENT_NOT_FOUND", "Запись не найдена.", null, 404);
       }
 
+      const appointmentById = new Map(appointments.map((item) => [item.id, item]));
+      const orderedAppointments = appointmentIds.map((id) => appointmentById.get(id)!);
+      const appointment = orderedAppointments[0];
+      const hasMixedClients = orderedAppointments.some((item) => item.clientId !== appointment.clientId);
+      if (hasMixedClients) {
+        return jsonError("VALIDATION_FAILED", "Нельзя оплатить одним платежом записи разных клиентов.", null, 400);
+      }
+
       const calculation = calculateAppointmentOnlinePayment({
-        appointmentTotalRub: appointment.priceTotal,
+        appointmentTotalRub: orderedAppointments.reduce((sum, item) => sum + Number(item.priceTotal), 0),
         settings: appointment.account.settings,
         paymentOption: normalizeBookingPaymentOption(body.paymentOption),
       });
@@ -82,16 +134,27 @@ export async function POST(request: Request) {
         return jsonError("ONLINE_PAYMENT_DISABLED", "Онлайн-оплата для записи не включена.", null, 400);
       }
 
-      const serviceNames = appointment.services.map((item) => item.service.name).filter(Boolean);
+      const serviceNames = orderedAppointments
+        .flatMap((item) => item.services.map((serviceItem) => serviceItem.service.name))
+        .filter(Boolean);
       const description =
         typeof body.description === "string" && body.description.trim()
           ? body.description.trim()
           : serviceNames.length
             ? `${calculation.descriptionPrefix}: ${serviceNames.join(", ")}`.slice(0, 250)
-            : `${calculation.descriptionPrefix} #${appointment.id}`;
+            : `${calculation.descriptionPrefix} #${appointmentIds.join(",")}`;
 
       const existingIntent = appointment.paymentIntents[0] ?? null;
-      if (existingIntent?.paymentUrl) {
+      const existingAppointmentIds = existingIntent ? metadataAppointmentIds(existingIntent.metadata) : [];
+      const existingMatchesAppointments =
+        appointmentIds.length === 1
+          ? existingAppointmentIds.length === 0 || sameIds(existingAppointmentIds, appointmentIds)
+          : sameIds(existingAppointmentIds, appointmentIds);
+      if (
+        existingIntent?.paymentUrl &&
+        existingMatchesAppointments &&
+        (intentMethod(existingIntent.providerPayload) ?? "card") === method
+      ) {
         return NextResponse.json({
           data: {
             intentId: existingIntent.id,
@@ -108,6 +171,7 @@ export async function POST(request: Request) {
         });
       }
 
+      const customer = bodyCustomer(body);
       const intent = await createAccountCheckout({
         accountId: resolved.account.id,
         appointmentId: appointment.id,
@@ -117,12 +181,19 @@ export async function POST(request: Request) {
         scenario: calculation.scenario,
         method,
         customer: {
-          fullName: body.customerName ?? appointment.client.firstName ?? null,
-          email: body.customerEmail ?? appointment.client.email ?? null,
-          phone: body.customerPhone ?? appointment.client.phone ?? null,
+          fullName: customer.fullName ?? appointment.client.firstName ?? null,
+          email: customer.email ?? appointment.client.email ?? null,
+          phone: customer.phone ?? appointment.client.phone ?? null,
         },
         receiptItems: [bookingPaymentReceiptItem({ description, calculation })],
-        metadata: bookingPaymentMetadata(calculation),
+        metadata:
+          appointmentIds.length > 1
+            ? bookingChainPaymentMetadata({
+                calculation,
+                appointmentIds,
+                primaryAppointmentId: appointment.id,
+              })
+            : bookingPaymentMetadata(calculation),
         returnUrl: cleanUrl(body.returnUrl),
         failUrl: cleanUrl(body.failUrl),
         idempotencyKey: request.headers.get("idempotency-key") || undefined,
@@ -156,11 +227,7 @@ export async function POST(request: Request) {
       description,
       scenario: typeof body.scenario === "string" && body.scenario.trim() ? body.scenario.trim() : "public_checkout",
       method,
-      customer: {
-        fullName: body.customerName ?? null,
-        email: body.customerEmail ?? null,
-        phone: body.customerPhone ?? null,
-      },
+      customer: bodyCustomer(body),
       receiptItems: receiptItemsForManualCheckout({ description, amountRub }),
       returnUrl: cleanUrl(body.returnUrl),
       failUrl: cleanUrl(body.failUrl),
@@ -186,11 +253,11 @@ export async function POST(request: Request) {
   }
 }
 
-async function prismaAppointmentForCheckout(appointmentId: number, accountId: number) {
+async function prismaAppointmentsForCheckout(appointmentIds: number[], accountId: number) {
   const { prisma } = await import("@/lib/prisma");
-  return prisma.appointment.findFirst({
+  return prisma.appointment.findMany({
     where: {
-      id: appointmentId,
+      id: { in: appointmentIds },
       accountId,
       status: { notIn: ["CANCELLED", "NO_SHOW"] },
     },
@@ -226,6 +293,8 @@ async function prismaAppointmentForCheckout(appointmentId: number, accountId: nu
           provider: true,
           providerStatus: true,
           paymentUrl: true,
+          providerPayload: true,
+          metadata: true,
         },
       },
     },

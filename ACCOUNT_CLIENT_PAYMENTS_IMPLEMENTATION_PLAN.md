@@ -1,4 +1,4 @@
-﻿# Account Client Payments: подробный план реализации
+﻿# Клиентские платежи аккаунтов: подробный план реализации
 
 ## 1. Цель
 
@@ -6,8 +6,8 @@ CRM-аккаунты должны принимать реальные оплат
 
 Это отдельный платежный контур, не тот же самый, что уже сделан для оплаты CRM/AI-токенов платформе.
 
-- `Platform payments`: бизнес-аккаунт платит платформе за CRM, подписку, AI-токены.
-- `Account client payments`: клиент салона платит самому салону за услугу или запись.
+- `Платежи платформе`: бизнес-аккаунт платит платформе за CRM, подписку, AI-токены.
+- `Клиентские платежи аккаунта`: клиент салона платит самому салону за услугу или запись.
 
 Деньги клиента салона не должны идти на ИП платформы. Они должны идти на платежное подключение конкретного CRM-аккаунта: ЮKassa, Сбер, T-Банк или Альфа-Банк.
 
@@ -45,6 +45,19 @@ CRM-аккаунты должны принимать реальные оплат
 | Альфа-Банк | карты, Alfa Pay/СБП при подключении | API-логин, API-пароль, callback URL | 4 |
 
 Важно: сначала можно реализовать ЮKassa как самый простой вариант для салонов, но модель БД, типы, UI и роутинг должны быть провайдер-независимыми.
+
+### 3.0 Текущее состояние провайдеров на локальной разработке
+
+На 03.06.2026 фактическое состояние такое:
+
+| Провайдер | Состояние | Что это значит |
+| --- | --- | --- |
+| T-Банк / T-Касса | Реализован и проверен вручную | Создание платежа, переход на страницу банка, успешная оплата, возврат на страницу успеха и привязка оплаты к записи проверены на тестовом терминале. |
+| ЮKassa | Реализована в коде, но не проверена полным ручным сценарием | Есть адаптер для создания платежа, проверки статуса, webhook, возврата и чеков. Нужны тестовые реквизиты ЮKassa, чтобы пройти реальный сценарий. |
+| Сбер | Адаптер реализован в коде, но не проверен полным ручным сценарием | Есть создание платежа, проверка статуса, callback/webhook и возврат через REST-шлюз. Нужны тестовые реквизиты Сбера, чтобы пройти реальный сценарий. |
+| Альфа-Банк | Адаптер реализован в коде, но не проверен полным ручным сценарием | Есть создание платежа, проверка статуса, callback/webhook и возврат через REST-шлюз. Нужны тестовые реквизиты Альфа-Банка, чтобы пройти реальный сценарий. |
+
+До появления реальных или тестовых реквизитов Сбера/Альфы их нужно считать реализованными в коде, но не подтвержденными ручным E2E.
 
 ## 3.1 Продуктовые решения
 
@@ -108,7 +121,7 @@ CRM-аккаунты должны принимать реальные оплат
 
 - у разных провайдеров разные схемы подписи и проверки подлинности;
 - разные названия финальных статусов;
-- webhook может прийти раньше, чем пользователь вернется на success page;
+- webhook может прийти раньше, чем пользователь вернется на страницу успеха;
 - webhook может прийти несколько раз;
 - webhook может не дойти на localhost или при сетевом сбое;
 - в webhook нужно надежно найти наш `PaymentIntent`, а не доверять только сумме или описанию;
@@ -205,8 +218,8 @@ Webhook:
 
 - проверить `Token` входящего уведомления;
 - найти `PaymentIntent` по `PaymentId`, `OrderId` или `DATA.paymentIntentId`;
-- если webhook пришел раньше success page, success page должна только показать уже обработанный статус;
-- если success page открылась раньше webhook, success page должна сделать server-side `GetState`;
+- если webhook пришел раньше открытия страницы успеха, страница успеха должна только показать уже обработанный статус;
+- если страница успеха открылась раньше webhook, страница успеха должна сделать server-side `GetState`;
 - повторные webhook-и не должны создавать дубль `Transaction`, `Receipt` или бизнес-действия.
 
 Возвраты:
@@ -901,9 +914,9 @@ Manual E2E:
 - [x] Поддержать скидку за полную онлайн-оплату: процент задается в настройках, сумма оплаты и итоговая цена считаются сервером.
 - [x] Показывать условие оплаты и скидку на публичном шаге онлайн-записи до подтверждения записи.
 - [x] Связать успешную оплату с финальным статусом записи по выбранной бизнес-логике.
-- [ ] Поддержать оплату цепочки из нескольких записей одним платежом.
+- [x] Поддержать оплату цепочки из нескольких записей одним платежом.
 - [x] Расширить блок `Оплата визита` в модалке `Журнал записи`: добавить `Онлайн-оплата`, оплачено онлайн, сумма онлайн-оплаты, остаток к оплате, провайдер и статус.
-- [ ] Показывать статус оплаты в карточке записи и списке записей CRM.
+- [x] Показывать статус оплаты в карточке записи и списке записей CRM.
 
 ### Этап 4. T-Банк для аккаунтов
 
@@ -913,29 +926,35 @@ Manual E2E:
 - [x] Реализовать GetState.
 - [x] Реализовать webhook.
 - [x] Добавить возвраты через adapter API.
-- [ ] Пройти тестовый сценарий T-Банка на тестовом терминале владельца аккаунта.
+- [ ] Добавить отдельный пользовательский сценарий СБП через `GetQr` с QR-экраном и fallback на hosted-форму банка.
+- [x] Пройти тестовый сценарий T-Банка на тестовом терминале владельца аккаунта.
+  - [x] Тест 1. Успешная оплата.
+  - [x] Тест 2. Неуспешная оплата.
+  - [x] Тест 3. Возврат.
+  - [x] Тест 7. Формирование чека.
+  - [x] Тест 8. Формирование чека возврата.
 
 ### Этап 5. Сбер
 
-- [ ] Реализовать создание заказа.
-- [ ] Реализовать проверку статуса.
-- [ ] Реализовать callback.
-- [ ] Реализовать возврат.
+- [x] Реализовать создание заказа.
+- [x] Реализовать проверку статуса.
+- [x] Реализовать callback.
+- [x] Реализовать возврат.
 - [ ] Проверить SberPay/СБП по доступности в кабинете.
 
 ### Этап 6. Альфа-Банк
 
-- [ ] Реализовать создание заказа.
-- [ ] Реализовать проверку статуса.
-- [ ] Реализовать callback.
-- [ ] Реализовать возврат.
+- [x] Реализовать создание заказа.
+- [x] Реализовать проверку статуса.
+- [x] Реализовать callback.
+- [x] Реализовать возврат.
 - [ ] Проверить СБП по доступности в кабинете.
 
 ### Этап 7. Полировка
 
-- [ ] Добавить аудит изменений платежных настроек.
-- [ ] Добавить диагностику ошибок подключения провайдера.
-- [ ] Добавить фильтры платежей.
+- [x] Добавить аудит изменений платежных настроек.
+- [x] Добавить диагностику ошибок подключения провайдера.
+- [x] Добавить фильтры платежей.
 - [x] Добавить повтор оплаты через fail-страницу.
 - [ ] Добавить частичные возвраты, если провайдер поддерживает.
 - [ ] Добавить оплату товаров.
@@ -961,72 +980,455 @@ Manual E2E:
 1. Прочитать этот файл.
 2. Проверить текущее состояние git diff.
 3. Выполнить только следующий незавершенный пункт.
-4. После фактической работы добавить новую запись в `Progress Journal`.
+4. После фактической работы добавить новую запись в `Журнал прогресса`.
 5. В записи указать: что сделано, какие файлы изменены, какие проверки прошли, что делать дальше, какие есть блокеры.
 
 Не отмечать пункт выполненным заранее.
 
-## 22. Progress Journal
+## 22. Журнал прогресса
 
-### 2026-06-03 - hide optional API URL in CRM payment settings
+### 2026-06-08 - добавлены фильтры клиентских платежей
 
-Status: completed
+Статус: завершено
 
-Done:
+Что сделано:
 
-- Removed the optional `API URL` credential field from the CRM payment connection form.
-- Existing saved credentials are still supported, but `apiUrl` is filtered out of the saved credentials preview so `apiUrl: null` is no longer shown to salon users.
+- На странице `Оплаты/Финансы` добавлен блок `Платежи клиентов`.
+- Добавлены серверные фильтры по статусу платежа, провайдеру, сценарию и строке поиска.
+- Поиск поддерживает ID платежа, ID записи, банковский reference/status, имя, фамилию, телефон и email клиента.
+- В таблице выводятся сумма, провайдер, внутренний статус, банковский статус, клиент, запись, услуги, дата оплаты и последние возвраты.
+- Фильтры работают через query-параметры страницы `/crm/payments`, без отдельного API.
 
-Changed files:
+Измененные файлы:
+
+- `apps/web/app/(crm)/crm/payments/page.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Следующий кодовый пункт плана: частичные возвраты, если провайдер поддерживает.
+
+Блокеры:
+
+- Нет.
+
+### 2026-06-08 - добавлена диагностика платежного подключения
+
+Статус: завершено
+
+Что сделано:
+
+- При сохранении платежного подключения теперь обновляются `lastTestedAt` и `lastTestStatus = CONFIG_SAVED`.
+- CRM checkout для тестового платежа теперь записывает результат проверки подключения: `CHECKOUT_CREATED:<статус>` или `CHECKOUT_FAILED:<ошибка>`.
+- На странице `Оплаты/Финансы` добавлен блок диагностики выбранного платежного подключения: последний статус, время проверки и понятное описание.
+- Добавлена кнопка `Проверить подключение`, которая создает тестовый платеж на 10 ₽, открывает hosted-страницу провайдера и сразу показывает результат создания checkout.
+- Ошибки провайдера при создании тестового checkout сохраняются в диагностический статус подключения, чтобы владелец видел причину без просмотра логов сервера.
+
+Измененные файлы:
+
+- `apps/web/app/api/v1/crm/account-payments/checkout/route.ts`
+- `apps/web/app/api/v1/crm/account-payments/connections/route.ts`
+- `apps/web/app/(crm)/crm/payments/account-payments-client.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Следующий кодовый пункт плана: фильтры платежей.
+
+Блокеры:
+
+- Нет.
+
+### 2026-06-08 - усилена передача чеков для T-Банка
+
+Статус: завершено
+
+Что сделано:
+
+- Зафиксировано, что на тестовом терминале T-Банка `1780326576506DEMO` уже пройдены тесты 1, 2 и 3: успешная оплата, неуспешная оплата и возврат.
+- В `Init` T-Банка при включенной настройке `Передавать чек` теперь передается расширенный объект `Receipt`: контакт клиента, `Taxation`, `Items`, `Payments.Electronic` и `FfdVersion`, если он выбран в CRM.
+- `PaymentIntent.receiptRequested` и `receiptPayload` теперь сохраняются и для default-позиции чека, которую checkout строит из описания и суммы платежа.
+- В настройках платежного подключения CRM добавлено поле `ФФД`: по умолчанию, `1.05`, `1.2`.
+- Значение `receiptFfdVersion` теперь возвращается со страницы оплат и из API сохранения подключения.
+- После тестовой оплаты платежа `#40` кабинет T-Банка отметил `Тест 7. Формирование чека` как пройденный.
+- После возврата платежа с чеком кабинет T-Банка отметил `Тест 8. Формирование чека возврата` как пройденный.
+- Общий тестовый сценарий T-Банка на тестовом терминале владельца аккаунта закрыт: тесты 1, 2, 3, 7 и 8 пройдены.
+
+Измененные файлы:
+
+- `apps/web/lib/account-payments/checkout.ts`
+- `apps/web/lib/account-payments/providers/tbank.ts`
+- `apps/web/app/api/v1/crm/account-payments/connections/route.ts`
+- `apps/web/app/(crm)/crm/payments/page.tsx`
+- `apps/web/app/(crm)/crm/payments/account-payments-client.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Продолжить пункт плана `диагностика ошибок подключения провайдера`, который был начат ранее.
+
+Блокеры:
+
+- Для формирования чека нужен email или телефон клиента; без контакта adapter не отправляет `Receipt`, чтобы не создать нефискализованный платеж.
+
+### 2026-06-03 - добавлен аудит изменений платежных настроек
+
+Статус: завершено
+
+Что сделано:
+
+- Сохранение платежного подключения аккаунта теперь пишет audit-запись после успешного создания или обновления.
+- В audit платежного подключения попадают только безопасные поля: провайдер, режим, включение, дефолтность, маска реквизитов, публичная конфигурация, настройки чеков, НДС, система налогообложения, валюта.
+- Секретные ключи, пароли и зашифрованные реквизиты в audit не пишутся.
+- Сохранение настроек онлайн-записи теперь пишет audit-запись с diff по правилам оплаты, предоплате, полной оплате, срокам отмены/переноса, hold TTL и напоминаниям.
+- Если после нормализации данных изменений нет, лишняя audit-запись не создается.
+
+Измененные файлы:
+
+- `apps/web/app/api/v1/crm/account-payments/connections/route.ts`
+- `apps/web/app/api/v1/crm/settings/booking/route.ts`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Следующий кодовый пункт плана: диагностика ошибок подключения провайдера.
+
+Блокеры:
+
+- Нет.
+
+### 2026-06-03 - статус онлайн-оплаты добавлен в карточки записей CRM
+
+Статус: завершено
+
+Что сделано:
+
+- Вынесен общий расчет статуса онлайн-оплаты записи для календаря CRM.
+- Карточка записи в журнале теперь показывает бейдж оплаты: `Оплачено онлайн`, `Оплачено ...`, `Ожидает оплаты`, `Оплата не прошла`.
+- Модалка записи `Оплата визита` переиспользует тот же расчет статуса, чтобы карточка и подробный просмотр не расходились.
+- Статусы `REQUIRES_ACTION` и `PROCESSING` учитываются как ожидающие оплату.
+
+Измененные файлы:
+
+- `apps/web/app/(crm)/crm/calendar/journal-view.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Следующий кодовый пункт плана: аудит изменений платежных настроек.
+
+Блокеры:
+
+- Отдельной табличной страницы списка записей в CRM в текущем модуле не найдено; статус добавлен в основной список/сетку журнала записей.
+
+### 2026-06-03 - добавлена оплата цепочки записей одним платежом
+
+Статус: завершено в коде, ручной E2E не проверен
+
+Что сделано:
+
+- Публичный checkout `/api/v1/public/payments/checkout` теперь принимает `appointmentIds`.
+- Для цепочки записей сумма оплаты считается сервером по общей стоимости всех записей цепочки.
+- Один `PaymentIntent` создается на первую запись цепочки, а полный список записей сохраняется в `metadata.appointmentIds`.
+- При успешной оплате `applyAccountPaymentState` подтверждает все записи из `metadata.appointmentIds`.
+- Публичная онлайн-запись после создания цепочки запускает один checkout по всем созданным `appointmentIds`.
+- Повторный checkout переиспользует активный intent только если список `appointmentIds` совпадает.
+- Контакты клиента в публичном checkout теперь читаются и из старых полей `customerName/customerEmail/customerPhone`, и из объекта `customer`, который отправляет онлайн-запись.
+
+Измененные файлы:
+
+- `apps/web/app/api/v1/public/payments/checkout/route.ts`
+- `apps/web/lib/account-payments/booking-payment.ts`
+- `apps/web/lib/account-payments/checkout.ts`
+- `apps/web/app/booking/booking-client.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Проверить вручную в браузере цепочку из нескольких услуг: создать цепочку, выбрать онлайн-оплату, убедиться, что открывается один платеж на общую сумму.
+- Следующий пункт плана: показывать статус оплаты в карточке записи и списке записей CRM.
+
+Блокеры:
+
+- Без тестовых реквизитов провайдера нельзя пройти полный E2E оплаты цепочки через банк.
+- В текущей модели `PaymentIntent.appointmentId` физически указывает на первую запись цепочки; остальные записи связаны через `metadata.appointmentIds`.
+
+### 2026-06-03 - ЮKassa сверена с документацией и исправлена
+
+Статус: завершено в коде, ручной E2E не проверен
+
+Что сделано:
+
+- Проверен adapter ЮKassa по коду, а не по старой записи плана.
+- Подтверждено, что создание платежа использует `POST /v3/payments`, Basic Auth, `Idempotence-Key`, `confirmation.type=redirect`, `return_url`, `capture=true` и `metadata.paymentIntentId`.
+- Исправлена нормализация статуса: `waiting_for_capture` больше не считается успешной оплатой только из-за `paid=true`.
+- Исправлено формирование чека: `items.amount` теперь передает цену за единицу, а не общую сумму строки.
+- Для чеков ЮKassa включена более строгая проверка контакта: чек отправляется только если есть email клиента.
+- Webhook ЮKassa теперь для payment-событий делает server-side GET платежа перед применением статуса.
+- Webhook `refund.*` теперь ищет исходный платеж по `object.payment_id`, а не по id возврата.
+- Возврат ЮKassa со статусом `succeeded` теперь нормализуется как `refunded`, а не как успешная оплата.
+
+Измененные файлы:
+
+- `apps/web/lib/account-payments/providers/yookassa.ts`
+- `apps/web/lib/account-payments/status.ts`
+- `apps/web/app/api/v1/account-payments/[provider]/webhook/route.ts`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- С тестовыми реквизитами ЮKassa пройти полный ручной сценарий: успешная оплата, отмена/ошибка, webhook `payment.succeeded`, webhook `payment.canceled`, refund и чек.
+- Перед включением чеков в production проверить, что у аккаунта ЮKassa подключена нужная схема фискализации.
+
+Блокеры:
+
+- Нет тестовых реквизитов ЮKassa для полного ручного E2E.
+
+### 2026-06-03 - реализованы adapter-ы Сбера и Альфа-Банка
+
+Статус: завершено в коде, ручной E2E не проверен
+
+Что сделано:
+
+- Добавлен общий REST adapter для банковского шлюза Сбер/Альфа.
+- Для Сбера реализованы `register.do`, `getOrderStatusExtended.do`, `refund.do`.
+- Для Альфа-Банка реализованы `register.do`, `getOrderStatusExtended.do`, `refund.do`.
+- Provider registry переключен с заглушек на реальные adapter-ы.
+- Добавлена нормализация статусов банковского шлюза: registered, processing, succeeded, cancelled, refunded, failed.
+- Endpoint `/api/v1/account-payments/[provider]/webhook` теперь принимает JSON, form-urlencoded и query callbacks, а также умеет находить платежи Сбера/Альфы по `mdOrder/orderId/orderNumber/jsonParams`.
+- Отдельные способы оплаты вроде СБП/SberPay/Alfa Pay не выводятся в нашей форме: их должна показывать hosted-страница банка, если способ подключен у провайдера.
+
+Измененные файлы:
+
+- `apps/web/lib/account-payments/providers/rbs.ts`
+- `apps/web/lib/account-payments/providers/sber.ts`
+- `apps/web/lib/account-payments/providers/alfa.ts`
+- `apps/web/lib/account-payments/provider.ts`
+- `apps/web/lib/account-payments/status.ts`
+- `apps/web/app/api/v1/account-payments/[provider]/webhook/route.ts`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Получить тестовые реквизиты Сбера и Альфа-Банка и пройти ручной сценарий: создание платежа, возврат на success/fail, server-side refresh статуса, callback/webhook, возврат.
+- Отдельно проверить, какие быстрые способы оплаты показывает hosted-страница каждого банка в тестовом и рабочем режиме.
+- Перед включением чеков для Сбера/Альфы сверить формат `orderBundle` с договором и кабинетом конкретного банка.
+
+Блокеры:
+
+- Нет тестовых реквизитов Сбера и Альфа-Банка.
+- Фискализация Сбера/Альфы пока не включена в adapter, потому что формат и обязательность `orderBundle` нужно подтверждать по конкретному подключению.
+
+### 2026-06-03 - сверена документация перед реализацией Сбера и Альфы
+
+Статус: завершено
+
+Что сделано:
+
+- Перечитан текущий план и правило работы по нему.
+- Проверено текущее состояние кода: ЮKassa уже имеет адаптер, Сбер и Альфа подключены только заглушками.
+- Подтвержден общий REST-подход для Сбера и Альфы: создание платежа через `register.do`, проверка через `getOrderStatusExtended.do`, возврат через `refund.do`.
+- Зафиксировано решение реализовать базовый hosted checkout без отдельного выбора СБП/SberPay/Alfa Pay в нашей форме: доступные способы показывает платежная страница провайдера.
+
+Измененные файлы:
+
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- Код на этом шаге не менялся.
+
+Что делать дальше:
+
+- Заменить заглушки Сбера и Альфы на реальные adapter-ы.
+- Добавить распознавание callback/webhook для `mdOrder`, `orderId`, `orderNumber`.
+- После появления тестовых реквизитов пройти ручной сценарий оплаты для каждого провайдера.
+
+Блокеры:
+
+- Нет тестовых реквизитов Сбера и Альфа-Банка для полного ручного E2E.
+- Фискализация Сбера и Альфы требует отдельной проверки формата `orderBundle` по договору/кабинету конкретного банка.
+
+### 2026-06-03 - выбор способа оплаты возвращен на форму Т-Банка
+
+Статус: завершено
+
+Что сделано:
+
+- Из публичной онлайн-записи убран отдельный выбор `Карта / T-Pay` и `СБП`.
+- Кнопка `Записаться` снова создает обычный hosted checkout Т-Банка, а доступные способы оплаты выбираются уже на странице банка.
+- Отдельный backend-сценарий `GetQr` оставлен как задел, но не используется в пользовательском пути до реализации QR-экрана и fallback.
+- Пункт этапа 4 по отдельному СБП-сценарию возвращен в незавершенные, потому что тест показал ошибку `400` без перехода на оплату.
+
+Измененные файлы:
+
+- `apps/web/app/booking/booking-client.tsx`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Проверить обычный сценарий полной онлайн-оплаты через Т-Банк hosted-форму.
+- Если нужен отдельный СБП внутри нашей формы, реализовать отдельный экран QR/deeplink и понятный fallback на обычную форму банка.
+
+Блокеры:
+
+- Тестовый терминал Т-Банка может не показывать все включенные способы оплаты так же, как боевой терминал.
+
+### 2026-06-03 - добавлен СБП для T-Банка в клиентских оплатах аккаунта
+
+Статус: частично отменено после ручной проверки
+
+Что сделано:
+
+- В account-payments adapter T-Банка добавлен вызов `GetQr` после `Init`, если checkout создан с методом `sbp`.
+- Публичный checkout теперь не переиспользует старый active intent с другим способом оплаты: для `card` и `sbp` создаются разные ссылки, если пользователь меняет способ.
+- В публичной онлайн-записи для T-Банка временно добавлялся выбор способа оплаты: `Карта / T-Pay` или `СБП`.
+- Ручная проверка показала, что выбранный `СБП` приводит к ошибке checkout `400`, поэтому пользовательский выбор способа оплаты убран отдельной записью выше.
+- Мобильная финальная сводка была увеличена под блок оплаты; часть CSS-правок остается полезной для блока оплаты записи.
+
+Измененные файлы:
+
+- `apps/web/lib/account-payments/providers/tbank.ts`
+- `apps/web/app/api/v1/public/payments/checkout/route.ts`
+- `apps/web/app/booking/booking-client.tsx`
+- `apps/web/app/globals.css`
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- `npm run typecheck` - успешно.
+
+Что делать дальше:
+
+- Для отдельного СБП-сценария сначала спроектировать QR/deeplink-экран и fallback на обычную hosted-форму.
+- До этого оставлять выбор способов оплаты на стороне страницы Т-Банка.
+
+Блокеры:
+
+- Поведение СБП зависит от настроек и возможностей тестового терминала T-Банка.
+
+### 2026-06-03 - план актуализирован по состоянию провайдеров
+
+Статус: завершено
+
+Что сделано:
+
+- Добавлен раздел `3.0 Текущее состояние провайдеров на локальной разработке`.
+- Зафиксировано фактическое состояние: T-Банк реализован и проверен вручную, ЮKassa реализована в коде без полного ручного теста, Сбер и Альфа-Банк пока являются заглушками.
+- Переведены свежие записи журнала и служебные метки плана на русский язык.
+
+Измененные файлы:
+
+- `ACCOUNT_CLIENT_PAYMENTS_IMPLEMENTATION_PLAN.md`
+
+Проверка:
+
+- Код не менялся, тесты не запускались.
+
+Что делать дальше:
+
+- Для ЮKassa пройти полный тестовый сценарий, когда будут доступны тестовые реквизиты.
+- Для Сбера и Альфа-Банка реализовать отдельные адаптеры перед тем, как считать их рабочими провайдерами.
+
+Блокеры:
+
+- Нет тестовых реквизитов ЮKassa, Сбера и Альфа-Банка.
+
+### 2026-06-03 - скрыто необязательное поле API URL в настройках оплат CRM
+
+Статус: завершено
+
+Что сделано:
+
+- Убрано необязательное поле `API URL` из формы подключения приема оплат.
+- Старые сохраненные реквизиты продолжают поддерживаться, но `apiUrl` фильтруется в предпросмотре сохраненных реквизитов, поэтому пользователи салона больше не видят `apiUrl: null`.
+
+Измененные файлы:
 
 - `apps/web/app/(crm)/crm/payments/account-payments-client.tsx`
 
-Verified:
+Проверка:
 
-- `npm run typecheck` passed.
+- `npm run typecheck` - успешно.
 
-Next:
+Что делать дальше:
 
-- No follow-up required for this UI cleanup.
+- Дополнительных действий по этой UI-правке не требуется.
 
-### 2026-06-03 - payment return site link uses public slug
+### 2026-06-03 - ссылка возврата на сайт использует публичный slug
 
-Status: completed
+Статус: завершено
 
-Done:
+Что сделано:
 
-- Fixed account payment success/fail pages: the `На сайт` link now points to the technical public site slug with account id, for example `/severnaya-orhideya_2`, instead of the internal account slug `/severnaya-orhideya`.
-- This fixes the 404 after a successful T-Bank payment when returning from `/payment/success?intentId=...`.
+- Исправлены страницы успешной и неуспешной клиентской оплаты: кнопка `На сайт` теперь ведет на технический публичный slug сайта с id аккаунта, например `/severnaya-orhideya_2`, а не на внутренний slug аккаунта `/severnaya-orhideya`.
+- Это исправляет 404 после успешной оплаты T-Банка при возврате со страницы `/payment/success?intentId=...`.
 
-Changed files:
+Измененные файлы:
 
 - `apps/web/app/payment/success/page.tsx`
 - `apps/web/app/payment/fail/page.tsx`
 
-Verified:
+Проверка:
 
-- `npm run typecheck` passed.
+- `npm run typecheck` - успешно.
 
-Next:
+Что делать дальше:
 
-- Reopen `/payment/success?intentId=32` and click `На сайт`; it should route to the published site.
+- Повторно открыть `/payment/success?intentId=32` и нажать `На сайт`; ссылка должна вести на опубликованный сайт.
 
-Blockers:
+Блокеры:
 
-- None.
+- Нет.
 
-### 2026-06-02 - public booking payment retry continues existing appointment
+### 2026-06-02 - повтор оплаты онлайн-записи продолжает существующую запись
 
-Status: completed
+Статус: завершено
 
-Done:
+Что сделано:
 
-- Fixed public published booking data so `payments` settings are included in server-rendered booking pages, not only CRM builder preview.
-- Fixed public booking payment retry: if an online `NEW` appointment already exists for the same client, slot and service, `/api/v1/public/booking/appointments` returns that existing `appointmentId` instead of blocking payment with `TIME_BUSY`/hold errors.
-- Added checkout reuse for existing active appointment payment intents so repeat clicks can return the same provider `paymentUrl` instead of creating duplicate payment intents.
-- Verified T-Bank account checkout for appointment `#151` returns a hosted payment URL: `https://pay.tbank.ru/bVMflVOq`.
+- Исправлена загрузка данных опубликованной онлайн-записи: настройки `payments` теперь попадают в server-rendered публичные страницы, а не только в предпросмотр конструктора CRM.
+- Исправлен повтор оплаты публичной записи: если онлайн-запись `NEW` уже существует для того же клиента, слота и услуги, `/api/v1/public/booking/appointments` возвращает существующий `appointmentId`, а не блокирует оплату ошибками `TIME_BUSY` или hold.
+- Добавлено переиспользование активного `PaymentIntent` записи: повторный клик может вернуть тот же provider `paymentUrl`, не создавая дубли платежей.
+- Проверено, что checkout T-Банка для записи `#151` возвращает hosted payment URL: `https://pay.tbank.ru/bVMflVOq`.
 
-Changed files:
+Измененные файлы:
 
 - `apps/web/app/api/v1/public/booking/appointments/route.ts`
 - `apps/web/app/api/v1/public/payments/checkout/route.ts`
@@ -1037,41 +1439,41 @@ Changed files:
 - `apps/web/components/public-booking-client.tsx`
 - `apps/web/features/site-builder/shared/site-data.ts`
 
-Verified:
+Проверка:
 
-- `npm run typecheck` passed.
-- Local API retry for existing booking slot returned `appointmentId: 151`.
-- Local public checkout for appointment `#151` returned T-Bank `paymentUrl`.
+- `npm run typecheck` - успешно.
+- Локальный API-повтор для уже существующего слота вернул `appointmentId: 151`.
+- Локальный публичный checkout для записи `#151` вернул T-Банк `paymentUrl`.
 
-Next:
+Что делать дальше:
 
-- Browser-test the full public booking flow after refreshing the published booking page.
-- Add clearer UI feedback for `TIME_BUSY`/existing unpaid appointment states if users repeatedly click after creating a booking.
+- Проверить полный публичный сценарий онлайн-записи в браузере после обновления опубликованной страницы.
+- Добавить более понятный UI-feedback для `TIME_BUSY` и состояния существующей неоплаченной записи, если пользователь повторно нажимает кнопку после создания записи.
 
-Blockers:
+Блокеры:
 
-- Automatic T-Bank webhook delivery still requires public HTTPS URL or tunnel on localhost; success/fail pages can refresh status after redirect.
+- Автоматическая доставка webhook T-Банка все еще требует публичный HTTPS URL или tunnel на localhost; страницы success/fail могут обновить статус после redirect.
 
-### 2026-06-02 - booking payment rules connected end-to-end
+### 2026-06-02 - правила оплаты записи подключены сквозно
 
-Status: completed
+Статус: завершено
 
-Done:
+Что сделано:
 
-- Added shared server-side booking payment calculator in `apps/web/lib/account-payments/booking-payment.ts`.
-- Public appointment checkout now calculates payable amount on the backend from account settings instead of trusting frontend amount/scenario.
-- Supported additive booking payment options: pay later, fixed prepayment, percent prepayment and full online payment.
-- Added migration `packages/db/prisma/migrations/20260602194000_booking_payment_options/migration.sql` to store additive payment options separately from legacy `bookingOnlinePaymentMode`.
-- Full online payment discount percent is supported and included in the server-side calculation snapshot.
-- On successful appointment payment, `applyAccountPaymentState` confirms the appointment by moving `NEW` to `CONFIRMED`.
-- `/crm/payments` now has booking online-payment rules near the account payment provider settings.
-- Online-booking content drawer now duplicates booking payment rules, while provider credentials remain on `Оплаты/Финансы`.
-- Public booking bootstrap exposes safe payment settings and whether online payment is available.
-- Public booking UI shows all allowed payment options before final booking. If the account has no configured payment provider, online options stay visible but disabled; pay-later remains available if the owner enabled it.
-- Public checkout receives the selected payment option and normalizes it server-side before calculating the amount.
-- CRM calendar appointment modal now shows online payment status in `Оплата визита`: paid online, remaining amount, provider and provider status.
+- Добавлен общий серверный калькулятор оплаты записи в `apps/web/lib/account-payments/booking-payment.ts`.
+- Публичный checkout записи теперь считает сумму к оплате на backend по настройкам аккаунта, а не доверяет сумме или сценарию с frontend.
+- Поддержаны независимые варианты оплаты записи: оплата после визита, фиксированная предоплата, процентная предоплата и полная онлайн-оплата.
+- Добавлена миграция `packages/db/prisma/migrations/20260602194000_booking_payment_options/migration.sql`, чтобы хранить независимые варианты оплаты отдельно от legacy `bookingOnlinePaymentMode`.
+- Скидка за полную онлайн-оплату поддержана и попадает в серверный snapshot расчета.
+- После успешной оплаты записи `applyAccountPaymentState` подтверждает запись, переводя ее из `NEW` в `CONFIRMED`.
+- На странице `/crm/payments` появились правила онлайн-оплаты записи рядом с настройками платежного провайдера аккаунта.
+- Шторка контента онлайн-записи в конструкторе дублирует правила оплаты записи, а реквизиты провайдера остаются в разделе `Оплаты/Финансы`.
+- Public booking bootstrap отдает безопасные настройки оплаты и признак доступности онлайн-оплаты.
+- Публичный UI онлайн-записи показывает все разрешенные варианты оплаты до финального подтверждения. Если у аккаунта нет настроенного провайдера, онлайн-варианты остаются видимыми, но недоступными; запись без онлайн-оплаты остается доступной, если владелец ее включил.
+- Публичный checkout получает выбранный вариант оплаты и нормализует его на сервере перед расчетом суммы.
+- Модалка записи в CRM-календаре теперь показывает статус онлайн-оплаты в блоке `Оплата визита`: оплачено онлайн, остаток, провайдер и статус провайдера.
 
-Changed files:
+Измененные файлы:
 
 - `packages/db/prisma/schema.prisma`
 - `packages/db/prisma/migrations/20260602182500_booking_online_payment_rules/migration.sql`
@@ -1088,70 +1490,70 @@ Changed files:
 - `apps/web/app/(crm)/crm/calendar/journal-view.tsx`
 - `apps/web/features/site-builder/blocks/booking/BO001/content-panel.tsx`
 
-Verified:
+Проверка:
 
-- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 migrate-deploy` passed.
-- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 generate` passed.
-- `npx prisma migrate deploy --schema packages/db/prisma/schema.prisma` passed.
-- `npx prisma generate --schema packages/db/prisma/schema.prisma` passed.
-- `npm run prisma:validate` passed.
-- `npm run typecheck` passed.
-- `npm --workspace apps/web run typecheck` passed.
+- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 migrate-deploy` - успешно.
+- `powershell -ExecutionPolicy Bypass -File ./scripts/prisma.ps1 generate` - успешно.
+- `npx prisma migrate deploy --schema packages/db/prisma/schema.prisma` - успешно.
+- `npx prisma generate --schema packages/db/prisma/schema.prisma` - успешно.
+- `npm run prisma:validate` - успешно.
+- `npm run typecheck` - успешно.
+- `npm --workspace apps/web run typecheck` - успешно.
 
-Next:
+Что делать дальше:
 
-- Add payment status badges to appointment cards/list views, not only the appointment modal.
-- Implement one payment for a multi-appointment visit chain with correct total, receipt items and appointment status updates.
-- Test the full public booking payment flow with a real account payment provider test shop/terminal after credentials are configured.
-- Continue provider-specific work for Sber and Alfa only after their exact API/webhook/refund fields are verified.
+- Добавить бейджи статуса оплаты в карточки и списки записей, а не только в модалку записи.
+- Реализовать один платеж для цепочки из нескольких записей с корректной общей суммой, позициями чека и обновлением статусов записей.
+- Проверить полный публичный сценарий оплаты записи на реальном тестовом магазине/терминале провайдера после настройки реквизитов.
+- Продолжать работу по конкретным провайдерам по Сберу и Альфе только после проверки точных API/webhook/refund полей.
 
-Blockers:
+Блокеры:
 
-- Automatic provider webhook delivery still requires public HTTPS URL in production or an HTTPS tunnel during local tests.
-- Multi-appointment chain payments need a visit/order-level grouping entity or a safe way to link one `PaymentIntent` to several appointments.
+- Автоматическая доставка webhook провайдера требует публичный HTTPS URL в production или HTTPS tunnel во время локальных тестов.
+- Оплата цепочки из нескольких записей требует сущность группировки на уровне визита/заказа или безопасный способ связать один `PaymentIntent` с несколькими записями.
 
-### 2026-06-02 - booking payment rules schema
+### 2026-06-02 - схема правил оплаты записи
 
-Status: completed
+Статус: завершено
 
-Done:
+Что сделано:
 
-- `packages/db/prisma/schema.prisma` now has `BookingOnlinePaymentMode`.
-- `AccountSetting` now stores the account-level booking payment rule: disabled, fixed prepayment, percent prepayment, or full online payment with optional discount percent.
-- `PaymentIntent` now has `metadata` for the server-side calculation snapshot: original amount, paid amount, discount, remaining amount and selected booking payment mode.
-- Migration `packages/db/prisma/migrations/20260602182500_booking_online_payment_rules/migration.sql` was applied after removing UTF-8 BOM from the migration file.
-- Prisma Client was regenerated and `npm run prisma:validate` passed.
+- В `packages/db/prisma/schema.prisma` добавлен `BookingOnlinePaymentMode`.
+- `AccountSetting` теперь хранит правило оплаты записи на уровне аккаунта: выключено, фиксированная предоплата, процентная предоплата или полная онлайн-оплата с необязательным процентом скидки.
+- В `PaymentIntent` добавлен `metadata` для серверного snapshot расчета: исходная сумма, оплачиваемая сумма, скидка, остаток и выбранный режим оплаты записи.
+- Миграция `packages/db/prisma/migrations/20260602182500_booking_online_payment_rules/migration.sql` применена после удаления UTF-8 BOM из файла миграции.
+- Prisma Client пересобран, `npm run prisma:validate` прошел успешно.
 
-Next:
+Что делать дальше:
 
-- Add a shared backend calculator for appointment payment amount.
-- Use that calculator in public checkout instead of trusting frontend amount/scenario.
-- Add CRM settings UI on `Оплаты/Финансы` and duplicate it in the online-booking content drawer.
+- Добавить общий backend-калькулятор суммы оплаты записи.
+- Использовать этот калькулятор в публичном checkout вместо доверия сумме/сценарию с frontend.
+- Добавить UI настроек в CRM на странице `Оплаты/Финансы` и продублировать его в шторке контента онлайн-записи.
 
-### 2026-06-02 - public booking starts online checkout
+### 2026-06-02 - публичная онлайн-запись запускает онлайн checkout
 
-Status: in_progress
+Статус: в работе
 
-Done:
+Что сделано:
 
-- `apps/web/app/api/v1/public/booking/bootstrap/route.ts` now returns a safe `payments` block without secrets: booking settings and whether the account has an enabled payment connection.
-- `apps/web/app/booking/booking-client.tsx` now calls `/api/v1/public/payments/checkout` after a single appointment is created when `requirePaymentToConfirm` is enabled and an online payment connection exists.
-- If the provider returns `paymentUrl`, the client is redirected to the provider payment page immediately.
-- Multi-appointment visit chains are intentionally not redirected yet, because the current `PaymentIntent` links to one `appointmentId`; charging one appointment as the whole visit would create an incorrect amount/receipt.
+- `apps/web/app/api/v1/public/booking/bootstrap/route.ts` теперь возвращает безопасный блок `payments` без секретов: настройки оплаты записи и признак включенного платежного подключения аккаунта.
+- `apps/web/app/booking/booking-client.tsx` теперь вызывает `/api/v1/public/payments/checkout` после создания одиночной записи, если включен `requirePaymentToConfirm` и у аккаунта есть онлайн-платежное подключение.
+- Если провайдер возвращает `paymentUrl`, клиент сразу перенаправляется на страницу оплаты провайдера.
+- Цепочки визитов из нескольких записей намеренно пока не редиректятся, потому что текущий `PaymentIntent` связан с одним `appointmentId`; списание по одной записи как за весь визит создало бы неправильную сумму/чек.
 
-Verified:
+Проверка:
 
-- `npm run typecheck` passed.
-- `npm run prisma:validate` passed.
+- `npm run typecheck` - успешно.
+- `npm run prisma:validate` - успешно.
 
-Next:
+Что делать дальше:
 
-- Add a product-level CRM setting for booking payment mode: no online payment, full payment before confirmation, or explicit prepayment amount/percent.
-- Extend `PaymentIntent`/checkout flow to support one payment for a multi-appointment visit chain with a correct total and receipt.
-- Wire the same public checkout foundation into products and certificates when those public order/cart entities are ready.
+- Добавить продуктовую настройку CRM для режима оплаты записи: без онлайн-оплаты, полная оплата перед подтверждением или явная предоплата суммой/процентом.
+- Расширить `PaymentIntent`/checkout flow для поддержки одного платежа за цепочку из нескольких записей с корректной общей суммой и чеком.
+- Подключить тот же фундамент публичного checkout к товарам и сертификатам, когда будут готовы публичные сущности заказа/корзины.
 ### 2026-06-02 - добавлен публичный checkout и страницы возврата клиентских оплат
 
-Статус: in_progress
+Статус: в работе
 
 Что сделано:
 
@@ -1185,7 +1587,7 @@ Next:
 
 ### 2026-06-02 - реализован каркас платежных подключений аккаунтов
 
-Статус: in_progress
+Статус: в работе
 
 Что сделано:
 
@@ -1229,12 +1631,12 @@ Next:
 
 Блокеры:
 
-- Для реального webhook нужен публичный HTTPS URL. На localhost используется redirect success page + server-side refresh, но webhook провайдера без туннеля/продакшн URL не дойдет.
+- Для реального webhook нужен публичный HTTPS URL. На localhost используется redirect страницу успеха + server-side refresh, но webhook провайдера без туннеля/продакшн URL не дойдет.
 - Для YooKassa/Sber/Alfa нужны реальные или тестовые реквизиты соответствующих аккаунтов владельцев салонов.
 
 ### 2026-06-02 - уточнен scope и риски провайдеров
 
-Статус: completed
+Статус: завершено
 
 Что сделано:
 
@@ -1260,7 +1662,7 @@ Next:
 
 ### 2026-06-02 - зафиксирован production-scope вместо MVP
 
-Статус: completed
+Статус: завершено
 
 Что сделано:
 
@@ -1288,7 +1690,7 @@ Next:
 
 ### 2026-06-01 - создан план клиентских платежей
 
-Статус: completed
+Статус: завершено
 
 Что сделано:
 

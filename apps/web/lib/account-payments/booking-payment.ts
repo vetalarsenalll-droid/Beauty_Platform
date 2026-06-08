@@ -187,3 +187,16 @@ export function bookingPaymentMetadata(calculation: AppointmentOnlinePaymentCalc
     fullPaymentDiscountPercent: calculation.fullPaymentDiscountPercent,
   };
 }
+
+export function bookingChainPaymentMetadata(input: {
+  calculation: AppointmentOnlinePaymentCalculation;
+  appointmentIds: number[];
+  primaryAppointmentId: number;
+}): Prisma.InputJsonValue {
+  return {
+    ...(bookingPaymentMetadata(input.calculation) as Record<string, unknown>),
+    paymentScope: input.appointmentIds.length > 1 ? "appointment_chain" : "appointment",
+    appointmentIds: input.appointmentIds,
+    primaryAppointmentId: input.primaryAppointmentId,
+  };
+}

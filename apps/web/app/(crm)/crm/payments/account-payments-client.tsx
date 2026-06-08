@@ -16,6 +16,7 @@ type Connection = {
   receiptEnabled: boolean;
   receiptVat: string;
   receiptTaxationSystem: string;
+  receiptFfdVersion: string | null;
   currency: string;
   lastTestedAt: string | null;
   lastTestStatus: string | null;
@@ -58,6 +59,49 @@ function deriveBookingOnlinePaymentMode(settings: BookingPaymentSettings): Booki
   return "DISABLED";
 }
 
+function formatDiagnosticTime(value: string | null) {
+  if (!value) return "Проверок еще не было";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Дата проверки неизвестна";
+  return date.toLocaleString("ru-RU");
+}
+
+function paymentDiagnostic(status: string | null) {
+  if (!status) {
+    return {
+      tone: "muted",
+      title: "Нет данных проверки",
+      detail: "Сохраните подключение или запустите тестовый платеж.",
+    };
+  }
+  if (status === "CONFIG_SAVED") {
+    return {
+      tone: "ok",
+      title: "Настройки сохранены",
+      detail: "Реквизиты приняты платформой. Для проверки банка запустите тестовый платеж.",
+    };
+  }
+  if (status.startsWith("CHECKOUT_CREATED:")) {
+    return {
+      tone: "ok",
+      title: "Тестовый платеж создан",
+      detail: `Провайдер вернул статус: ${status.slice("CHECKOUT_CREATED:".length) || "создан"}.`,
+    };
+  }
+  if (status.startsWith("CHECKOUT_FAILED:")) {
+    return {
+      tone: "error",
+      title: "Ошибка тестового платежа",
+      detail: status.slice("CHECKOUT_FAILED:".length) || "Провайдер не принял запрос.",
+    };
+  }
+  return {
+    tone: "muted",
+    title: "Последний статус",
+    detail: status,
+  };
+}
+
 export default function AccountPaymentsClient({ initialConnections, initialBookingPayment }: Props) {
   const [connections, setConnections] = useState(initialConnections);
   const [provider, setProvider] = useState<ProviderCode>(providerFromDb[initialConnections[0]?.provider] ?? "yookassa");
@@ -66,10 +110,12 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
   const [receiptEnabled, setReceiptEnabled] = useState(false);
   const [receiptVat, setReceiptVat] = useState("NONE");
   const [taxation, setTaxation] = useState("DEFAULT");
+  const [receiptFfdVersion, setReceiptFfdVersion] = useState("");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [bookingPayment, setBookingPayment] = useState<BookingPaymentSettings>(initialBookingPayment);
   const [savingConnection, setSavingConnection] = useState(false);
   const [savingBooking, setSavingBooking] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [publicOrigin, setPublicOrigin] = useState("");
 
@@ -87,9 +133,26 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
     setPublicOrigin(window.location.origin);
   }, []);
 
+  useEffect(() => {
+    if (!selected) return;
+    setMode(selected.mode);
+    setIsEnabled(selected.isEnabled);
+    setReceiptEnabled(selected.receiptEnabled);
+    setReceiptVat(selected.receiptVat);
+    setTaxation(selected.receiptTaxationSystem);
+    setReceiptFfdVersion(selected.receiptFfdVersion ?? "");
+  }, [selected]);
+
   const webhookUrl = publicOrigin
     ? `${publicOrigin}/api/v1/account-payments/${provider}/webhook`
     : "URL появится после загрузки страницы";
+  const diagnostic = paymentDiagnostic(selected?.lastTestStatus ?? null);
+  const diagnosticClass =
+    diagnostic.tone === "ok"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+      : diagnostic.tone === "error"
+        ? "border-red-200 bg-red-50 text-red-900"
+        : "border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] text-[color:var(--bp-muted)]";
 
   async function saveConnection() {
     setSavingConnection(true);
@@ -106,6 +169,7 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
           receiptEnabled,
           receiptVat,
           receiptTaxationSystem: taxation,
+          receiptFfdVersion: receiptFfdVersion || null,
           paymentSubject: "service",
           paymentMethod: "full_payment",
           currency: "RUB",
@@ -155,6 +219,72 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
       setMessage("Не удалось сохранить правила оплаты записи");
     } finally {
       setSavingBooking(false);
+    }
+  }
+
+  async function testConnection() {
+    if (!selected) {
+      setMessage("Сначала сохраните платежное подключение.");
+      return;
+    }
+
+    setTestingConnection(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/v1/crm/account-payments/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amountRub: 10,
+          description: "Тест платежного подключения",
+          scenario: "crm_connection_test",
+          customerEmail: "test@example.com",
+          receiptItems: [
+            {
+              name: "Тест платежного подключения",
+              quantity: 1,
+              unitPriceRub: 10,
+              amountRub: 10,
+              vat: receiptVat,
+              paymentSubject: "service",
+              paymentMethod: "full_payment",
+            },
+          ],
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: { intent?: { paymentUrl?: string; providerStatus?: string; status?: string } }; error?: { message?: string } }
+        | null;
+
+      if (!response.ok || !payload?.data?.intent?.paymentUrl) {
+        const status = `CHECKOUT_FAILED:${payload?.error?.message ?? "Не удалось создать тестовый платеж"}`;
+        setConnections((items) =>
+          items.map((item) =>
+            item.id === selected.id ? { ...item, lastTestedAt: new Date().toISOString(), lastTestStatus: status } : item,
+          ),
+        );
+        setMessage(payload?.error?.message ?? "Не удалось создать тестовый платеж");
+        return;
+      }
+
+      const status = `CHECKOUT_CREATED:${payload.data.intent.providerStatus ?? payload.data.intent.status ?? "CREATED"}`;
+      setConnections((items) =>
+        items.map((item) =>
+          item.id === selected.id ? { ...item, lastTestedAt: new Date().toISOString(), lastTestStatus: status } : item,
+        ),
+      );
+      setMessage("Тестовый платеж создан. Открываю страницу оплаты.");
+      window.open(payload.data.intent.paymentUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      const status = `CHECKOUT_FAILED:${error instanceof Error ? error.message : "Не удалось создать тестовый платеж"}`;
+      setConnections((items) =>
+        items.map((item) =>
+          item.id === selected.id ? { ...item, lastTestedAt: new Date().toISOString(), lastTestStatus: status } : item,
+        ),
+      );
+      setMessage("Не удалось создать тестовый платеж");
+    } finally {
+      setTestingConnection(false);
     }
   }
 
@@ -214,7 +344,7 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
 
           <div className="grid gap-3">
             <CredentialFields provider={provider} credentials={credentials} setCredentials={setCredentials} />
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-4">
               <label className="flex items-center gap-2 rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm">
                 <input type="checkbox" checked={receiptEnabled} onChange={(event) => setReceiptEnabled(event.target.checked)} />
                 Передавать чек
@@ -234,13 +364,26 @@ export default function AccountPaymentsClient({ initialConnections, initialBooki
                 <option value="USN_INCOME_OUTCOME">УСН доходы-расходы</option>
                 <option value="PATENT">Патент</option>
               </select>
+              <select value={receiptFfdVersion} onChange={(event) => setReceiptFfdVersion(event.target.value)} className="rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm">
+                <option value="">ФФД по умолчанию</option>
+                <option value="1.05">ФФД 1.05</option>
+                <option value="1.2">ФФД 1.2</option>
+              </select>
             </div>
             <div className="rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2 text-xs text-[color:var(--bp-muted)]">
               URL уведомлений: <span className="break-all text-[color:var(--bp-ink)]">{webhookUrl}</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className={`rounded-xl border px-3 py-3 text-sm ${diagnosticClass}`}>
+              <div className="font-medium">{diagnostic.title}</div>
+              <div className="mt-1 text-xs opacity-80">{formatDiagnosticTime(selected?.lastTestedAt ?? null)}</div>
+              <div className="mt-2 text-xs">{diagnostic.detail}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
               <button type="button" onClick={saveConnection} disabled={savingConnection} className="rounded-xl bg-[color:var(--bp-accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60">
                 {savingConnection ? "Сохраняем..." : "Сохранить подключение"}
+              </button>
+              <button type="button" onClick={testConnection} disabled={testingConnection || !selected} className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium disabled:opacity-60">
+                {testingConnection ? "Проверяем..." : "Проверить подключение"}
               </button>
               {message ? <span className="text-sm text-[color:var(--bp-muted)]">{message}</span> : null}
             </div>

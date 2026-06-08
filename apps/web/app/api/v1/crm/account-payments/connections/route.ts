@@ -4,6 +4,7 @@ import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { prisma } from "@/lib/prisma";
 import { normalizeProviderCode } from "@/lib/account-payments/types";
 import { saveAccountPaymentConnection } from "@/lib/account-payments/connections";
+import { logAccountAudit } from "@/lib/crm-audit";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
 
   try {
     const provider = normalizeProviderCode(String(body.provider ?? ""));
+    const before = await prisma.accountPaymentConnection.findFirst({
+      where: { accountId: auth.session.accountId, provider: providerToDbValue(provider) },
+      orderBy: { id: "asc" },
+      select: accountPaymentConnectionAuditSelect,
+    });
+
     const connection = await saveAccountPaymentConnection({
       accountId: auth.session.accountId,
       provider,
@@ -69,20 +76,47 @@ export async function POST(request: Request) {
       currency: typeof body.currency === "string" ? body.currency : "RUB",
     });
 
+    const savedConnection = await prisma.accountPaymentConnection.update({
+      where: { id: connection.id },
+      data: {
+        lastTestedAt: new Date(),
+        lastTestStatus: "CONFIG_SAVED",
+      },
+    });
+
+    const after = await prisma.accountPaymentConnection.findUnique({
+      where: { id: connection.id },
+      select: accountPaymentConnectionAuditSelect,
+    });
+    const diff = paymentConnectionAuditDiff(before, after);
+    if (diff) {
+      await logAccountAudit({
+        accountId: auth.session.accountId,
+        userId: auth.session.userId,
+        action: before ? "Обновил платежное подключение" : "Создал платежное подключение",
+        targetType: "account-payment-connection",
+        targetId: connection.id,
+        diffJson: diff,
+      });
+    }
+
     return applyCrmAccessCookie(
       jsonOk({
         connection: {
-          id: connection.id,
-          provider: connection.provider,
-          mode: connection.mode,
-          title: connection.title,
-          isEnabled: connection.isEnabled,
-          isDefault: connection.isDefault,
-          credentialsMasked: connection.credentialsMasked,
-          receiptEnabled: connection.receiptEnabled,
-          receiptVat: connection.receiptVat,
-          receiptTaxationSystem: connection.receiptTaxationSystem,
-          currency: connection.currency,
+          id: savedConnection.id,
+          provider: savedConnection.provider,
+          mode: savedConnection.mode,
+          title: savedConnection.title,
+          isEnabled: savedConnection.isEnabled,
+          isDefault: savedConnection.isDefault,
+          credentialsMasked: savedConnection.credentialsMasked,
+          receiptEnabled: savedConnection.receiptEnabled,
+          receiptVat: savedConnection.receiptVat,
+          receiptTaxationSystem: savedConnection.receiptTaxationSystem,
+          receiptFfdVersion: savedConnection.receiptFfdVersion,
+          currency: savedConnection.currency,
+          lastTestedAt: savedConnection.lastTestedAt?.toISOString() ?? null,
+          lastTestStatus: savedConnection.lastTestStatus,
         },
       }),
       auth,
@@ -95,6 +129,88 @@ export async function POST(request: Request) {
       400,
     );
   }
+}
+
+const accountPaymentConnectionAuditSelect = {
+  id: true,
+  provider: true,
+  mode: true,
+  title: true,
+  isEnabled: true,
+  isDefault: true,
+  credentialsMasked: true,
+  publicConfig: true,
+  receiptEnabled: true,
+  receiptVat: true,
+  receiptTaxationSystem: true,
+  receiptFfdVersion: true,
+  paymentSubject: true,
+  paymentMethod: true,
+  currency: true,
+} as const;
+
+type AccountPaymentConnectionAuditSnapshot = {
+  id: number;
+  provider: string;
+  mode: string;
+  title: string | null;
+  isEnabled: boolean;
+  isDefault: boolean;
+  credentialsMasked: unknown;
+  publicConfig: unknown;
+  receiptEnabled: boolean;
+  receiptVat: string;
+  receiptTaxationSystem: string;
+  receiptFfdVersion: string | null;
+  paymentSubject: string | null;
+  paymentMethod: string | null;
+  currency: string;
+} | null;
+
+function providerToDbValue(provider: ReturnType<typeof normalizeProviderCode>) {
+  if (provider === "yookassa") return "YOOKASSA";
+  if (provider === "tbank") return "TBANK";
+  if (provider === "sber") return "SBER";
+  return "ALFA";
+}
+
+function paymentConnectionAuditDiff(
+  before: AccountPaymentConnectionAuditSnapshot,
+  after: AccountPaymentConnectionAuditSnapshot,
+) {
+  if (!after) return null;
+  const afterSnapshot = paymentConnectionAuditSnapshot(after);
+  if (!before) return { created: afterSnapshot };
+
+  const beforeSnapshot = paymentConnectionAuditSnapshot(before);
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const key of Object.keys(afterSnapshot) as Array<keyof typeof afterSnapshot>) {
+    const from = beforeSnapshot[key];
+    const to = afterSnapshot[key];
+    if (JSON.stringify(from) !== JSON.stringify(to)) {
+      changes[key] = { from, to };
+    }
+  }
+  return Object.keys(changes).length > 0 ? { changes } : null;
+}
+
+function paymentConnectionAuditSnapshot(connection: NonNullable<AccountPaymentConnectionAuditSnapshot>) {
+  return {
+    provider: connection.provider,
+    mode: connection.mode,
+    title: connection.title,
+    isEnabled: connection.isEnabled,
+    isDefault: connection.isDefault,
+    credentialsMasked: connection.credentialsMasked,
+    publicConfig: connection.publicConfig,
+    receiptEnabled: connection.receiptEnabled,
+    receiptVat: connection.receiptVat,
+    receiptTaxationSystem: connection.receiptTaxationSystem,
+    receiptFfdVersion: connection.receiptFfdVersion,
+    paymentSubject: connection.paymentSubject,
+    paymentMethod: connection.paymentMethod,
+    currency: connection.currency,
+  };
 }
 
 function parseReceiptVat(value: unknown) {
@@ -112,4 +228,3 @@ function parseTaxation(value: unknown) {
   }
   return "DEFAULT";
 }
-

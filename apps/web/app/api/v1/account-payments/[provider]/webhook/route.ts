@@ -11,8 +11,19 @@ export const runtime = "nodejs";
 
 export async function POST(request: Request, { params }: { params: Promise<{ provider: string }> }) {
   const { provider: providerRaw } = await params;
+  const body = await parseWebhookBody(request);
+  return handleWebhook(request, providerRaw, body);
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ provider: string }> }) {
+  const { provider: providerRaw } = await params;
+  const url = new URL(request.url);
+  const body = Object.fromEntries(url.searchParams.entries());
+  return handleWebhook(request, providerRaw, body);
+}
+
+async function handleWebhook(request: Request, providerRaw: string, body: unknown) {
   const provider = normalizeProviderCode(providerRaw);
-  const body = (await request.json().catch(() => null)) as unknown;
 
   const event = await prisma.paymentWebhookEvent.create({
     data: {
@@ -96,6 +107,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ pro
   }
 }
 
+async function parseWebhookBody(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return (await request.json().catch(() => null)) as unknown;
+  }
+  const text = await request.text().catch(() => "");
+  if (!text) return null;
+  if (contentType.includes("application/x-www-form-urlencoded")) {
+    return Object.fromEntries(new URLSearchParams(text).entries());
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return Object.fromEntries(new URLSearchParams(text).entries());
+  }
+}
+
 function extractProviderRef(provider: string, body: unknown) {
   if (!body || typeof body !== "object") return null;
   const record = body as Record<string, unknown>;
@@ -105,9 +133,15 @@ function extractProviderRef(provider: string, body: unknown) {
   if (provider === "yookassa") {
     const object = record.object;
     if (object && typeof object === "object" && "id" in object) {
-      const value = (object as Record<string, unknown>).id;
+      const objectRecord = object as Record<string, unknown>;
+      const event = typeof record.event === "string" ? record.event : "";
+      const value = event.startsWith("refund.") ? objectRecord.payment_id : objectRecord.id;
       return typeof value === "string" ? value : null;
     }
+  }
+  if (provider === "sber" || provider === "alfa") {
+    const value = record.mdOrder ?? record.orderId ?? record.orderID;
+    return typeof value === "string" ? value : null;
   }
   return null;
 }
@@ -126,6 +160,21 @@ function extractIntentId(body: unknown) {
     if (metadata && typeof metadata === "object") {
       const value = (metadata as Record<string, unknown>).paymentIntentId;
       if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+    }
+  }
+  const orderNumber = record.orderNumber ?? record.OrderNumber;
+  if (typeof orderNumber === "string") {
+    const match = orderNumber.match(/^account_intent_(\d+)_/);
+    if (match) return Number(match[1]);
+  }
+  const jsonParams = record.jsonParams ?? record.JsonParams;
+  if (typeof jsonParams === "string") {
+    try {
+      const parsed = JSON.parse(jsonParams) as Record<string, unknown>;
+      const value = parsed.paymentIntentId;
+      if (typeof value === "string" && /^\d+$/.test(value)) return Number(value);
+    } catch {
+      return null;
     }
   }
   return null;

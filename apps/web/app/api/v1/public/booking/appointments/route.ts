@@ -362,6 +362,7 @@ export async function POST(request: Request) {
       OR: [
         ...(clientPhone ? [{ client: { phone: clientPhone } }] : []),
         ...(clientEmail ? [{ client: { email: clientEmail } }] : []),
+        ...(sessionKey ? [{ onlineBookingSessions: { some: { sessionKey } } }] : []),
       ],
     },
     select: {
@@ -543,6 +544,9 @@ export async function POST(request: Request) {
           source: true,
           client: { select: { phone: true, email: true } },
           services: { select: { serviceId: true } },
+          onlineBookingSessions: sessionKey
+            ? { where: { sessionKey }, select: { id: true }, take: 1 }
+            : false,
         },
       });
 
@@ -554,11 +558,15 @@ export async function POST(request: Request) {
         const sameClient =
           Boolean(clientPhone && conflictAppt.client?.phone === clientPhone) ||
           Boolean(clientEmail && conflictAppt.client?.email === clientEmail);
+        const sameSession =
+          sessionKey && "onlineBookingSessions" in conflictAppt
+            ? conflictAppt.onlineBookingSessions.length > 0
+            : false;
         if (
           conflictAppt.status === "NEW" &&
           conflictAppt.source === "online" &&
           sameServices &&
-          sameClient
+          (sameClient || sameSession)
         ) {
           return { ok: true as const, appointmentId: conflictAppt.id };
         }

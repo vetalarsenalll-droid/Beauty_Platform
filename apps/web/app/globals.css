@@ -368,6 +368,14 @@ html {
   padding-bottom: var(--booking-mobile-summary-expanded-height, 340px) !important;
 }
 
+.booking-root--mobile:has(.booking-summary-panel.is-final.is-expanded) {
+  padding-bottom: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
+}
+
+.booking-root--mobile:has(.booking-summary-panel.is-final:not(.is-expanded)) {
+  padding-bottom: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
+}
+
 .booking-root--mobile:has(.booking-summary-panel.is-step.is-expanded) {
   padding-bottom: var(--booking-mobile-summary-step-expanded-height, 240px) !important;
 }
@@ -645,15 +653,15 @@ html {
 }
 
 .booking-root--mobile .booking-summary-panel.is-final {
-  height: var(--booking-mobile-summary-fixed-height, 104px) !important;
-  max-height: var(--booking-mobile-summary-fixed-height, 104px) !important;
-  min-height: var(--booking-mobile-summary-fixed-height, 104px) !important;
+  height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
+  max-height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
+  min-height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
 }
 
 .booking-root--mobile .booking-summary-panel.is-final.is-expanded {
-  height: var(--booking-mobile-summary-expanded-height, 340px) !important;
-  max-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
-  min-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
+  height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
+  max-height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
+  min-height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
 }
 
 .booking-root--mobile .booking-summary-panel.is-final.is-expanded.is-success {
@@ -708,6 +716,28 @@ html {
 .booking-root--mobile .booking-summary-mobile-feedback {
   max-height: 190px !important;
   overflow-y: auto !important;
+}
+
+.booking-root--mobile .booking-summary-panel.is-final.is-expanded .booking-summary-mobile-feedback {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.booking-root--mobile .booking-summary-mobile-feedback .booking-payment-options {
+  padding: 8px !important;
+}
+
+.booking-root--mobile .booking-summary-mobile-feedback .booking-payment-options > div:first-child {
+  margin-bottom: 6px !important;
+}
+
+.booking-root--mobile .booking-summary-mobile-feedback .booking-payment-options label {
+  padding: 6px !important;
+  gap: 6px !important;
+}
+
+.booking-root--mobile .booking-summary-mobile-feedback .booking-payment-options label span span {
+  line-height: 1.2 !important;
 }
 
 .booking-root--mobile .booking-summary-mobile-action {
@@ -1082,15 +1112,15 @@ html {
   }
 
   .booking-summary-panel.is-final {
-    height: var(--booking-mobile-summary-fixed-height, 104px) !important;
-    max-height: var(--booking-mobile-summary-fixed-height, 104px) !important;
-    min-height: var(--booking-mobile-summary-fixed-height, 104px) !important;
+    height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
+    max-height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
+    min-height: var(--booking-mobile-summary-final-fixed-height, 150px) !important;
   }
 
   .booking-summary-panel.is-final.is-expanded {
-    height: var(--booking-mobile-summary-expanded-height, 340px) !important;
-    max-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
-    min-height: var(--booking-mobile-summary-expanded-height, 340px) !important;
+    height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
+    max-height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
+    min-height: var(--booking-mobile-summary-expanded-height, min(500px, 84dvh)) !important;
   }
 
   .booking-summary-panel.is-final.is-expanded.is-success {
@@ -1145,6 +1175,28 @@ html {
   .booking-summary-mobile-feedback {
     max-height: 190px !important;
     overflow-y: auto !important;
+  }
+
+  .booking-summary-panel.is-final.is-expanded .booking-summary-mobile-feedback {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .booking-summary-mobile-feedback .booking-payment-options {
+    padding: 8px !important;
+  }
+
+  .booking-summary-mobile-feedback .booking-payment-options > div:first-child {
+    margin-bottom: 6px !important;
+  }
+
+  .booking-summary-mobile-feedback .booking-payment-options label {
+    padding: 6px !important;
+    gap: 6px !important;
+  }
+
+  .booking-summary-mobile-feedback .booking-payment-options label span span {
+    line-height: 1.2 !important;
   }
 
   .booking-summary-mobile-action {

@@ -1,6 +1,7 @@
 ﻿import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireCrmPermission } from "@/lib/auth";
+import { logAccountAudit } from "@/lib/crm-audit";
 
 const toInt = (value: unknown) => {
   if (value === null || value === undefined || value === "") return null;
@@ -87,6 +88,11 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: "Некорректный запрос." }, { status: 400 });
   }
 
+  const before = await prisma.accountSetting.findUnique({
+    where: { accountId: session.accountId },
+    select: bookingSettingsAuditSelect,
+  });
+
   const slotStepMinutes = toInt(body.slotStepMinutes);
   const requireDeposit = toBool(body.requireDeposit);
   const requirePaymentToConfirm = toBool(body.requirePaymentToConfirm);
@@ -153,6 +159,18 @@ export async function PATCH(request: Request) {
     update: data,
   });
 
+  const diff = bookingSettingsAuditDiff(before, updated);
+  if (diff) {
+    await logAccountAudit({
+      accountId: session.accountId,
+      userId: session.userId,
+      action: "Обновил настройки онлайн-записи",
+      targetType: "booking-settings",
+      targetId: session.accountId,
+      diffJson: diff,
+    });
+  }
+
   return NextResponse.json({
     data: {
       slotStepMinutes: updated.slotStepMinutes,
@@ -172,5 +190,83 @@ export async function PATCH(request: Request) {
       defaultReminderHours: updated.defaultReminderHours,
     },
   });
+}
+
+const bookingSettingsAuditSelect = {
+  slotStepMinutes: true,
+  requireDeposit: true,
+  requirePaymentToConfirm: true,
+  bookingOnlinePaymentMode: true,
+  bookingAllowPayLater: true,
+  bookingAllowPrepaymentFixed: true,
+  bookingAllowPrepaymentPercent: true,
+  bookingAllowFullPayment: true,
+  bookingPrepaymentAmount: true,
+  bookingPrepaymentPercent: true,
+  bookingFullPaymentDiscountPercent: true,
+  cancellationWindowHours: true,
+  rescheduleWindowHours: true,
+  holdTtlMinutes: true,
+  defaultReminderHours: true,
+} as const;
+
+type BookingSettingsAuditSnapshot = {
+  slotStepMinutes: number;
+  requireDeposit: boolean;
+  requirePaymentToConfirm: boolean;
+  bookingOnlinePaymentMode: string;
+  bookingAllowPayLater: boolean;
+  bookingAllowPrepaymentFixed: boolean;
+  bookingAllowPrepaymentPercent: boolean;
+  bookingAllowFullPayment: boolean;
+  bookingPrepaymentAmount: unknown;
+  bookingPrepaymentPercent: unknown;
+  bookingFullPaymentDiscountPercent: unknown;
+  cancellationWindowHours: number | null;
+  rescheduleWindowHours: number | null;
+  holdTtlMinutes: number | null;
+  defaultReminderHours: number | null;
+} | null;
+
+function bookingSettingsAuditDiff(before: BookingSettingsAuditSnapshot, after: NonNullable<BookingSettingsAuditSnapshot>) {
+  const afterSnapshot = bookingSettingsAuditSnapshot(after);
+  if (!before) return { created: afterSnapshot };
+
+  const beforeSnapshot = bookingSettingsAuditSnapshot(before);
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const key of Object.keys(afterSnapshot) as Array<keyof typeof afterSnapshot>) {
+    const from = beforeSnapshot[key];
+    const to = afterSnapshot[key];
+    if (from !== to) {
+      changes[key] = { from, to };
+    }
+  }
+  return Object.keys(changes).length > 0 ? { changes } : null;
+}
+
+function bookingSettingsAuditSnapshot(settings: NonNullable<BookingSettingsAuditSnapshot>) {
+  return {
+    slotStepMinutes: settings.slotStepMinutes,
+    requireDeposit: settings.requireDeposit,
+    requirePaymentToConfirm: settings.requirePaymentToConfirm,
+    bookingOnlinePaymentMode: settings.bookingOnlinePaymentMode,
+    bookingAllowPayLater: settings.bookingAllowPayLater,
+    bookingAllowPrepaymentFixed: settings.bookingAllowPrepaymentFixed,
+    bookingAllowPrepaymentPercent: settings.bookingAllowPrepaymentPercent,
+    bookingAllowFullPayment: settings.bookingAllowFullPayment,
+    bookingPrepaymentAmount: decimalToAuditNumber(settings.bookingPrepaymentAmount),
+    bookingPrepaymentPercent: decimalToAuditNumber(settings.bookingPrepaymentPercent),
+    bookingFullPaymentDiscountPercent: decimalToAuditNumber(settings.bookingFullPaymentDiscountPercent),
+    cancellationWindowHours: settings.cancellationWindowHours,
+    rescheduleWindowHours: settings.rescheduleWindowHours,
+    holdTtlMinutes: settings.holdTtlMinutes,
+    defaultReminderHours: settings.defaultReminderHours,
+  };
+}
+
+function decimalToAuditNumber(value: unknown) {
+  if (value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
