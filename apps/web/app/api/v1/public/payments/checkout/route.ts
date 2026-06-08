@@ -112,6 +112,18 @@ function metadataAppointmentIds(value: unknown) {
   return ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
 }
 
+function isPendingPaymentMetadata(value: unknown) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { appointmentPendingPayment?: unknown }).appointmentPendingPayment === true
+  );
+}
+
+function hasPendingPaymentIntent(appointment: Awaited<ReturnType<typeof prismaAppointmentsForCheckout>>[number]) {
+  return appointment.paymentIntents.some((intent) => isPendingPaymentMetadata(intent.metadata));
+}
+
 function sameIds(a: number[], b: number[]) {
   if (a.length !== b.length) return false;
   return a.every((id, index) => id === b[index]);
@@ -136,6 +148,9 @@ export async function POST(request: Request) {
 
       const appointmentById = new Map(appointments.map((item) => [item.id, item]));
       const orderedAppointments = appointmentIds.map((id) => appointmentById.get(id)!);
+      if (orderedAppointments.some((item) => item.status === "CANCELLED" && !hasPendingPaymentIntent(item))) {
+        return jsonError("APPOINTMENT_NOT_FOUND", "Запись не найдена.", null, 404);
+      }
       const appointment = orderedAppointments[0];
       const hasMixedClients = orderedAppointments.some((item) => item.clientId !== appointment.clientId);
       if (hasMixedClients) {
@@ -301,7 +316,7 @@ async function prismaAppointmentsForCheckout(appointmentIds: number[], accountId
     where: {
       id: { in: appointmentIds },
       accountId,
-      status: { notIn: ["CANCELLED", "NO_SHOW"] },
+      status: { not: "NO_SHOW" },
     },
     include: {
       client: true,

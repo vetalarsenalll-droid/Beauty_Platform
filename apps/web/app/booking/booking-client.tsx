@@ -195,6 +195,39 @@ type PaymentChoiceSheet = {
   sbpPayload: string | null;
 };
 
+type PaymentReturnAction = "card" | "sbp";
+
+type PendingBookingPayment = {
+  appointmentIds: number[];
+  paymentChoice: BookingPaymentChoice;
+  selectionKey: string;
+};
+
+type PendingPaymentReturnState = {
+  version: 1;
+  accountSlug?: string | null;
+  accountPublicSlug?: string | null;
+  paymentChoiceSheet: PaymentChoiceSheet;
+  lastPaymentAction?: PaymentReturnAction | null;
+  pendingBookingPayment: PendingBookingPayment | null;
+  bookingPaymentChoice: BookingPaymentChoice;
+  scenario: Scenario;
+  locationId: number | null;
+  serviceId: number | null;
+  serviceIds: number[];
+  specialistId: number | null;
+  dateYmd: string;
+  timeChoice: string | null;
+  timeBucket: TimeBucket;
+  selectedGroupSessionId: number | null;
+  chainItems: ChainItem[];
+  clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  comment: string;
+  legalConsents: Record<number, boolean>;
+};
+
 type SlotsData = {
   slots: Slot[];
 };
@@ -1189,6 +1222,7 @@ export default function BookingClient({
   const skipServiceResetOnceRef = useRef(false);
   const skipDateResetOnceRef = useRef(false);
   const restoredFromStorageRef = useRef(false);
+  const paymentReturnRestoredRef = useRef(false);
   const [scenario, setScenario] = useState<Scenario>("dateFirst");
   const [startScenario, setStartScenario] = useState(false);
   const [bookingSessionKey, setBookingSessionKey] = useState<string | null>(null);
@@ -1210,6 +1244,7 @@ export default function BookingClient({
   const [initialNavApplied, setInitialNavApplied] = useState(false);
   const [pendingStepKey, setPendingStepKey] = useState<BookingUiStepKey | null>(null);
   const [infoView, setInfoView] = useState<BookingInfoView | null>(null);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -1277,6 +1312,9 @@ export default function BookingClient({
   const [bookingPaymentChoice, setBookingPaymentChoice] = useState<BookingPaymentChoice>("PAY_LATER");
   const [paymentChoiceSheet, setPaymentChoiceSheet] = useState<PaymentChoiceSheet | null>(null);
   const [paymentStatusMessage, setPaymentStatusMessage] = useState<string | null>(null);
+  const [paymentReturnNotice, setPaymentReturnNotice] = useState(false);
+  const [lastPaymentAction, setLastPaymentAction] = useState<PaymentReturnAction | null>(null);
+  const [pendingBookingPayment, setPendingBookingPayment] = useState<PendingBookingPayment | null>(null);
 
   const [locationId, setLocationId] = useState<number | null>(() => {
     const firstId = initialContext?.locations.length === 1 ? Number(initialContext.locations[0].id) : null;
@@ -1876,18 +1914,6 @@ export default function BookingClient({
   useEffect(() => {
     if (!initialParamsApplied || restoredFromStorageRef.current) return;
 
-    const returnedFromPayment =
-      typeof window !== "undefined" &&
-      window.sessionStorage.getItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug)) === "1";
-
-    if (returnedFromPayment && typeof window !== "undefined") {
-      restoredFromStorageRef.current = true;
-      window.sessionStorage.removeItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug));
-      window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
-      persistedStateRef.current = null;
-      return;
-    }
-
     // Для "чистого" входа на /booking (без query) всегда стартуем с выбора локации,
     // без восстановления прошлого шага/выборов из sessionStorage.
     if (!hasAnyQueryParams) return;
@@ -2046,6 +2072,99 @@ export default function BookingClient({
   useEffect(() => {
     if (currentStepKey !== "details") setMobileSummaryExpanded(false);
   }, [currentStepKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug);
+
+    const restorePaymentReturn = (force = false) => {
+      if (paymentReturnRestoredRef.current) return;
+      const hasPaymentReturnParam = new URLSearchParams(window.location.search).get("paymentReturn") === "1";
+      if (!force && !hasPaymentReturnParam) return;
+      let parsed: PendingPaymentReturnState | null = null;
+
+      try {
+        const raw = window.sessionStorage.getItem(storageKey);
+        if (!raw || raw === "1") {
+          if (raw === "1") window.sessionStorage.removeItem(storageKey);
+          return;
+        }
+        parsed = JSON.parse(raw) as PendingPaymentReturnState;
+      } catch {
+        try {
+          window.sessionStorage.removeItem(storageKey);
+        } catch {
+          // ignore storage errors
+        }
+        return;
+      }
+
+      if (!parsed || parsed.version !== 1 || !parsed.paymentChoiceSheet?.intentId) {
+        try {
+          window.sessionStorage.removeItem(storageKey);
+        } catch {
+          // ignore storage errors
+        }
+        return;
+      }
+
+      paymentReturnRestoredRef.current = true;
+      try {
+        window.sessionStorage.removeItem(storageKey);
+      } catch {
+        // ignore storage errors
+      }
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("paymentReturn");
+        window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+      } catch {
+        // ignore URL rewrite errors
+      }
+
+      restoringFromStorageRef.current = true;
+      skipScenarioResetOnceRef.current = true;
+      skipLocationResetOnceRef.current = true;
+      skipServiceResetOnceRef.current = true;
+      skipDateResetOnceRef.current = true;
+
+      setScenario(parsed.scenario);
+      setStartScenario(false);
+      setLocationId(parsed.locationId);
+      setServiceId(parsed.serviceId);
+      setServiceIds(Array.isArray(parsed.serviceIds) ? parsed.serviceIds : []);
+      setSpecialistId(parsed.specialistId);
+      setDateYmd(parsed.dateYmd);
+      setTimeChoice(parsed.timeChoice);
+      setTimeBucket(parsed.timeBucket ?? "all");
+      setSelectedGroupSessionId(parsed.selectedGroupSessionId);
+      setChainItems(Array.isArray(parsed.chainItems) ? parsed.chainItems : []);
+      setClientName(parsed.clientName ?? "");
+      setClientPhone(parsed.clientPhone ?? "");
+      setClientEmail(parsed.clientEmail ?? "");
+      setComment(parsed.comment ?? "");
+      setLegalConsents(parsed.legalConsents ?? {});
+      setBookingPaymentChoice(parsed.bookingPaymentChoice);
+      setLastPaymentAction(parsed.lastPaymentAction ?? null);
+      setPendingBookingPayment(parsed.pendingBookingPayment);
+      setPaymentChoiceSheet(parsed.paymentChoiceSheet);
+      setPaymentStatusMessage(null);
+      setPaymentReturnNotice(true);
+      setSubmitError(null);
+      setSubmitSuccess(false);
+      setPendingStepKey("details");
+      setMobileSummaryExpanded(true);
+
+      setTimeout(() => {
+        restoringFromStorageRef.current = false;
+      }, 0);
+    };
+
+    restorePaymentReturn();
+    const handlePageShow = () => restorePaymentReturn(true);
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [accountSlug, accountPublicSlug]);
 
   useLayoutEffect(() => {
     const stepScroll = stepScrollRef.current;
@@ -4852,6 +4971,15 @@ export default function BookingClient({
     setStepIndex((v) => Math.max(0, v - 1));
   };
 
+  const selectLocation = (nextLocationId: number) => {
+    const normalizedLocationId = Number(nextLocationId);
+    if (!Number.isInteger(normalizedLocationId) || normalizedLocationId <= 0) return;
+    setSubmitError(null);
+    setSubmitSuccess(false);
+    setPendingBookingPayment(null);
+    setLocationId(normalizedLocationId);
+  };
+
   useEffect(() => {
     if (!initialParamsApplied) return;
     if (typeof window === "undefined") return;
@@ -4941,6 +5069,7 @@ export default function BookingClient({
         "scenario",
         "start",
         "plan",
+        "paymentReturn",
       ];
       let changed = false;
       for (const key of paramsToDrop) {
@@ -4976,6 +5105,8 @@ export default function BookingClient({
     setSubmitSuccess(false);
     setPaymentChoiceSheet(null);
     setPaymentStatusMessage(null);
+    setLastPaymentAction(null);
+    setPendingBookingPayment(null);
     setActiveHold(null);
     setDateYmd(todayYmdTz);
     setTimeBucket("all");
@@ -4990,71 +5121,72 @@ export default function BookingClient({
     }
   };
 
-  const markPaymentReturnExpected = () => {
+  const markPaymentReturnExpected = (
+    sheetOverride?: PaymentChoiceSheet | null,
+    actionOverride?: PaymentReturnAction | null
+  ) => {
     if (typeof window === "undefined") return;
+    const sheet = sheetOverride ?? paymentChoiceSheet;
+    if (!sheet) return;
+    const action = actionOverride ?? lastPaymentAction;
+
+    const state: PendingPaymentReturnState = {
+      version: 1,
+      accountSlug: accountSlug ?? null,
+      accountPublicSlug: accountPublicSlug ?? null,
+      paymentChoiceSheet: sheet,
+      lastPaymentAction: action,
+      pendingBookingPayment,
+      bookingPaymentChoice,
+      scenario,
+      locationId,
+      serviceId,
+      serviceIds,
+      specialistId,
+      dateYmd,
+      timeChoice,
+      timeBucket,
+      selectedGroupSessionId,
+      chainItems,
+      clientName,
+      clientPhone,
+      clientEmail,
+      comment,
+      legalConsents,
+    };
+
     try {
       window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
-      window.sessionStorage.setItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug), "1");
+      window.sessionStorage.setItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug), JSON.stringify(state));
       persistedStateRef.current = null;
+      const url = new URL(window.location.href);
+      url.searchParams.set("paymentReturn", "1");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
     } catch {
       // ignore storage errors
     }
+  };
 
-    const holdToRelease = activeHoldRef.current?.holdId ?? null;
-    holdRequestIdRef.current += 1;
-    activeHoldRef.current = null;
-    restoredFromStorageRef.current = true;
-    setActiveHold(null);
-    setLocationId(null);
-    setPendingServiceId(null);
-    setServiceId(null);
-    setServiceIds([]);
-    setSpecialistId(null);
-    setPendingSpecialistId(null);
-    setTimeChoice(null);
-    setSelectedGroupSessionId(null);
-    setClientName("");
-    setClientPhone("");
-    setClientEmail("");
-    setComment("");
-    setLegalConsents({});
-    setStepIndex(0);
-    setSubmitSuccess(false);
-    setSubmitError(null);
-    setPaymentChoiceSheet(null);
-    setPaymentStatusMessage(null);
-    idempotencyKeyRef.current = null;
-    clearAvailabilityCaches();
-    if (holdToRelease) {
-      void releaseHold(holdToRelease).catch(() => {});
+  const continuePendingPayment = () => {
+    if (!paymentChoiceSheet) return;
+    markPaymentReturnExpected(paymentChoiceSheet, lastPaymentAction);
+    const nextUrl =
+      lastPaymentAction === "sbp"
+        ? paymentChoiceSheet.sbpPayload || paymentChoiceSheet.paymentUrl || paymentChoiceSheet.cardPaymentUrl
+        : paymentChoiceSheet.cardPaymentUrl || paymentChoiceSheet.paymentUrl || paymentChoiceSheet.sbpPayload;
+    if (nextUrl) {
+      window.location.href = nextUrl;
     }
   };
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storageKey = bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug);
-
-    const handlePageShow = () => {
-      let returnedFromPayment = false;
-      try {
-        returnedFromPayment = window.sessionStorage.getItem(storageKey) === "1";
-      } catch {
-        returnedFromPayment = false;
-      }
-      if (!returnedFromPayment) return;
-
-      try {
-        window.sessionStorage.removeItem(storageKey);
-        window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
-      } catch {
-        // ignore storage errors
-      }
-      window.location.reload();
-    };
-
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
-  }, [accountSlug, accountPublicSlug]);
+  const returnToBookingDetails = () => {
+    setPaymentReturnNotice(false);
+    setPaymentChoiceSheet(null);
+    setPaymentStatusMessage(null);
+    setLastPaymentAction(null);
+    setPendingStepKey("details");
+    setMobileSummaryExpanded(true);
+  };
 
   useEffect(() => {
     if (!paymentChoiceSheet) return;
@@ -5117,26 +5249,58 @@ export default function BookingClient({
     );
 
     if (checkout.sbpQrSvg && checkout.paymentUrl) {
-      setPaymentChoiceSheet({
+      const sheet = {
         intentId: checkout.intentId,
         amountRub: checkout.amountRub ?? null,
         paymentUrl: checkout.paymentUrl,
         cardPaymentUrl: checkout.cardPaymentUrl ?? checkout.paymentUrl,
         sbpQrSvg: checkout.sbpQrSvg,
         sbpPayload: checkout.sbpPayload ?? null,
-      });
+      };
+      setPaymentChoiceSheet(sheet);
+      setPaymentReturnNotice(false);
+      setLastPaymentAction(null);
       setPaymentStatusMessage("Ожидаем оплату через СБП.");
       return true;
     }
 
     if (checkout.paymentUrl) {
-      markPaymentReturnExpected();
-      window.location.href = checkout.cardPaymentUrl || checkout.paymentUrl;
+      const sheet = {
+        intentId: checkout.intentId,
+        amountRub: checkout.amountRub ?? null,
+        paymentUrl: checkout.paymentUrl,
+        cardPaymentUrl: checkout.cardPaymentUrl ?? checkout.paymentUrl,
+        sbpQrSvg: checkout.sbpQrSvg ?? null,
+        sbpPayload: checkout.sbpPayload ?? null,
+      };
+      setLastPaymentAction("card");
+      markPaymentReturnExpected(sheet, "card");
+      window.location.href = sheet.cardPaymentUrl || sheet.paymentUrl || checkout.paymentUrl;
       return true;
     }
 
     throw new Error("Платеж создан, но банк не вернул ссылку на оплату.");
   };
+
+  const bookingPaymentSelectionKey = JSON.stringify({
+    mode: isChainMode ? "chain" : "single",
+    locationId,
+    serviceIds: isChainMode ? chainItems.map((item) => item.serviceId) : selectedServiceIds,
+    specialistId: isChainMode ? null : specialistId,
+    date: isChainMode ? null : dateYmd,
+    time: isChainMode ? null : timeChoice,
+    chainItems: isChainMode
+      ? chainItems.map((item) => ({
+          serviceId: item.serviceId,
+          specialistId: item.specialistId,
+          date: item.date,
+          time: item.time,
+        }))
+      : [],
+    clientName: clientName.trim(),
+    clientPhone: clientPhone.trim(),
+    clientEmail: clientEmail.trim(),
+  });
 
   const submitAppointment = async (paymentChoiceOverride?: BookingPaymentChoice) => {
     const paymentChoice = paymentChoiceOverride ?? bookingPaymentChoice;
@@ -5205,6 +5369,27 @@ export default function BookingClient({
     const paymentBlockingMessage = getBookingPaymentBlockingMessage(paymentChoice);
     if (paymentBlockingMessage) {
       setSubmitError(paymentBlockingMessage);
+      return;
+    }
+
+    if (
+      pendingBookingPayment &&
+      pendingBookingPayment.paymentChoice === paymentChoice &&
+      pendingBookingPayment.selectionKey === bookingPaymentSelectionKey &&
+      pendingBookingPayment.appointmentIds.length > 0
+    ) {
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        const paymentStarted = await startAppointmentPayment(pendingBookingPayment.appointmentIds, paymentChoice);
+        if (!paymentStarted) {
+          setPendingBookingPayment(null);
+        }
+      } catch (error) {
+        setSubmitError(humanizeBookingError(error));
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -5281,9 +5466,13 @@ export default function BookingClient({
 
         clearAvailabilityCaches();
         const paymentStarted = await startAppointmentPayment(appointmentIds, paymentChoice);
-        if (paymentStarted) return;
+        if (paymentStarted) {
+          setPendingBookingPayment({ appointmentIds, paymentChoice, selectionKey: bookingPaymentSelectionKey });
+          return;
+        }
         setSubmitSuccess(true);
         setMobileSummaryExpanded(true);
+        setPendingBookingPayment(null);
         idempotencyKeyRef.current = null;
         return;
       } catch (error) {
@@ -5379,9 +5568,17 @@ export default function BookingClient({
       });
       clearAvailabilityCaches();
       const paymentStarted = await startAppointmentPayment(appointmentId, paymentChoice);
-      if (paymentStarted) return;
+      if (paymentStarted) {
+        setPendingBookingPayment({
+          appointmentIds: [appointmentId],
+          paymentChoice,
+          selectionKey: bookingPaymentSelectionKey,
+        });
+        return;
+      }
       setSubmitSuccess(true);
       setMobileSummaryExpanded(true);
+      setPendingBookingPayment(null);
       idempotencyKeyRef.current = null;
     } catch (error) {
       clearAvailabilityCaches();
@@ -5705,7 +5902,8 @@ export default function BookingClient({
                           )}
                         >
                           {(context?.locations ?? []).map((location, index) => {
-                            const active = location.id === locationId;
+                            const locationCardId = Number(location.id);
+                            const active = locationCardId === Number(locationId);
                             const openStatus = getLocationOpenStatus(
                               location,
                               nowTz,
@@ -5716,11 +5914,11 @@ export default function BookingClient({
                                 key={location.id}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => setLocationId(location.id)}
+                                onClick={() => selectLocation(locationCardId)}
                                 onKeyDown={(event) => {
                                   if (event.key === "Enter" || event.key === " ") {
                                     event.preventDefault();
-                                    setLocationId(location.id);
+                                    selectLocation(locationCardId);
                                   }
                                 }}
                                 className={cn(
@@ -6886,7 +7084,7 @@ export default function BookingClient({
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Оплата</div>
                 <h3 className="mt-1 text-xl font-semibold text-[color:var(--bp-ink)]">
-                  Выберите способ оплаты
+                  {paymentReturnNotice ? "Оплата не завершена" : "Выберите способ оплаты"}
                 </h3>
                 {paymentChoiceSheet.amountRub ? (
                   <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
@@ -6896,7 +7094,7 @@ export default function BookingClient({
               </div>
               <button
                 type="button"
-                onClick={() => setPaymentChoiceSheet(null)}
+                onClick={paymentReturnNotice ? returnToBookingDetails : () => setPaymentChoiceSheet(null)}
                 className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-sm"
                 aria-label="Закрыть оплату"
               >
@@ -6905,7 +7103,29 @@ export default function BookingClient({
             </div>
 
             <div className="mt-5 grid gap-3">
-              {paymentChoiceSheet.sbpQrSvg ? (
+              {paymentReturnNotice ? (
+                <div className="grid gap-3">
+                  <div className="text-sm text-[color:var(--bp-muted)]">
+                    Чтобы подтвердить запись, продолжите оплату.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={continuePendingPayment}
+                    className="inline-flex w-full items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)]"
+                  >
+                    Продолжить оплату
+                  </button>
+                  <button
+                    type="button"
+                    onClick={returnToBookingDetails}
+                    className="inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-ink)]"
+                  >
+                    Вернуться
+                  </button>
+                </div>
+              ) : null}
+
+              {!paymentReturnNotice && paymentChoiceSheet.sbpQrSvg ? (
                 <div className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-center">
                   <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Оплатить через СБП</div>
                   <div className="mx-auto mt-3 flex max-w-[260px] justify-center rounded-xl bg-white p-3">
@@ -6917,7 +7137,7 @@ export default function BookingClient({
                         dangerouslySetInnerHTML={{ __html: paymentQrMarkup }}
                       />
                     ) : (
-                      <img
+                      <UnoptimizedImage
                         src={svgToDataUri(paymentChoiceSheet.sbpQrSvg)}
                         alt="QR-код для оплаты через СБП"
                         className="aspect-square w-full max-w-[230px]"
@@ -6930,7 +7150,10 @@ export default function BookingClient({
                   {paymentChoiceSheet.sbpPayload ? (
                     <a
                       href={paymentChoiceSheet.sbpPayload}
-                      onClick={markPaymentReturnExpected}
+                      onClick={() => {
+                        setLastPaymentAction("sbp");
+                        markPaymentReturnExpected(undefined, "sbp");
+                      }}
                       className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)]"
                     >
                       Открыть банк
@@ -6939,17 +7162,20 @@ export default function BookingClient({
                 </div>
               ) : null}
 
-              {paymentChoiceSheet.cardPaymentUrl ? (
+              {!paymentReturnNotice && paymentChoiceSheet.cardPaymentUrl ? (
                 <a
                   href={paymentChoiceSheet.cardPaymentUrl}
-                  onClick={markPaymentReturnExpected}
+                  onClick={() => {
+                    setLastPaymentAction("card");
+                    markPaymentReturnExpected(undefined, "card");
+                  }}
                   className="inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-ink)]"
                 >
                   Оплатить картой
                 </a>
               ) : null}
 
-              {paymentStatusMessage ? (
+              {!paymentReturnNotice && paymentStatusMessage ? (
                 <div className="text-center text-xs text-[color:var(--bp-muted)]">{paymentStatusMessage}</div>
               ) : null}
             </div>
@@ -6958,7 +7184,10 @@ export default function BookingClient({
       ) : null}
       {showFullscreenLoaderOverlay && effectiveInlineLoader ? (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center"
+          className={cn(
+            "fixed inset-0 z-[120] flex items-center justify-center",
+            !effectiveInlineLoader.backdropEnabled && "pointer-events-none"
+          )}
           style={
             effectiveInlineLoader.backdropEnabled
               ? { background: effectiveInlineLoader.backdropColor }
