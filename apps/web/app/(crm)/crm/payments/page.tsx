@@ -3,6 +3,7 @@ import { money } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import AccountPaymentsClient from "./account-payments-client";
+import PaymentRefundAction from "./payment-refund-action";
 import SubscriptionCheckout from "./subscription-checkout";
 
 const invoiceStatusLabels: Record<string, string> = {
@@ -35,6 +36,10 @@ const paymentProviderLabels: Record<string, string> = {
   TBANK: "Т-Банк",
   SBER: "Сбер",
   ALFA: "Альфа-Банк",
+  yookassa: "ЮKassa",
+  tbank: "Т-Банк",
+  sber: "Сбер",
+  alfa: "Альфа-Банк",
 };
 
 const paymentScenarioLabels: Record<string, string> = {
@@ -42,6 +47,27 @@ const paymentScenarioLabels: Record<string, string> = {
   appointment_prepayment: "Предоплата записи",
   crm_connection_test: "Проверка подключения",
   crm_test_payment: "Тестовый платеж CRM",
+};
+
+const providerStatusLabels: Record<string, string> = {
+  NEW: "Создан",
+  FORM_SHOWED: "Платежная форма открыта",
+  AUTHORIZING: "Авторизация",
+  AUTHORIZED: "Авторизован",
+  CONFIRMING: "Подтверждается",
+  CONFIRMED: "Подтвержден",
+  REJECTED: "Отклонен",
+  DEADLINE_EXPIRED: "Истек срок оплаты",
+  CANCELED: "Отменен",
+  REVERSED: "Отменен",
+  REFUNDED: "Возвращен полностью",
+  PARTIAL_REFUNDED: "Возвращен частично",
+};
+
+const refundStatusLabels: Record<string, string> = {
+  PENDING: "Возврат обрабатывается",
+  SUCCEEDED: "Возвращен",
+  FAILED: "Ошибка возврата",
 };
 
 function pickParam(raw: Record<string, string | string[] | undefined>, key: string) {
@@ -61,6 +87,11 @@ function clientLabel(client: { firstName: string | null; lastName: string | null
 
 function formatPaymentDate(value: Date | null | undefined) {
   return value ? value.toLocaleString("ru-RU") : "—";
+}
+
+function providerStatusLabel(value: string | null | undefined) {
+  if (!value) return "—";
+  return providerStatusLabels[String(value).toUpperCase()] ?? value;
 }
 
 export default async function CrmPaymentsPage({ searchParams }: PageProps) {
@@ -325,7 +356,9 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
               {clientPayments.map((payment) => {
                 const serviceNames = payment.appointment?.services.map((item) => item.service.name).join(", ");
                 const lastTransaction = payment.transactions[0];
-                const refundTotal = payment.refunds.reduce((sum, refund) => sum + Number(refund.amount), 0);
+                const refundTotal = payment.refunds
+                  .filter((refund) => refund.status === "PENDING" || refund.status === "SUCCEEDED")
+                  .reduce((sum, refund) => sum + Number(refund.amount), 0);
                 return (
                   <tr key={payment.id} className="border-t border-[color:var(--bp-stroke)] align-top">
                     <td className="py-3 pr-3">
@@ -345,7 +378,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
                     <td className="py-3 pr-3 font-medium">{money(payment.amount)} {payment.currency}</td>
                     <td className="py-3 pr-3">
                       <div>{payment.provider ? paymentProviderLabels[payment.provider] ?? payment.provider : "—"}</div>
-                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{payment.providerStatus ?? lastTransaction?.providerStatus ?? "—"}</div>
+                      <div className="mt-1 text-xs text-[color:var(--bp-muted)]">{providerStatusLabel(payment.providerStatus ?? lastTransaction?.providerStatus)}</div>
                     </td>
                     <td className="py-3 pr-3">
                       <span className="rounded-full border border-[color:var(--bp-stroke)] px-2 py-1 text-xs">
@@ -357,11 +390,26 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
                       {payment.refunds.length ? (
                         <>
                           <div>{money(refundTotal)} {payment.currency}</div>
-                          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                            {payment.refunds.map((refund) => `#${refund.id} ${refund.status}`).join(", ")}
+                          <div className="mt-1 grid gap-1 text-xs text-[color:var(--bp-muted)]">
+                            {payment.refunds.map((refund, refundIndex) => (
+                              <div key={refund.id}>
+                                Возврат {refundIndex + 1}: {refundStatusLabels[refund.status] ?? refund.status}
+                                {" · "}
+                                {formatPaymentDate(refund.completedAt ?? refund.createdAt)}
+                                {refund.providerStatus ? ` · ${providerStatusLabel(refund.providerStatus)}` : ""}
+                              </div>
+                            ))}
                           </div>
                         </>
                       ) : "—"}
+                      <PaymentRefundAction
+                        intentId={payment.id}
+                        status={payment.status}
+                        providerRef={payment.providerRef}
+                        amountRub={Number(payment.amount)}
+                        refundedRub={refundTotal}
+                        currency={payment.currency}
+                      />
                     </td>
                     <td className="py-3 pr-3">{formatPaymentDate(payment.createdAt)}</td>
                   </tr>

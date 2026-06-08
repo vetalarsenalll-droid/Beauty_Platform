@@ -119,6 +119,10 @@ async function tbankRequest<T>(credentials: TbankCredentials, path: string, payl
   return json;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export const tbankAccountPaymentProvider: AccountPaymentProviderAdapter = {
   code: "tbank",
 
@@ -222,6 +226,33 @@ export const tbankAccountPaymentProvider: AccountPaymentProviderAdapter = {
     payload.Token = buildAccountTbankToken(payload, input.credentials.password);
     const refund = await tbankRequest<TbankRefundResponse>(input.credentials, "Cancel", payload);
     if (!refund.Success) {
+      const refundStatus = normalizeTbankStatus(refund.Status);
+      if (refundStatus === "refunded" || refundStatus === "partially_refunded") {
+        return {
+          providerRef: refund.PaymentId || input.providerRef,
+          providerStatus: refund.Status || "REFUNDED",
+          normalizedStatus: refundStatus,
+          raw: { refund, reconciledFromCancelResponse: true },
+        };
+      }
+      const statePayload: Record<string, unknown> = {
+        TerminalKey: input.credentials.terminalKey,
+        PaymentId: input.providerRef,
+      };
+      statePayload.Token = buildAccountTbankToken(statePayload, input.credentials.password);
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (attempt > 0) await wait(700);
+        const state = await tbankRequest<TbankStateResponse>(input.credentials, "GetState", statePayload);
+        const stateStatus = normalizeTbankStatus(state.Status);
+        if (state.Success && (stateStatus === "refunded" || stateStatus === "partially_refunded")) {
+          return {
+            providerRef: state.PaymentId || input.providerRef,
+            providerStatus: state.Status || "REFUNDED",
+            normalizedStatus: stateStatus,
+            raw: { refund, state, reconciledAfterCancelError: true },
+          };
+        }
+      }
       throw new Error(refund.Message || refund.Details || "T-Bank refund request failed");
     }
     return {
