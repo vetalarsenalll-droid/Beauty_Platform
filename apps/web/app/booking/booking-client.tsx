@@ -167,8 +167,32 @@ type PublicPaymentCheckoutData = {
   intentId: number;
   status: string;
   paymentUrl: string | null;
+  cardPaymentUrl?: string | null;
+  sbpQrSvg?: string | null;
+  sbpPayload?: string | null;
   provider: string;
   providerStatus: string | null;
+  amountRub?: number;
+  originalAmountRub?: number;
+  discountAmountRub?: number;
+  remainingAmountRub?: number;
+  scenario?: string;
+};
+
+type PublicPaymentStatusData = {
+  intentId: number;
+  status: string;
+  providerStatus: string | null;
+  paid: boolean;
+};
+
+type PaymentChoiceSheet = {
+  intentId: number;
+  amountRub?: number | null;
+  paymentUrl: string | null;
+  cardPaymentUrl: string | null;
+  sbpQrSvg: string | null;
+  sbpPayload: string | null;
 };
 
 type SlotsData = {
@@ -270,6 +294,20 @@ const formatMoneyRub = (value: number) => {
   } catch {
     return `${value} ?`;
   }
+};
+
+const svgToDataUri = (svg: string) => {
+  if (svg.startsWith("data:")) return svg;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+const crispQrSvgMarkup = (svg: string) => {
+  const trimmed = svg.trim();
+  if (!trimmed.startsWith("<svg")) return null;
+  return trimmed
+    .replace(/<svg(?![^>]*shape-rendering=)/i, '<svg shape-rendering="crispEdges"')
+    .replace(/<path(?![^>]*shape-rendering=)/gi, '<path shape-rendering="crispEdges"')
+    .replace(/<rect(?![^>]*shape-rendering=)/gi, '<rect shape-rendering="crispEdges"');
 };
 
 const cn = (...parts: Array<string | false | null | undefined>) =>
@@ -399,6 +437,9 @@ const bookingStateStorageKey = (accountSlug?: string, accountPublicSlug?: string
 
 const bookingSessionStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
   `booking-session:v${BOOKING_SESSION_VERSION}:${accountSlug || accountPublicSlug || "public"}`;
+
+const bookingPaymentReturnStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
+  `booking-payment-return:v1:${accountSlug || accountPublicSlug || "public"}`;
 
 const groupSessionStorageKey = (accountSlug?: string, accountPublicSlug?: string) =>
   `group-booked:v1:${accountSlug || accountPublicSlug || "public"}`;
@@ -1234,6 +1275,8 @@ export default function BookingClient({
   const [contextError, setContextError] = useState<string | null>(null);
   const paymentSettings = context?.payments ?? null;
   const [bookingPaymentChoice, setBookingPaymentChoice] = useState<BookingPaymentChoice>("PAY_LATER");
+  const [paymentChoiceSheet, setPaymentChoiceSheet] = useState<PaymentChoiceSheet | null>(null);
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState<string | null>(null);
 
   const [locationId, setLocationId] = useState<number | null>(() => {
     const firstId = initialContext?.locations.length === 1 ? Number(initialContext.locations[0].id) : null;
@@ -1832,7 +1875,18 @@ export default function BookingClient({
 
   useEffect(() => {
     if (!initialParamsApplied || restoredFromStorageRef.current) return;
-    restoredFromStorageRef.current = true;
+
+    const returnedFromPayment =
+      typeof window !== "undefined" &&
+      window.sessionStorage.getItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug)) === "1";
+
+    if (returnedFromPayment && typeof window !== "undefined") {
+      restoredFromStorageRef.current = true;
+      window.sessionStorage.removeItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug));
+      window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
+      persistedStateRef.current = null;
+      return;
+    }
 
     // Для "чистого" входа на /booking (без query) всегда стартуем с выбора локации,
     // без восстановления прошлого шага/выборов из sessionStorage.
@@ -1853,6 +1907,7 @@ export default function BookingClient({
 
     const persisted = persistedStateRef.current;
     if (!persisted) return;
+    restoredFromStorageRef.current = true;
 
     restoringFromStorageRef.current = true;
     setScenario(persisted.scenario);
@@ -1884,7 +1939,7 @@ export default function BookingClient({
     setTimeout(() => {
       restoringFromStorageRef.current = false;
     }, 0);
-  }, [initialParamsApplied, initialParams, hasAnyQueryParams]);
+  }, [initialParamsApplied, initialParams, hasAnyQueryParams, accountSlug, accountPublicSlug]);
 
   useEffect(() => {
     if (!locationId || !context?.locations?.length) return;
@@ -4919,6 +4974,8 @@ export default function BookingClient({
     setLegalConsents({});
     setSubmitError(null);
     setSubmitSuccess(false);
+    setPaymentChoiceSheet(null);
+    setPaymentStatusMessage(null);
     setActiveHold(null);
     setDateYmd(todayYmdTz);
     setTimeBucket("all");
@@ -4932,6 +4989,104 @@ export default function BookingClient({
       void releaseHold(holdToRelease).catch(() => {});
     }
   };
+
+  const markPaymentReturnExpected = () => {
+    if (typeof window === "undefined") return;
+    try {
+      window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
+      window.sessionStorage.setItem(bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug), "1");
+      persistedStateRef.current = null;
+    } catch {
+      // ignore storage errors
+    }
+
+    const holdToRelease = activeHoldRef.current?.holdId ?? null;
+    holdRequestIdRef.current += 1;
+    activeHoldRef.current = null;
+    restoredFromStorageRef.current = true;
+    setActiveHold(null);
+    setLocationId(null);
+    setPendingServiceId(null);
+    setServiceId(null);
+    setServiceIds([]);
+    setSpecialistId(null);
+    setPendingSpecialistId(null);
+    setTimeChoice(null);
+    setSelectedGroupSessionId(null);
+    setClientName("");
+    setClientPhone("");
+    setClientEmail("");
+    setComment("");
+    setLegalConsents({});
+    setStepIndex(0);
+    setSubmitSuccess(false);
+    setSubmitError(null);
+    setPaymentChoiceSheet(null);
+    setPaymentStatusMessage(null);
+    idempotencyKeyRef.current = null;
+    clearAvailabilityCaches();
+    if (holdToRelease) {
+      void releaseHold(holdToRelease).catch(() => {});
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = bookingPaymentReturnStorageKey(accountSlug, accountPublicSlug);
+
+    const handlePageShow = () => {
+      let returnedFromPayment = false;
+      try {
+        returnedFromPayment = window.sessionStorage.getItem(storageKey) === "1";
+      } catch {
+        returnedFromPayment = false;
+      }
+      if (!returnedFromPayment) return;
+
+      try {
+        window.sessionStorage.removeItem(storageKey);
+        window.sessionStorage.removeItem(bookingStateStorageKey(accountSlug, accountPublicSlug));
+      } catch {
+        // ignore storage errors
+      }
+      window.location.reload();
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, [accountSlug, accountPublicSlug]);
+
+  useEffect(() => {
+    if (!paymentChoiceSheet) return;
+
+    let cancelled = false;
+    let timer: number | null = null;
+
+    const poll = async () => {
+      try {
+        const status = await fetchJson<PublicPaymentStatusData>(
+          buildUrl(`/api/v1/public/payments/intents/${paymentChoiceSheet.intentId}/status`, { account: accountSlug ?? "" })
+        );
+        if (cancelled) return;
+        if (status.paid) {
+          window.location.href = `/payment/success?intentId=${paymentChoiceSheet.intentId}`;
+          return;
+        }
+        timer = window.setTimeout(poll, 3000);
+      } catch {
+        if (!cancelled) {
+          setPaymentStatusMessage("Не удалось проверить оплату. Если вы уже оплатили, обновите страницу статуса.");
+          timer = window.setTimeout(poll, 5000);
+        }
+      }
+    };
+
+    timer = window.setTimeout(poll, 2500);
+    return () => {
+      cancelled = true;
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [accountSlug, paymentChoiceSheet]);
 
   const startAppointmentPayment = async (appointmentIdsInput: number | number[], paymentChoice: BookingPaymentChoice) => {
     if (paymentChoice === "PAY_LATER") return false;
@@ -4961,8 +5116,22 @@ export default function BookingClient({
       }
     );
 
+    if (checkout.sbpQrSvg && checkout.paymentUrl) {
+      setPaymentChoiceSheet({
+        intentId: checkout.intentId,
+        amountRub: checkout.amountRub ?? null,
+        paymentUrl: checkout.paymentUrl,
+        cardPaymentUrl: checkout.cardPaymentUrl ?? checkout.paymentUrl,
+        sbpQrSvg: checkout.sbpQrSvg,
+        sbpPayload: checkout.sbpPayload ?? null,
+      });
+      setPaymentStatusMessage("Ожидаем оплату через СБП.");
+      return true;
+    }
+
     if (checkout.paymentUrl) {
-      window.location.href = checkout.paymentUrl;
+      markPaymentReturnExpected();
+      window.location.href = checkout.cardPaymentUrl || checkout.paymentUrl;
       return true;
     }
 
@@ -5314,6 +5483,10 @@ export default function BookingClient({
       </button>
     );
   };
+
+  const paymentQrMarkup = paymentChoiceSheet?.sbpQrSvg
+    ? crispQrSvgMarkup(paymentChoiceSheet.sbpQrSvg)
+    : null;
 
   return (
     <div
@@ -6706,6 +6879,83 @@ export default function BookingClient({
 
         </div>
       </div>
+      {paymentChoiceSheet ? (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 px-4 py-6">
+          <div className="w-full max-w-[420px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Оплата</div>
+                <h3 className="mt-1 text-xl font-semibold text-[color:var(--bp-ink)]">
+                  Выберите способ оплаты
+                </h3>
+                {paymentChoiceSheet.amountRub ? (
+                  <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
+                    К оплате {formatMoneyRub(paymentChoiceSheet.amountRub)}
+                  </div>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setPaymentChoiceSheet(null)}
+                className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-sm"
+                aria-label="Закрыть оплату"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {paymentChoiceSheet.sbpQrSvg ? (
+                <div className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-center">
+                  <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Оплатить через СБП</div>
+                  <div className="mx-auto mt-3 flex max-w-[260px] justify-center rounded-xl bg-white p-3">
+                    {paymentQrMarkup ? (
+                      <div
+                        aria-label="QR-код для оплаты через СБП"
+                        role="img"
+                        className="aspect-square w-full max-w-[230px] [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+                        dangerouslySetInnerHTML={{ __html: paymentQrMarkup }}
+                      />
+                    ) : (
+                      <img
+                        src={svgToDataUri(paymentChoiceSheet.sbpQrSvg)}
+                        alt="QR-код для оплаты через СБП"
+                        className="aspect-square w-full max-w-[230px]"
+                      />
+                    )}
+                  </div>
+                  <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
+                    Отсканируйте QR-код в приложении банка. После оплаты статус обновится автоматически.
+                  </div>
+                  {paymentChoiceSheet.sbpPayload ? (
+                    <a
+                      href={paymentChoiceSheet.sbpPayload}
+                      onClick={markPaymentReturnExpected}
+                      className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)]"
+                    >
+                      Открыть банк
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {paymentChoiceSheet.cardPaymentUrl ? (
+                <a
+                  href={paymentChoiceSheet.cardPaymentUrl}
+                  onClick={markPaymentReturnExpected}
+                  className="inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-ink)]"
+                >
+                  Оплатить картой
+                </a>
+              ) : null}
+
+              {paymentStatusMessage ? (
+                <div className="text-center text-xs text-[color:var(--bp-muted)]">{paymentStatusMessage}</div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
       {showFullscreenLoaderOverlay && effectiveInlineLoader ? (
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center"

@@ -38,6 +38,21 @@ const sameNumberSet = (left: number[], right: number[]) => {
   return sortedLeft.every((value, index) => value === sortedRight[index]);
 };
 
+const appointmentIdFromIdempotencyResponse = (value: unknown) => {
+  if (!value || typeof value !== "object") return null;
+  const data = (value as { data?: unknown }).data;
+  if (!data || typeof data !== "object") return null;
+  const id = Number((data as { appointmentId?: unknown }).appointmentId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const isPendingPaymentMetadata = (value: unknown) =>
+  Boolean(
+    value &&
+      typeof value === "object" &&
+      (value as { appointmentPendingPayment?: unknown }).appointmentPendingPayment === true
+  );
+
 export async function POST(request: Request) {
   const resolved = await resolvePublicAccount(request);
   if (resolved.response) return resolved.response;
@@ -512,7 +527,31 @@ export async function POST(request: Request) {
         }
 
         if (existing.response) {
-          return NextResponse.json(existing.response);
+          const previousAppointmentId = appointmentIdFromIdempotencyResponse(existing.response);
+          const previousAppointment = previousAppointmentId
+            ? await prisma.appointment.findFirst({
+                where: {
+                  id: previousAppointmentId,
+                  accountId: resolved.account.id,
+                  status: "CANCELLED",
+                  source: "online",
+                },
+                select: {
+                  paymentIntents: {
+                    where: { status: { in: ["CREATED", "REQUIRES_ACTION", "PROCESSING"] } },
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { metadata: true },
+                  },
+                },
+              })
+            : null;
+
+          if (previousAppointment?.paymentIntents.some((intent) => isPendingPaymentMetadata(intent.metadata))) {
+            await prisma.idempotencyKey.delete({ where: { id: existing.id } }).catch(() => {});
+          } else {
+            return NextResponse.json(existing.response);
+          }
         }
 
         return jsonError(

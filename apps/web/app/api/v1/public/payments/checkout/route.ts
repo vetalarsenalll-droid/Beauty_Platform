@@ -8,6 +8,7 @@ import {
   normalizeBookingPaymentOption,
 } from "@/lib/account-payments/booking-payment";
 import { createAccountCheckout } from "@/lib/account-payments/checkout";
+import { prisma } from "@/lib/prisma";
 import { resolvePublicAccount } from "@/lib/public-booking";
 import type { AccountPaymentMethodCode, AccountReceiptItemInput } from "@/lib/account-payments/types";
 
@@ -41,6 +42,22 @@ function intentMethod(value: unknown): AccountPaymentMethodCode | null {
   if (!value || typeof value !== "object") return null;
   const method = (value as { method?: unknown }).method;
   return method === "card" || method === "sbp" || method === "tpay" || method === "sberpay" ? method : null;
+}
+
+function paymentMethodsFromPayload(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return { cardPaymentUrl: null, sbpQrSvg: null, sbpPayload: null };
+  }
+  const methods = (value as { paymentMethods?: unknown }).paymentMethods;
+  const source = methods && typeof methods === "object" ? methods : value;
+  const cardUrl = (source as { cardUrl?: unknown }).cardUrl;
+  const sbpQrSvg = (source as { sbpQrSvg?: unknown }).sbpQrSvg;
+  const sbpPayload = (source as { sbpPayload?: unknown }).sbpPayload;
+  return {
+    cardPaymentUrl: typeof cardUrl === "string" && cardUrl.trim() ? cardUrl : null,
+    sbpQrSvg: typeof sbpQrSvg === "string" && sbpQrSvg.trim() ? sbpQrSvg : null,
+    sbpPayload: typeof sbpPayload === "string" && sbpPayload.trim() ? sbpPayload : null,
+  };
 }
 
 function cleanUrl(value: unknown) {
@@ -155,11 +172,15 @@ export async function POST(request: Request) {
         existingMatchesAppointments &&
         (intentMethod(existingIntent.providerPayload) ?? "card") === method
       ) {
+        const methods = paymentMethodsFromPayload(existingIntent.providerPayload);
         return NextResponse.json({
           data: {
             intentId: existingIntent.id,
             status: existingIntent.status,
             paymentUrl: existingIntent.paymentUrl,
+            cardPaymentUrl: methods.cardPaymentUrl ?? existingIntent.paymentUrl,
+            sbpQrSvg: methods.sbpQrSvg,
+            sbpPayload: methods.sbpPayload,
             provider: existingIntent.provider,
             providerStatus: existingIntent.providerStatus,
             amountRub: calculation.amountRub,
@@ -172,6 +193,14 @@ export async function POST(request: Request) {
       }
 
       const customer = bodyCustomer(body);
+      const shouldKeepSlotFreeUntilPaid = Boolean(appointment.account.settings?.requirePaymentToConfirm);
+      const metadata = (appointmentIds.length > 1
+        ? bookingChainPaymentMetadata({
+            calculation,
+            appointmentIds,
+            primaryAppointmentId: appointment.id,
+          })
+        : bookingPaymentMetadata(calculation)) as Record<string, unknown>;
       const intent = await createAccountCheckout({
         accountId: resolved.account.id,
         appointmentId: appointment.id,
@@ -186,24 +215,34 @@ export async function POST(request: Request) {
           phone: customer.phone ?? appointment.client.phone ?? null,
         },
         receiptItems: [bookingPaymentReceiptItem({ description, calculation })],
-        metadata:
-          appointmentIds.length > 1
-            ? bookingChainPaymentMetadata({
-                calculation,
-                appointmentIds,
-                primaryAppointmentId: appointment.id,
-              })
-            : bookingPaymentMetadata(calculation),
+        metadata: {
+          ...metadata,
+          appointmentPendingPayment: shouldKeepSlotFreeUntilPaid,
+        },
         returnUrl: cleanUrl(body.returnUrl),
         failUrl: cleanUrl(body.failUrl),
         idempotencyKey: request.headers.get("idempotency-key") || undefined,
       });
+
+      if (shouldKeepSlotFreeUntilPaid) {
+        await prisma.appointment.updateMany({
+          where: {
+            id: { in: appointmentIds },
+            accountId: resolved.account.id,
+            status: "NEW",
+          },
+          data: { status: "CANCELLED" },
+        });
+      }
 
       return NextResponse.json({
         data: {
           intentId: intent.id,
           status: intent.status,
           paymentUrl: intent.paymentUrl,
+          cardPaymentUrl: paymentMethodsFromPayload(intent.providerPayload).cardPaymentUrl ?? intent.paymentUrl,
+          sbpQrSvg: paymentMethodsFromPayload(intent.providerPayload).sbpQrSvg,
+          sbpPayload: paymentMethodsFromPayload(intent.providerPayload).sbpPayload,
           provider: intent.provider,
           providerStatus: intent.providerStatus,
           amountRub: calculation.amountRub,
@@ -239,6 +278,9 @@ export async function POST(request: Request) {
         intentId: intent.id,
         status: intent.status,
         paymentUrl: intent.paymentUrl,
+        cardPaymentUrl: paymentMethodsFromPayload(intent.providerPayload).cardPaymentUrl ?? intent.paymentUrl,
+        sbpQrSvg: paymentMethodsFromPayload(intent.providerPayload).sbpQrSvg,
+        sbpPayload: paymentMethodsFromPayload(intent.providerPayload).sbpPayload,
         provider: intent.provider,
         providerStatus: intent.providerStatus,
       },
@@ -275,6 +317,7 @@ async function prismaAppointmentsForCheckout(appointmentIds: number[], accountId
               bookingPrepaymentAmount: true,
               bookingPrepaymentPercent: true,
               bookingFullPaymentDiscountPercent: true,
+              requirePaymentToConfirm: true,
             },
           },
         },

@@ -195,14 +195,36 @@ export async function applyAccountPaymentState(input: {
 
     if (intent.appointmentId && intent.scenario.startsWith("appointment_")) {
       const appointmentIds = metadataAppointmentIds(intent.metadata);
-      await tx.appointment.updateMany({
+      const includePendingPaymentAppointments = metadataAppointmentPendingPayment(intent.metadata);
+      const appointmentsToConfirm = await tx.appointment.findMany({
         where: {
           id: { in: appointmentIds.length ? appointmentIds : [intent.appointmentId] },
           accountId: intent.accountId,
-          status: "NEW",
+          status: { in: includePendingPaymentAppointments ? ["NEW", "CANCELLED"] : ["NEW"] },
         },
-        data: { status: "CONFIRMED" },
+        select: { id: true, status: true },
       });
+
+      if (appointmentsToConfirm.length > 0) {
+        await tx.appointment.updateMany({
+          where: {
+            id: { in: appointmentsToConfirm.map((appointment) => appointment.id) },
+            accountId: intent.accountId,
+          },
+          data: { status: "CONFIRMED" },
+        });
+
+        await tx.appointmentStatusHistory.createMany({
+          data: appointmentsToConfirm.map((appointment) => ({
+            appointmentId: appointment.id,
+            actorType: "system",
+            actorId: null,
+            fromStatus: appointment.status,
+            toStatus: "CONFIRMED",
+            comment: "Оплата подтверждена",
+          })),
+        });
+      }
     }
 
     return intent;
@@ -214,6 +236,10 @@ function metadataAppointmentIds(value: unknown) {
   const ids = (value as { appointmentIds?: unknown }).appointmentIds;
   if (!Array.isArray(ids)) return [];
   return ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0);
+}
+
+function metadataAppointmentPendingPayment(value: unknown) {
+  return Boolean(value && typeof value === "object" && (value as { appointmentPendingPayment?: unknown }).appointmentPendingPayment === true);
 }
 
 function jsonOrNull(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {

@@ -123,6 +123,20 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function getTbankQr(input: {
+  credentials: TbankCredentials;
+  paymentId: string;
+  dataType: "IMAGE" | "PAYLOAD";
+}) {
+  const payload: Record<string, unknown> = {
+    TerminalKey: input.credentials.terminalKey,
+    PaymentId: input.paymentId,
+    DataType: input.dataType,
+  };
+  payload.Token = buildAccountTbankToken(payload, input.credentials.password);
+  return tbankRequest<TbankQrResponse>(input.credentials, "GetQr", payload);
+}
+
 export const tbankAccountPaymentProvider: AccountPaymentProviderAdapter = {
   code: "tbank",
 
@@ -164,32 +178,47 @@ export const tbankAccountPaymentProvider: AccountPaymentProviderAdapter = {
       throw new Error(init.Message || init.Details || "T-Bank payment init failed");
     }
 
-    let qrPayload: string | undefined;
-    let qrUrl: string | undefined;
-    if (input.method === "sbp") {
-      const qrRequest: Record<string, unknown> = {
-        TerminalKey: credentials.terminalKey,
-        PaymentId: init.PaymentId,
-      };
-      qrRequest.Token = buildAccountTbankToken(qrRequest, credentials.password);
-      const qr = await tbankRequest<TbankQrResponse>(credentials, "GetQr", qrRequest);
-      if (!qr.Success) {
-        throw new Error(qr.Message || qr.Details || "T-Bank SBP QR request failed");
+    let sbpQrSvg: string | null = null;
+    let sbpPayload: string | null = null;
+    let sbpQrError: string | null = null;
+    try {
+      const imageQr = await getTbankQr({ credentials, paymentId: init.PaymentId, dataType: "IMAGE" });
+      if (imageQr.Success) {
+        sbpQrSvg = imageQr.Data || imageQr.QR || imageQr.Payload || null;
+      } else {
+        sbpQrError = imageQr.Message || imageQr.Details || "T-Bank SBP QR request failed";
       }
-      qrPayload = qr.Payload || qr.Data || qr.QR;
-      qrUrl = qr.Data || qr.QR;
-      if (!qrUrl && !qrPayload) {
-        throw new Error("T-Bank SBP QR payload is missing");
-      }
+    } catch (error) {
+      sbpQrError = error instanceof Error ? error.message : "T-Bank SBP QR request failed";
     }
+    try {
+      const payloadQr = await getTbankQr({ credentials, paymentId: init.PaymentId, dataType: "PAYLOAD" });
+      if (payloadQr.Success) {
+        sbpPayload = payloadQr.Data || payloadQr.Payload || payloadQr.QR || null;
+      }
+    } catch {}
 
     return {
       provider: "tbank",
       providerRef: init.PaymentId,
       providerStatus: init.Status || "NEW",
       normalizedStatus: normalizeTbankStatus(init.Status || "NEW"),
-      paymentUrl: input.method === "sbp" ? qrUrl || qrPayload || init.PaymentURL : init.PaymentURL,
-      raw: { init, method: input.method, qrPayload, qrUrl },
+      paymentUrl: init.PaymentURL,
+      paymentMethods: {
+        cardUrl: init.PaymentURL,
+        sbpQrSvg,
+        sbpPayload,
+      },
+      raw: {
+        init,
+        method: input.method,
+        paymentMethods: {
+          cardUrl: init.PaymentURL,
+          sbpQrSvg,
+          sbpPayload,
+          sbpQrError,
+        },
+      },
     };
   },
 

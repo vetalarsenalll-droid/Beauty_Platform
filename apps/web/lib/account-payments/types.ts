@@ -111,6 +111,11 @@ export type CreateAccountPaymentResult = {
   providerStatus: string;
   normalizedStatus: NormalizedPaymentStatus;
   paymentUrl: string;
+  paymentMethods?: {
+    cardUrl?: string | null;
+    sbpQrSvg?: string | null;
+    sbpPayload?: string | null;
+  };
   raw: unknown;
 };
 
@@ -194,4 +199,3 @@ export function normalizeProviderCode(value: string): AccountPaymentProviderCode
   }
   throw new Error(`Unsupported account payment provider: ${value}`);
 }
-
