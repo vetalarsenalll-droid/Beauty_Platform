@@ -5196,7 +5196,7 @@ export default function BookingClient({
         paymentChoiceSheet: sheet,
         expiresAt: checkout.expiresAt ?? null,
       });
-      setPaymentStatusMessage("Ожидаем оплату через СБП.");
+      setPaymentStatusMessage(null);
       return true;
     }
 
@@ -7111,7 +7111,7 @@ export default function BookingClient({
                       href={paymentChoiceSheet.sbpPayload}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
+                      className="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold sm:hidden"
                       style={{
                         borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
                         backgroundColor: "var(--bp-accent)",
@@ -7129,10 +7129,10 @@ export default function BookingClient({
                   href={paymentChoiceSheet.cardPaymentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex w-full items-center justify-center border px-4 py-3 text-sm font-semibold"
+                  className="mx-4 mb-4 inline-flex w-[calc(100%-2rem)] items-center justify-center border px-4 py-3 text-sm font-semibold"
                   style={{
                     borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
-                    borderColor: "var(--booking-secondary-button-border, var(--bp-stroke))",
+                    borderColor: "var(--bp-accent)",
                     backgroundColor: "var(--booking-secondary-button-bg, transparent)",
                     color: "var(--booking-secondary-button-text, var(--bp-ink))",
                   }}
