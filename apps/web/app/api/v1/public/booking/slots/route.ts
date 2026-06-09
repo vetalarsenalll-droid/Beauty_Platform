@@ -12,6 +12,7 @@ import {
   getNowInTimeZone,
 } from "@/lib/public-booking";
 import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
+import { pendingPaymentAppointmentWhere } from "@/lib/public-booking-payments";
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
@@ -128,6 +129,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
+  const pendingPaymentNow = new Date();
   const [scheduleEntries, appointments, groupSessions, blockedSlots, holds, services] =
     await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
@@ -148,7 +150,10 @@ export async function GET(request: Request) {
         specialistId: { in: specialistIds },
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
-        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        OR: [
+          { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+          pendingPaymentAppointmentWhere(pendingPaymentNow),
+        ],
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

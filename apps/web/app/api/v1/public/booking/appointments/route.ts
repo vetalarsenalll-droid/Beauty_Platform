@@ -22,6 +22,7 @@ import {
   zonedDayRangeUtc,
   zonedTimeToUtc,
 } from "@/lib/public-booking";
+import { pendingPaymentAppointmentWhere } from "@/lib/public-booking-payments";
 
 type Window = { start: number; end: number };
 const overlaps = (a: Window, b: Window) => a.start < b.end && b.start < a.end;
@@ -573,9 +574,12 @@ export async function POST(request: Request) {
           accountId: resolved.account.id,
           locationId,
           specialistId,
-          status: { notIn: ["CANCELLED", "NO_SHOW"] },
           startAt: { lt: endAtUtc },
           endAt: { gt: startAtUtc },
+          OR: [
+            { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+            pendingPaymentAppointmentWhere(new Date()),
+          ],
         },
         select: {
           id: true,

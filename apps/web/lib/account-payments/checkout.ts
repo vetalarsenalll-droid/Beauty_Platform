@@ -25,6 +25,7 @@ export type CreateAccountCheckoutInput = {
   returnUrl?: string;
   failUrl?: string;
   idempotencyKey?: string;
+  expiresAt?: Date | null;
 };
 
 function publicOrigin() {
@@ -83,6 +84,7 @@ export async function createAccountCheckout(input: CreateAccountCheckoutInput) {
       idempotencyKey: input.idempotencyKey ?? `account_checkout_${input.accountId}_${Date.now()}`,
       returnUrl: input.returnUrl ?? null,
       failUrl: input.failUrl ?? null,
+      expiresAt: input.expiresAt ?? null,
       receiptRequested: Boolean(receiptItems?.length && loaded.connection.receiptEnabled),
       receiptPayload: receiptItems ? { items: receiptItems } : undefined,
     },

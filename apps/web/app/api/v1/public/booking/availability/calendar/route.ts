@@ -12,6 +12,7 @@ import {
   toZonedLocalMinutes,
 } from "@/lib/public-booking";
 import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
+import { pendingPaymentAppointmentWhere } from "@/lib/public-booking-payments";
 
 const DEFAULT_DAYS = 14;
 const MAX_DAYS = 93;
@@ -199,6 +200,7 @@ export async function GET(request: Request) {
 
   const specialistIds = specialists.map((s) => s.id);
 
+  const pendingPaymentNow = new Date();
   const [scheduleEntries, appointments, groupSessions, blockedSlots, holds] = await Promise.all([
     // ✅ ВАЖНО: ТОЛЬКО график выбранной локации (без locationId:null)
     prisma.scheduleEntry.findMany({
@@ -218,7 +220,10 @@ export async function GET(request: Request) {
         specialistId: { in: specialistIds },
         startAt: { lt: rangeEndUtc },
         endAt: { gt: rangeStartUtc },
-        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        OR: [
+          { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+          pendingPaymentAppointmentWhere(pendingPaymentNow),
+        ],
       },
       select: { specialistId: true, startAt: true, endAt: true },
     }),

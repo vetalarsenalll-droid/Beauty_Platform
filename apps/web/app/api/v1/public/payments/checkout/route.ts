@@ -203,12 +203,19 @@ export async function POST(request: Request) {
             discountAmountRub: calculation.discountAmountRub,
             remainingAmountRub: calculation.remainingAmountRub,
             scenario: calculation.scenario,
+            expiresAt: existingIntent.expiresAt?.toISOString() ?? null,
           },
         });
       }
 
       const customer = bodyCustomer(body);
       const shouldKeepSlotFreeUntilPaid = Boolean(appointment.account.settings?.requirePaymentToConfirm);
+      const paymentExpiresAt = shouldKeepSlotFreeUntilPaid
+        ? new Date(
+            Date.now() +
+              Math.min(Math.max(appointment.account.settings?.holdTtlMinutes ?? 5, 1), 30) * 60 * 1000
+          )
+        : null;
       const metadata = (appointmentIds.length > 1
         ? bookingChainPaymentMetadata({
             calculation,
@@ -237,6 +244,7 @@ export async function POST(request: Request) {
         returnUrl: cleanUrl(body.returnUrl),
         failUrl: cleanUrl(body.failUrl),
         idempotencyKey: request.headers.get("idempotency-key") || undefined,
+        expiresAt: paymentExpiresAt,
       });
 
       if (shouldKeepSlotFreeUntilPaid) {
@@ -265,6 +273,7 @@ export async function POST(request: Request) {
           discountAmountRub: calculation.discountAmountRub,
           remainingAmountRub: calculation.remainingAmountRub,
           scenario: calculation.scenario,
+          expiresAt: intent.expiresAt?.toISOString() ?? null,
         },
       });
     }
@@ -333,6 +342,7 @@ async function prismaAppointmentsForCheckout(appointmentIds: number[], accountId
               bookingPrepaymentPercent: true,
               bookingFullPaymentDiscountPercent: true,
               requirePaymentToConfirm: true,
+              holdTtlMinutes: true,
             },
           },
         },
@@ -351,6 +361,7 @@ async function prismaAppointmentsForCheckout(appointmentIds: number[], accountId
           provider: true,
           providerStatus: true,
           paymentUrl: true,
+          expiresAt: true,
           providerPayload: true,
           metadata: true,
         },

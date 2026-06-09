@@ -12,6 +12,7 @@ import {
   getNowInTimeZone,
 } from "@/lib/public-booking";
 import { BOOKING_HOLD_COOKIE, parseHoldProofToken } from "@/lib/public-booking-hold-proof";
+import { pendingPaymentAppointmentWhere } from "@/lib/public-booking-payments";
 
 type Window = { start: number; end: number };
 
@@ -137,6 +138,7 @@ export async function GET(request: Request) {
   for (const s of services) serviceById.set(s.id, s);
 
   // schedule + appointments + blocks
+  const pendingPaymentNow = new Date();
   const [scheduleEntries, appointments, groupSessions, blockedSlots, holds] = await Promise.all([
     prisma.scheduleEntry.findMany({
       where: {
@@ -154,7 +156,10 @@ export async function GET(request: Request) {
         specialistId: { in: specialistIds },
         startAt: { lt: dayEndUtc },
         endAt: { gt: dayStartUtc },
-        status: { notIn: ["CANCELLED", "NO_SHOW"] },
+        OR: [
+          { status: { notIn: ["CANCELLED", "NO_SHOW"] } },
+          pendingPaymentAppointmentWhere(pendingPaymentNow),
+        ],
         ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       },
       select: { specialistId: true, startAt: true, endAt: true },

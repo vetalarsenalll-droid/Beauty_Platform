@@ -18,21 +18,52 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
   const intent = await prisma.paymentIntent.findFirst({
     where: { id: intentId, accountId: resolved.account.id },
-    select: { id: true, status: true, providerStatus: true, providerRef: true, connectionId: true },
+    select: {
+      id: true,
+      status: true,
+      providerStatus: true,
+      providerRef: true,
+      connectionId: true,
+      paymentUrl: true,
+      expiresAt: true,
+      appointment: { select: { id: true, status: true } },
+    },
   });
   if (!intent) return jsonError("PAYMENT_NOT_FOUND", "Платеж не найден.", null, 404);
 
-  let refreshed = intent;
+  let refreshedStatus = intent.status;
+  let refreshedProviderStatus = intent.providerStatus;
   if (intent.providerRef && intent.connectionId && ["CREATED", "REQUIRES_ACTION", "PROCESSING"].includes(intent.status)) {
-    refreshed = await refreshAccountPaymentIntent(intent.id);
+    const refreshed = await refreshAccountPaymentIntent(intent.id);
+    refreshedStatus = refreshed.status;
+    refreshedProviderStatus = refreshed.providerStatus;
   }
+
+  const currentIntent =
+    refreshedStatus !== intent.status
+      ? await prisma.paymentIntent.findFirst({
+          where: { id: intentId, accountId: resolved.account.id },
+          select: {
+            id: true,
+            status: true,
+            providerStatus: true,
+            paymentUrl: true,
+            expiresAt: true,
+            appointment: { select: { id: true, status: true } },
+          },
+        })
+      : intent;
 
   return NextResponse.json({
     data: {
-      intentId: refreshed.id,
-      status: refreshed.status,
-      providerStatus: refreshed.providerStatus,
-      paid: refreshed.status === "SUCCEEDED",
+      intentId,
+      status: currentIntent?.status ?? refreshedStatus,
+      providerStatus: currentIntent?.providerStatus ?? refreshedProviderStatus,
+      paid: (currentIntent?.status ?? refreshedStatus) === "SUCCEEDED",
+      paymentUrl: currentIntent?.paymentUrl ?? null,
+      expiresAt: currentIntent?.expiresAt?.toISOString() ?? null,
+      appointmentId: currentIntent?.appointment?.id ?? null,
+      appointmentStatus: currentIntent?.appointment?.status ?? null,
     },
   });
 }
