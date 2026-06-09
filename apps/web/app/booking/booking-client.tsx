@@ -7036,7 +7036,17 @@ export default function BookingClient({
       </div>
       {paymentChoiceSheet ? (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/45 px-4 py-6">
-          <div className="w-full max-w-[420px] rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+          <div
+            className="w-full max-w-[420px] border p-5 shadow-[var(--bp-shadow-soft)]"
+            style={{
+              borderRadius: "var(--booking-panel-radius, var(--bp-radius, 24px))",
+              borderColor: "var(--booking-panel-border, var(--bp-stroke))",
+              borderWidth: "var(--booking-border-width, 1px)",
+              backgroundColor: "var(--bp-paper)",
+              color: "var(--bp-ink)",
+              fontFamily: "var(--bp-font-body, var(--site-font-body, inherit))",
+            }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Оплата</div>
@@ -7052,7 +7062,13 @@ export default function BookingClient({
               <button
                 type="button"
                 onClick={() => setPaymentChoiceSheet(null)}
-                className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-sm"
+                className="border px-3 py-1 text-sm"
+                style={{
+                  borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                  borderColor: "var(--booking-secondary-button-border, var(--bp-stroke))",
+                  backgroundColor: "var(--booking-secondary-button-bg, transparent)",
+                  color: "var(--booking-secondary-button-text, var(--bp-ink))",
+                }}
                 aria-label="Закрыть оплату"
               >
                 ×
@@ -7061,7 +7077,15 @@ export default function BookingClient({
 
             <div className="mt-5 grid gap-3">
               {paymentChoiceSheet.sbpQrSvg ? (
-                <div className="rounded-2xl border border-[color:var(--bp-stroke)] p-4 text-center">
+                <div
+                  className="border p-4 text-center"
+                  style={{
+                    borderRadius: "var(--booking-card-radius, var(--booking-panel-radius, 24px))",
+                    borderColor: "var(--booking-card-border, var(--bp-stroke))",
+                    backgroundColor: "var(--booking-sub-bg, transparent)",
+                    backgroundImage: "var(--booking-card-gradient, none)",
+                  }}
+                >
                   <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Оплатить через СБП</div>
                   <div className="mx-auto mt-3 flex max-w-[260px] justify-center rounded-xl bg-white p-3">
                     {paymentQrMarkup ? (
@@ -7087,7 +7111,12 @@ export default function BookingClient({
                       href={paymentChoiceSheet.sbpPayload}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-[color:var(--bp-accent)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-button-text)]"
+                      className="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold"
+                      style={{
+                        borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                        backgroundColor: "var(--bp-accent)",
+                        color: "var(--bp-button-text)",
+                      }}
                     >
                       Открыть банк
                     </a>
@@ -7100,7 +7129,13 @@ export default function BookingClient({
                   href={paymentChoiceSheet.cardPaymentUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex w-full items-center justify-center rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3 text-sm font-semibold text-[color:var(--bp-ink)]"
+                  className="inline-flex w-full items-center justify-center border px-4 py-3 text-sm font-semibold"
+                  style={{
+                    borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                    borderColor: "var(--booking-secondary-button-border, var(--bp-stroke))",
+                    backgroundColor: "var(--booking-secondary-button-bg, transparent)",
+                    color: "var(--booking-secondary-button-text, var(--bp-ink))",
+                  }}
                 >
                   Оплатить картой
                 </a>

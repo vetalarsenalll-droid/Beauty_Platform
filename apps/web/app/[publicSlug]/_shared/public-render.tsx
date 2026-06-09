@@ -1311,7 +1311,7 @@ function renderAisha(
   );
 }
 
-function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
+export function buildBookingVars(style: BlockStyle, theme: SiteTheme) {
   const blockWidthColumns = clampBlockColumns(
     style.blockWidthColumns ?? DEFAULT_BLOCK_COLUMNS,
     "booking"
