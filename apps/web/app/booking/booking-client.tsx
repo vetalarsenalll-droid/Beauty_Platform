@@ -206,6 +206,7 @@ type PendingBookingPayment = {
   selectionKey: string;
   intentId?: number | null;
   paymentUrl?: string | null;
+  paymentChoiceSheet?: PaymentChoiceSheet | null;
   expiresAt?: string | null;
 };
 
@@ -5192,6 +5193,7 @@ export default function BookingClient({
         selectionKey: bookingPaymentSelectionKey,
         intentId: checkout.intentId,
         paymentUrl: checkout.paymentUrl,
+        paymentChoiceSheet: sheet,
         expiresAt: checkout.expiresAt ?? null,
       });
       setPaymentStatusMessage("Ожидаем оплату через СБП.");
@@ -5215,6 +5217,7 @@ export default function BookingClient({
         selectionKey: bookingPaymentSelectionKey,
         intentId: checkout.intentId,
         paymentUrl: sheet.cardPaymentUrl || sheet.paymentUrl || checkout.paymentUrl,
+        paymentChoiceSheet: sheet,
         expiresAt: checkout.expiresAt ?? null,
       });
       return true;
@@ -5327,7 +5330,8 @@ export default function BookingClient({
           if (paymentState !== "closed") {
             if (paymentState === "open" && pendingBookingPayment.paymentUrl) {
               setPaymentChoiceSheet((current) =>
-                current ?? {
+                current ??
+                pendingBookingPayment.paymentChoiceSheet ?? {
                   intentId: pendingBookingPayment.intentId!,
                   amountRub: null,
                   paymentUrl: pendingBookingPayment.paymentUrl ?? null,
