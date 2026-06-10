@@ -277,6 +277,7 @@ export default function PublicCoverV2Hero({
                 ...textCss,
                 textAlign: contentAlign,
                 color: descriptionColor,
+                whiteSpace: "pre-line",
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,

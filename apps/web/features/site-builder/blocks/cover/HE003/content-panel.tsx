@@ -1,6 +1,9 @@
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
-import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
+import {
+  renderCoverFlatMultilineTextInput,
+  renderCoverFlatTextInput,
+} from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,8 +13,6 @@ type ImageSource = {
   url?: string;
 };
 
-const flatTextareaClass =
-  "mt-2 min-h-32 w-full resize-y appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-[color:var(--bp-ink)] focus:shadow-none focus:outline-none focus:ring-0";
 const imageActionButtonClass =
   "inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60";
 
@@ -172,16 +173,11 @@ export function CoverV3ContentPanel(ctx: CrmPanelCtx) {
         (block.data.subtitle as string) ?? "",
         (value) => updateData({ subtitle: value })
       )}
-      <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-        <div className="min-h-[32px] leading-4">Описание</div>
-        <textarea
-          value={(block.data.description as string) ?? ""}
-          onChange={(event) => updateData({ description: event.target.value })}
-          rows={5}
-          className={flatTextareaClass}
-          style={{ borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
-        />
-      </label>
+      {renderCoverFlatMultilineTextInput(
+        "Описание",
+        (block.data.description as string) ?? "",
+        (value) => updateData({ description: value })
+      )}
 
       <div className="grid grid-cols-[auto,1fr] items-end gap-4">
         <FlatCheckbox

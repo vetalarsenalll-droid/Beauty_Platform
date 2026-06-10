@@ -1,6 +1,9 @@
 import { UnoptimizedImage } from "@/components/unoptimized-image";
 import { PAGE_KEYS, PAGE_LABELS } from "@/features/site-builder/crm/site-client-core";
-import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
+import {
+  renderCoverFlatMultilineTextInput,
+  renderCoverFlatTextInput,
+} from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -15,8 +18,6 @@ type Slide = {
   imageUrl: string;
 };
 
-const flatTextareaClass =
-  "mt-2 min-h-32 w-full resize-y appearance-none rounded-none border-0 border-b border-[color:var(--bp-stroke)] bg-transparent px-0 py-2 text-base font-normal normal-case tracking-normal shadow-none outline-none ring-0 focus:border-[color:var(--bp-ink)] focus:shadow-none focus:outline-none focus:ring-0";
 const imageActionButtonClass =
   "inline-flex h-9 items-center justify-center rounded-[4px] border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-3 text-sm disabled:opacity-60";
 
@@ -355,16 +356,9 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
             {isExpanded ? (
             <div className="space-y-3 px-3 pb-4 pt-1">
               {renderCoverFlatTextInput("Заголовок", slide.title, (value) => updateSlide({ title: value }))}
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
-                <div className="min-h-[32px] leading-4">Описание</div>
-                <textarea
-                  value={slide.description}
-                  onChange={(event) => updateSlide({ description: event.target.value })}
-                  rows={5}
-                  className={flatTextareaClass}
-                  style={{ borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
-                />
-              </label>
+              {renderCoverFlatMultilineTextInput("Описание", slide.description, (value) =>
+                updateSlide({ description: value })
+              )}
               {renderCoverFlatTextInput("Текст кнопки", slide.buttonText, (value) => updateSlide({ buttonText: value }))}
 
               <label className="block">

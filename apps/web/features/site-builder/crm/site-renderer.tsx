@@ -3407,6 +3407,7 @@ function CoverVariantV2Hero({
                 ...textStyle(style, theme),
                 textAlign: contentAlign,
                 color: descriptionColor || subtitleColor,
+                whiteSpace: "pre-line",
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,
@@ -4343,6 +4344,7 @@ export function renderCover(
                     ...textStyle(style, theme),
                     color: descriptionColor,
                     textAlign: contentAlign,
+                    whiteSpace: "pre-line",
                     marginLeft:
                       contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                     marginRight: contentAlign === "center" ? "auto" : 0,
@@ -4552,6 +4554,7 @@ export function renderCover(
               style={{
                 ...textStyle(style, theme),
                 textAlign: contentAlign,
+                whiteSpace: "pre-line",
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,

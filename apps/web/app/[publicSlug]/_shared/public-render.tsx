@@ -2442,6 +2442,7 @@ function renderCover(
                     ...textStyle(style),
                     color: descriptionColor,
                     textAlign: contentAlign,
+                    whiteSpace: "pre-line",
                     marginLeft:
                       contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                     marginRight: contentAlign === "center" ? "auto" : 0,
@@ -2640,6 +2641,7 @@ function renderCover(
               style={{
                 ...textStyle(style),
                 textAlign: contentAlign,
+                whiteSpace: "pre-line",
                 marginLeft:
                   contentAlign === "center" || contentAlign === "right" ? "auto" : 0,
                 marginRight: contentAlign === "center" ? "auto" : 0,

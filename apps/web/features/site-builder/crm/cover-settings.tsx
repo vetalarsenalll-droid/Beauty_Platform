@@ -15,6 +15,7 @@ import {
   type BlockStyle,
 } from "./site-renderer";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
+import { useLayoutEffect, useRef } from "react";
 
 export type CoverBackgroundMode = "solid" | "linear" | "radial";
 
@@ -442,6 +443,49 @@ export function renderCoverFlatTextInput(
       </div>
     </label>
   );
+}
+
+export function CoverFlatMultilineTextInput({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useLayoutEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [value]);
+
+  return (
+    <label className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-[color:var(--bp-muted)]">
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className="mt-2 border-b border-[color:var(--bp-stroke)] pb-1">
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          rows={1}
+          className="block w-full resize-none appearance-none overflow-hidden border-0 bg-transparent px-0 py-1 text-base font-normal leading-6 normal-case tracking-normal shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0"
+          style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+        />
+      </div>
+    </label>
+  );
+}
+
+export function renderCoverFlatMultilineTextInput(
+  label: string,
+  value: string,
+  onChange: (value: string) => void
+) {
+  return <CoverFlatMultilineTextInput label={label} value={value} onChange={onChange} />;
 }
 
 export function renderCoverFlatNumberInput(
