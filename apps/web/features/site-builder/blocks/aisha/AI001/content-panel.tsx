@@ -5,12 +5,13 @@ import { FlatCheckbox } from "@/features/site-builder/crm/site-renderer";
 import { renderCoverFlatTextInput } from "@/features/site-builder/crm/cover-settings";
 import type { CrmPanelCtx } from "../../runtime/contracts";
 import { flatNumber, textValue, updateData } from "../../runtime/ui/flat-panel-helpers";
+import {
+  getCachedAishaAssetItems,
+  loadAishaAssetItems,
+  type AishaAssetOption,
+} from "./aisha-assets";
 
-type AishaAssetOption = { name: string; label: string; url: string };
 type PreviewBounds = { left: number; top: number; width: number; height: number };
-
-const aishaAssetListCache: Record<string, AishaAssetOption[] | undefined> = {};
-const aishaAssetListRequests: Record<string, Promise<AishaAssetOption[]> | undefined> = {};
 
 function LoadingAssetsLabel() {
   return (
@@ -33,55 +34,18 @@ function normalizeAishaText(ctx: CrmPanelCtx, key: string, fallback = "Асси�
   return value;
 }
 
-function normalizeAssetItems(payload: unknown): AishaAssetOption[] {
-  const items =
-    payload && typeof payload === "object" && Array.isArray((payload as { items?: unknown }).items)
-      ? (payload as { items: unknown[] }).items
-      : [];
-
-  return items.filter(
-    (item: unknown): item is AishaAssetOption =>
-      Boolean(
-        item &&
-          typeof item === "object" &&
-          typeof (item as AishaAssetOption).name === "string" &&
-          typeof (item as AishaAssetOption).label === "string" &&
-          typeof (item as AishaAssetOption).url === "string"
-      )
-  );
-}
-
-function loadAssetItems(endpoint: string) {
-  if (aishaAssetListCache[endpoint]) {
-    return Promise.resolve(aishaAssetListCache[endpoint]);
-  }
-
-  aishaAssetListRequests[endpoint] ??= fetch(endpoint)
-    .then((response) => (response.ok ? response.json() : { items: [] }))
-    .then((payload) => {
-      const items = normalizeAssetItems(payload);
-      aishaAssetListCache[endpoint] = items;
-      return items;
-    })
-    .catch(() => {
-      aishaAssetListCache[endpoint] = [];
-      return [];
-    });
-
-  return aishaAssetListRequests[endpoint];
-}
-
 function AishaWidgetIconPicker({ ctx }: { ctx: CrmPanelCtx }) {
   const data = ctx.block.data as Record<string, unknown>;
   const selectedUrl = typeof data.widgetIconImageUrl === "string" ? data.widgetIconImageUrl : "";
   const endpoint = "/api/v1/site-builder/aisha-icons";
-  const [items, setItems] = useState<AishaAssetOption[]>(aishaAssetListCache[endpoint] ?? []);
-  const [loading, setLoading] = useState(!aishaAssetListCache[endpoint]);
+  const cachedItems = getCachedAishaAssetItems(endpoint);
+  const [items, setItems] = useState<AishaAssetOption[]>(cachedItems ?? []);
+  const [loading, setLoading] = useState(!cachedItems);
   const [open, setOpen] = useState(Boolean(selectedUrl));
 
   useEffect(() => {
     let cancelled = false;
-    loadAssetItems(endpoint).then((nextItems) => {
+    loadAishaAssetItems(endpoint).then((nextItems) => {
       if (!cancelled) {
         setItems(nextItems);
         setLoading(false);
@@ -148,8 +112,9 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
   const data = ctx.block.data as Record<string, unknown>;
   const selectedUrl = typeof data.chatBackgroundImageUrl === "string" ? data.chatBackgroundImageUrl : "";
   const endpoint = "/api/v1/site-builder/aisha-backgrounds";
-  const [items, setItems] = useState<AishaAssetOption[]>(aishaAssetListCache[endpoint] ?? []);
-  const [loading, setLoading] = useState(!aishaAssetListCache[endpoint]);
+  const cachedItems = getCachedAishaAssetItems(endpoint);
+  const [items, setItems] = useState<AishaAssetOption[]>(cachedItems ?? []);
+  const [loading, setLoading] = useState(!cachedItems);
   const [open, setOpen] = useState(Boolean(selectedUrl));
   const [previewItem, setPreviewItem] = useState<AishaAssetOption | null>(null);
   const [previewBounds, setPreviewBounds] = useState<PreviewBounds | null>(null);
@@ -179,7 +144,7 @@ function AishaChatBackgroundPicker({ ctx }: { ctx: CrmPanelCtx }) {
 
   useEffect(() => {
     let cancelled = false;
-    loadAssetItems(endpoint).then((nextItems) => {
+    loadAishaAssetItems(endpoint).then((nextItems) => {
       if (!cancelled) {
         setItems(nextItems);
         setLoading(false);

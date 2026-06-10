@@ -53,6 +53,10 @@ import {
   PRIMARY_LIBRARY_BLOCK_TYPES,
   getBlockVariants,
 } from "@/features/site-builder/blocks/block-registry";
+import {
+  preloadAishaAssets,
+  preloadAssetImage,
+} from "@/features/site-builder/blocks/aisha/AI001/aisha-assets";
 import type { BlockCode } from "@/features/site-builder/blocks/runtime/contracts";
 import { resolveBlockVersion } from "@/features/site-builder/blocks/runtime/resolve-block-version";
 
@@ -178,6 +182,16 @@ function getLibraryBlockCode(type: BlockType, variant: SiteBlock["variant"]): Bl
 
 function getLibraryPreviewSrc(code: BlockCode) {
   return `/api/v1/site-builder/block-preview/${code}`;
+}
+
+function scheduleAssetPreload(callback: () => void) {
+  if (typeof window === "undefined") return;
+  if ("requestIdleCallback" in window) {
+    const requestIdleCallback = window.requestIdleCallback as (handler: () => void, options?: { timeout?: number }) => number;
+    requestIdleCallback(callback, { timeout: 1200 });
+    return;
+  }
+  globalThis.setTimeout(callback, 250);
 }
 
 function getLibraryLabel(type: BlockType, activePage: SitePageKey) {
@@ -452,6 +466,15 @@ export default function SiteClient({
   useEffect(() => {
     setSpecialists(initialSpecialists);
   }, [initialSpecialists]);
+
+  useEffect(() => {
+    scheduleAssetPreload(() => {
+      preloadAishaAssets();
+      LIBRARY_BLOCK_TYPES.flatMap((type) =>
+        getBlockVariants(type).map((variant) => getLibraryPreviewSrc(getLibraryBlockCode(type, variant)))
+      ).forEach(preloadAssetImage);
+    });
+  }, []);
 
   useEffect(() => {
     setBookingSettings(initialBookingSettings);
