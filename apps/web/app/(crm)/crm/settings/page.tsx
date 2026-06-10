@@ -5,10 +5,7 @@ import SettingsClient from "./settings-client";
 export default async function CrmSettingsPage() {
   const session = await requireCrmPermission("crm.settings.read");
 
-  const [booking, legalDocs, profile] = await Promise.all([
-    prisma.accountSetting.findUnique({
-      where: { accountId: session.accountId },
-    }),
+  const [legalDocs, profile] = await Promise.all([
     prisma.legalDocument.findMany({
       where: { accountId: session.accountId },
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
@@ -24,16 +21,6 @@ export default async function CrmSettingsPage() {
       where: { accountId: session.accountId },
     }),
   ]);
-
-  const bookingSettings = {
-    slotStepMinutes: booking?.slotStepMinutes ?? 15,
-    requireDeposit: booking?.requireDeposit ?? false,
-    requirePaymentToConfirm: booking?.requirePaymentToConfirm ?? false,
-    cancellationWindowHours: booking?.cancellationWindowHours ?? null,
-    rescheduleWindowHours: booking?.rescheduleWindowHours ?? null,
-    holdTtlMinutes: booking?.holdTtlMinutes ?? null,
-    defaultReminderHours: booking?.defaultReminderHours ?? null,
-  };
 
   const legalSettings = legalDocs.map((doc) => ({
     id: doc.id,
@@ -51,7 +38,6 @@ export default async function CrmSettingsPage() {
     <div className="flex flex-col gap-6">
 
       <SettingsClient
-        initialBooking={bookingSettings}
         initialLegalDocs={legalSettings}
         initialProfile={{
           description: profile?.description ?? "",

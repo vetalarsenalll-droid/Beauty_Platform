@@ -29,6 +29,14 @@ type BookingPaymentSettings = {
   bookingFullPaymentDiscountPercent: number | null;
 };
 
+type BookingPolicySettings = {
+  slotStepMinutes: number;
+  cancellationWindowHours: number | null;
+  rescheduleWindowHours: number | null;
+  holdTtlMinutes: number | null;
+  defaultReminderHours: number | null;
+};
+
 const defaultBookingPaymentSettings: BookingPaymentSettings = {
   bookingOnlinePaymentMode: "DISABLED",
   bookingAllowPayLater: true,
@@ -38,6 +46,14 @@ const defaultBookingPaymentSettings: BookingPaymentSettings = {
   bookingPrepaymentAmount: null,
   bookingPrepaymentPercent: null,
   bookingFullPaymentDiscountPercent: null,
+};
+
+const defaultBookingPolicySettings: BookingPolicySettings = {
+  slotStepMinutes: 15,
+  cancellationWindowHours: null,
+  rescheduleWindowHours: null,
+  holdTtlMinutes: null,
+  defaultReminderHours: null,
 };
 
 const slugify = (value: string) =>
@@ -89,12 +105,38 @@ function renderTextInput(
   );
 }
 
+function renderNumberInput(
+  label: string,
+  value: number | null,
+  onChange: (value: number | null) => void,
+  options: { min?: number; step?: number | string } = {}
+) {
+  return (
+    <label className={labelClass}>
+      <div className="min-h-[32px] leading-4">{label}</div>
+      <div className={fieldWrapClass}>
+        <input
+          type="number"
+          min={options.min}
+          step={options.step}
+          value={value ?? ""}
+          onChange={(event) => onChange(event.target.value === "" ? null : Number(event.target.value))}
+          className={fieldClass}
+          style={{ border: 0, borderRadius: 0, backgroundColor: "transparent", boxShadow: "none" }}
+        />
+      </div>
+    </label>
+  );
+}
+
 export function BO001ContentPanel(ctx: CrmPanelCtx) {
   const [legalDocs, setLegalDocs] = useState<LegalDoc[]>([]);
   const [bookingPayment, setBookingPayment] = useState<BookingPaymentSettings>(defaultBookingPaymentSettings);
+  const [bookingPolicy, setBookingPolicy] = useState<BookingPolicySettings>(defaultBookingPolicySettings);
   const [loading, setLoading] = useState(true);
   const [bookingLoading, setBookingLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingBookingPolicy, setSavingBookingPolicy] = useState(false);
   const [savingBookingPayment, setSavingBookingPayment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const sectionTitle = ctx.currentPanelSections[0]?.label ?? "Документы и согласия";
@@ -150,6 +192,16 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
             payload?.data?.bookingFullPaymentDiscountPercent ??
             defaultBookingPaymentSettings.bookingFullPaymentDiscountPercent,
         });
+        setBookingPolicy({
+          slotStepMinutes: payload?.data?.slotStepMinutes ?? defaultBookingPolicySettings.slotStepMinutes,
+          cancellationWindowHours:
+            payload?.data?.cancellationWindowHours ?? defaultBookingPolicySettings.cancellationWindowHours,
+          rescheduleWindowHours:
+            payload?.data?.rescheduleWindowHours ?? defaultBookingPolicySettings.rescheduleWindowHours,
+          holdTtlMinutes: payload?.data?.holdTtlMinutes ?? defaultBookingPolicySettings.holdTtlMinutes,
+          defaultReminderHours:
+            payload?.data?.defaultReminderHours ?? defaultBookingPolicySettings.defaultReminderHours,
+        });
       })
       .catch(() => {
         if (!cancelled) setMessage("Не удалось загрузить правила онлайн-оплаты.");
@@ -196,6 +248,31 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
     }
   };
 
+  const saveBookingPolicy = async () => {
+    setSavingBookingPolicy(true);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/v1/crm/settings/booking", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingPolicy),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { data?: Partial<BookingPolicySettings>; message?: string; error?: { message?: string } }
+        | null;
+      if (!response.ok || !payload?.data) {
+        setMessage(payload?.error?.message ?? payload?.message ?? "Не удалось сохранить политики записи.");
+        return;
+      }
+      setBookingPolicy((current) => ({ ...current, ...payload.data }));
+      setMessage("Политики записи сохранены.");
+    } catch {
+      setMessage("Не удалось сохранить политики записи.");
+    } finally {
+      setSavingBookingPolicy(false);
+    }
+  };
+
   const saveBookingPayment = async () => {
     setSavingBookingPayment(true);
     setMessage(null);
@@ -230,22 +307,67 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
         {sectionTitle}
       </div>
 
-      <div className="border-b border-[color:var(--bp-stroke)] pb-5">
-        <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Документы и согласия</div>
-        <div className="mt-2 text-xs leading-5 text-[color:var(--bp-muted)]">
-          Эти документы используются на шаге контактов в онлайн-записи. Обязательные документы
-          показываются как чекбоксы согласия.
-        </div>
-        <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
-          Всего: {legalDocs.length}. Обязательных: {requiredCount}.
-        </div>
-      </div>
-
       {message ? (
         <div className="border-b border-[color:var(--bp-stroke)] pb-3 text-sm text-[color:var(--bp-ink)]">
           {message}
         </div>
       ) : null}
+
+      <div className="border-b border-[color:var(--bp-stroke)] pb-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Политики записи</div>
+            <div className="mt-2 text-xs leading-5 text-[color:var(--bp-muted)]">
+              Эти правила управляют шагом слотов, удержанием выбранного времени и окнами отмены или переноса записи.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={saveBookingPolicy}
+            disabled={savingBookingPolicy || bookingLoading}
+            className="shrink-0 rounded-none bg-[color:var(--bp-ink)] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {savingBookingPolicy ? "Сохранение..." : "Сохранить правила"}
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          {renderNumberInput(
+            "Шаг слота (мин)",
+            bookingPolicy.slotStepMinutes,
+            (value) =>
+              setBookingPolicy((current) => ({
+                ...current,
+                slotStepMinutes: value ?? defaultBookingPolicySettings.slotStepMinutes,
+              })),
+            { min: 5, step: 5 }
+          )}
+          {renderNumberInput(
+            "Время удержания слота (мин)",
+            bookingPolicy.holdTtlMinutes,
+            (value) => setBookingPolicy((current) => ({ ...current, holdTtlMinutes: value })),
+            { min: 1 }
+          )}
+          {renderNumberInput(
+            "Окно отмены (часы)",
+            bookingPolicy.cancellationWindowHours,
+            (value) => setBookingPolicy((current) => ({ ...current, cancellationWindowHours: value })),
+            { min: 0 }
+          )}
+          {renderNumberInput(
+            "Окно переноса (часы)",
+            bookingPolicy.rescheduleWindowHours,
+            (value) => setBookingPolicy((current) => ({ ...current, rescheduleWindowHours: value })),
+            { min: 0 }
+          )}
+          {renderNumberInput(
+            "Напоминание по умолчанию (часы)",
+            bookingPolicy.defaultReminderHours,
+            (value) => setBookingPolicy((current) => ({ ...current, defaultReminderHours: value })),
+            { min: 0 }
+          )}
+        </div>
+      </div>
 
       <div className="border-b border-[color:var(--bp-stroke)] pb-5">
         <div className="flex items-start justify-between gap-4">
@@ -378,6 +500,17 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
         <div className="text-sm text-[color:var(--bp-muted)]">Загрузка документов...</div>
       ) : (
         <div>
+          <div className="border-b border-[color:var(--bp-stroke)] pb-5">
+            <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Документы и согласия</div>
+            <div className="mt-2 text-xs leading-5 text-[color:var(--bp-muted)]">
+              Эти документы используются на шаге контактов в онлайн-записи. Обязательные документы
+              показываются как чекбоксы согласия.
+            </div>
+            <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
+              Всего: {legalDocs.length}. Обязательных: {requiredCount}.
+            </div>
+          </div>
+
           {legalDocs.map((doc, index) => (
             <details key={`${doc.id ?? "new"}-${index}`} className="group border-b border-[color:var(--bp-stroke)] py-4">
               <summary className="flex cursor-pointer list-none items-start justify-between gap-3">

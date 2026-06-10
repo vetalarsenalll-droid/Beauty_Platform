@@ -2,6 +2,7 @@ import { requireCrmPermission } from "@/lib/auth";
 import { money } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import Link from "next/link";
 import AccountPaymentsClient from "./account-payments-client";
 import PaymentRefundAction from "./payment-refund-action";
 import SubscriptionCheckout from "./subscription-checkout";
@@ -125,7 +126,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
     ];
   }
 
-  const [account, plans, subscription, invoices, accountPaymentConnections, accountSettings, clientPayments] = await Promise.all([
+  const [account, plans, subscription, invoices, accountPaymentConnections, clientPayments] = await Promise.all([
     prisma.account.findUnique({
       where: { id: session.accountId },
       select: { planId: true, plan: { select: { name: true } } },
@@ -176,19 +177,6 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
         currency: true,
         lastTestedAt: true,
         lastTestStatus: true,
-      },
-    }),
-    prisma.accountSetting.findUnique({
-      where: { accountId: session.accountId },
-      select: {
-        bookingOnlinePaymentMode: true,
-        bookingAllowPayLater: true,
-        bookingAllowPrepaymentFixed: true,
-        bookingAllowPrepaymentPercent: true,
-        bookingAllowFullPayment: true,
-        bookingPrepaymentAmount: true,
-        bookingPrepaymentPercent: true,
-        bookingFullPaymentDiscountPercent: true,
       },
     }),
     prisma.paymentIntent.findMany({
@@ -263,24 +251,6 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
 
       <AccountPaymentsClient
         initialConnections={paymentConnections}
-        initialBookingPayment={{
-          bookingOnlinePaymentMode: accountSettings?.bookingOnlinePaymentMode ?? "DISABLED",
-          bookingAllowPayLater: accountSettings?.bookingAllowPayLater ?? true,
-          bookingAllowPrepaymentFixed:
-            accountSettings?.bookingAllowPrepaymentFixed ??
-            accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
-          bookingAllowPrepaymentPercent:
-            accountSettings?.bookingAllowPrepaymentPercent ??
-            accountSettings?.bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
-          bookingAllowFullPayment:
-            accountSettings?.bookingAllowFullPayment ??
-            accountSettings?.bookingOnlinePaymentMode === "FULL_PAYMENT",
-          bookingPrepaymentAmount: accountSettings?.bookingPrepaymentAmount ? Number(accountSettings.bookingPrepaymentAmount) : null,
-          bookingPrepaymentPercent: accountSettings?.bookingPrepaymentPercent ? Number(accountSettings.bookingPrepaymentPercent) : null,
-          bookingFullPaymentDiscountPercent: accountSettings?.bookingFullPaymentDiscountPercent
-            ? Number(accountSettings.bookingFullPaymentDiscountPercent)
-            : null,
-        }}
       />
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
@@ -289,9 +259,9 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
             <h2 className="text-lg font-semibold">Платежи клиентов</h2>
             <p className="mt-1 text-sm text-[color:var(--bp-muted)]">Онлайн-оплаты записей, тестовые платежи и статусы провайдеров.</p>
           </div>
-          <a href="/crm/payments" className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm hover:border-[color:var(--bp-accent)]">
+          <Link href="/crm/payments" className="rounded-xl border border-[color:var(--bp-stroke)] px-3 py-2 text-sm hover:border-[color:var(--bp-accent)]">
             Сбросить фильтры
-          </a>
+          </Link>
         </div>
 
         <form method="get" className="mt-4 grid gap-3 md:grid-cols-4">

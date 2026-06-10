@@ -9,16 +9,6 @@ const slugify = (value: string) =>
     .replace(/\s+/g, "-")
     .replace(/[^a-z0-9-]/g, "");
 
-type BookingSettings = {
-  slotStepMinutes: number;
-  requireDeposit: boolean;
-  requirePaymentToConfirm: boolean;
-  cancellationWindowHours: number | null;
-  rescheduleWindowHours: number | null;
-  holdTtlMinutes: number | null;
-  defaultReminderHours: number | null;
-};
-
 type LegalDoc = {
   id?: number;
   key: string;
@@ -47,46 +37,24 @@ type AccountProfile = {
 };
 
 type SettingsClientProps = {
-  initialBooking: BookingSettings;
   initialLegalDocs: LegalDoc[];
   initialProfile: AccountProfile;
 };
 
 const tabs = [
-  { key: "booking", label: "Бронирование" },
   { key: "legal", label: "Документы" },
   { key: "profile", label: "Профиль аккаунта" },
 ];
 
 export default function SettingsClient({
-  initialBooking,
   initialLegalDocs,
   initialProfile,
 }: SettingsClientProps) {
-  const [activeTab, setActiveTab] = useState("booking");
-  const [booking, setBooking] = useState(initialBooking);
+  const [activeTab, setActiveTab] = useState("legal");
   const [legalDocs, setLegalDocs] = useState<LegalDoc[]>(initialLegalDocs);
   const [profile, setProfile] = useState<AccountProfile>(initialProfile);
   const [saving, setSaving] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-
-  const saveBooking = async () => {
-    setSaving("booking");
-    setMessage(null);
-    const response = await fetch("/api/v1/crm/settings/booking", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(booking),
-    });
-    if (response.ok) {
-      const data = await response.json();
-      setBooking(data.data);
-      setMessage("Настройки бронирования сохранены.");
-    } else {
-      setMessage("Не удалось сохранить настройки.");
-    }
-    setSaving(null);
-  };
 
   const saveLegal = async () => {
     setSaving("legal");
@@ -154,134 +122,6 @@ export default function SettingsClient({
         <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3 text-sm">
           {message}
         </div>
-      )}
-
-      {activeTab === "booking" && (
-        <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Политики записи</h2>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <label className="text-sm">
-              Шаг слота (мин)
-              <input
-                type="number"
-                min={5}
-                step={5}
-                value={booking.slotStepMinutes}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    slotStepMinutes: Number(e.target.value),
-                  }))
-                }
-                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm">
-              Время удержания слота (мин)
-              <input
-                type="number"
-                min={1}
-                value={booking.holdTtlMinutes ?? ""}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    holdTtlMinutes: e.target.value ? Number(e.target.value) : null,
-                  }))
-                }
-                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm">
-              Окно отмены (часы)
-              <input
-                type="number"
-                min={0}
-                value={booking.cancellationWindowHours ?? ""}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    cancellationWindowHours: e.target.value ? Number(e.target.value) : null,
-                  }))
-                }
-                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm">
-              Окно переноса (часы)
-              <input
-                type="number"
-                min={0}
-                value={booking.rescheduleWindowHours ?? ""}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    rescheduleWindowHours: e.target.value ? Number(e.target.value) : null,
-                  }))
-                }
-                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
-              />
-            </label>
-
-            <label className="text-sm">
-              Напоминание по умолчанию (часы)
-              <input
-                type="number"
-                min={0}
-                value={booking.defaultReminderHours ?? ""}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    defaultReminderHours: e.target.value ? Number(e.target.value) : null,
-                  }))
-                }
-                className="mt-2 w-full rounded-xl border border-[color:var(--bp-stroke)] bg-white px-3 py-2"
-              />
-            </label>
-          </div>
-
-          <div className="mt-4 grid gap-3">
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={booking.requireDeposit}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    requireDeposit: e.target.checked,
-                  }))
-                }
-              />
-              Требовать депозит
-            </label>
-            <label className="flex items-center gap-3 text-sm">
-              <input
-                type="checkbox"
-                checked={booking.requirePaymentToConfirm}
-                onChange={(e) =>
-                  setBooking((prev) => ({
-                    ...prev,
-                    requirePaymentToConfirm: e.target.checked,
-                  }))
-                }
-              />
-              Подтверждать запись только после оплаты
-            </label>
-          </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              type="button"
-              onClick={saveBooking}
-              className="rounded-2xl bg-[color:var(--bp-accent)] px-5 py-2 text-sm font-semibold text-white"
-              disabled={saving === "booking"}
-            >
-              {saving === "booking" ? "Сохранение..." : "Сохранить"}
-            </button>
-          </div>
-        </section>
       )}
 
       {activeTab === "legal" && (

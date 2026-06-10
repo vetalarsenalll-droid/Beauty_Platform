@@ -30,6 +30,8 @@ const toBookingPaymentMode = (value: unknown) => {
   return bookingPaymentModes.has(mode) ? mode : null;
 };
 
+const hasOwn = (body: Record<string, unknown>, key: string) => Object.prototype.hasOwnProperty.call(body, key);
+
 function legacyAllows(settings: { bookingOnlinePaymentMode?: string | null } | null | undefined) {
   const mode = settings?.bookingOnlinePaymentMode ?? "DISABLED";
   return {
@@ -125,10 +127,10 @@ export async function PATCH(request: Request) {
   if (bookingFullPaymentDiscountPercent !== null) {
     data.bookingFullPaymentDiscountPercent = Math.min(100, Math.max(0, bookingFullPaymentDiscountPercent));
   }
-  data.cancellationWindowHours = cancellationWindowHours;
-  data.rescheduleWindowHours = rescheduleWindowHours;
-  data.holdTtlMinutes = holdTtlMinutes;
-  data.defaultReminderHours = defaultReminderHours;
+  if (hasOwn(body, "cancellationWindowHours")) data.cancellationWindowHours = cancellationWindowHours;
+  if (hasOwn(body, "rescheduleWindowHours")) data.rescheduleWindowHours = rescheduleWindowHours;
+  if (hasOwn(body, "holdTtlMinutes")) data.holdTtlMinutes = holdTtlMinutes;
+  if (hasOwn(body, "defaultReminderHours")) data.defaultReminderHours = defaultReminderHours;
 
   const nextAllows = {
     bookingAllowPayLater:
