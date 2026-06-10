@@ -2415,6 +2415,7 @@ function renderCover(
                 style={{
                   ...headingStyle(style),
                   textAlign: contentAlign,
+                  whiteSpace: "pre-line",
                   fontSize: "var(--bp-cover-heading-size)",
                   ...(resolveAnimStyle(animHeading, 0) ?? {}),
                 }}
@@ -2428,6 +2429,7 @@ function renderCover(
                     ...subheadingStyle(style),
                     color: subtitleColor,
                     textAlign: contentAlign,
+                    whiteSpace: "pre-line",
                     fontSize: "var(--bp-cover-subheading-size)",
                     ...(resolveAnimStyle(animDescription, 120) ?? {}),
                   }}
@@ -2615,6 +2617,7 @@ function renderCover(
             style={{
               ...headingStyle(style),
               textAlign: contentAlign,
+              whiteSpace: "pre-line",
               fontSize: "var(--bp-cover-heading-size)",
               ...(resolveAnimStyle(animHeading, 0) ?? {}),
             }}
@@ -2628,6 +2631,7 @@ function renderCover(
                 ...subheadingStyle(style),
                 textAlign: contentAlign,
                 color: subtitleColor,
+                whiteSpace: "pre-line",
                 fontSize: "var(--bp-cover-subheading-size)",
                 ...(resolveAnimStyle(animDescription, 120) ?? {}),
               }}

@@ -3392,6 +3392,7 @@ function CoverVariantV2Hero({
             style={{
               ...headingStyle(style, theme),
               textAlign: contentAlign,
+              whiteSpace: "pre-line",
               fontSize: `clamp(${headingMobileSize}px, 9cqw, ${Math.max(
                 headingMobileSize,
                 forceMobileLayout ? headingMobileSize : headingDesktopSize
@@ -4310,6 +4311,7 @@ export function renderCover(
                   style={{
                     ...headingStyle(style, theme),
                     textAlign: contentAlign,
+                    whiteSpace: "pre-line",
                     fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
                       effectiveHeadingMobileSize,
                       forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
@@ -4326,11 +4328,12 @@ export function renderCover(
                   style={{
                     ...subheadingStyle(style, theme),
                     color: subtitleColor,
-                textAlign: contentAlign,
-                fontSize: `clamp(${v1SubheadingMobileSize}px, ${forceMobileLayout ? "4.6cqw" : "5.8cqw"}, ${Math.max(
-                  v1SubheadingMobileSize,
-                  forceMobileLayout ? effectiveSubheadingMobileSize : subheadingDesktopSize
-                )}px)`,
+                    textAlign: contentAlign,
+                    whiteSpace: "pre-line",
+                    fontSize: `clamp(${v1SubheadingMobileSize}px, ${forceMobileLayout ? "4.6cqw" : "5.8cqw"}, ${Math.max(
+                      v1SubheadingMobileSize,
+                      forceMobileLayout ? effectiveSubheadingMobileSize : subheadingDesktopSize
+                    )}px)`,
                     ...(resolveAnimStyle(animSubtitle, 120) ?? {}),
                   }}
                 >
@@ -4521,6 +4524,7 @@ export function renderCover(
               style={{
                 ...headingStyle(style, theme),
                 textAlign: contentAlign,
+                whiteSpace: "pre-line",
                 fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
                   effectiveHeadingMobileSize,
                   forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
@@ -4537,6 +4541,7 @@ export function renderCover(
               style={{
                 ...subheadingStyle(style, theme),
                 textAlign: contentAlign,
+                whiteSpace: "pre-line",
                 color: subtitleColor,
                 fontSize: `clamp(${effectiveSubheadingMobileSize}px, ${forceMobileLayout ? "5cqw" : "5.8cqw"}, ${Math.max(
                   effectiveSubheadingMobileSize,

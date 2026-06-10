@@ -214,12 +214,12 @@ export function CoverV1ContentPanel(ctx: CrmPanelCtx) {
 
   return (
     <div className="space-y-6" onClick={(event) => event.stopPropagation()}>
-      {renderCoverFlatTextInput(
+      {renderCoverFlatMultilineTextInput(
         "Заголовок",
         (block.data.title as string) ?? "",
         (value) => updateData({ title: value })
       )}
-      {renderCoverFlatTextInput(
+      {renderCoverFlatMultilineTextInput(
         "Подзаголовок",
         (block.data.subtitle as string) ?? "",
         (value) => updateData({ subtitle: value })

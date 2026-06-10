@@ -3190,8 +3190,8 @@ export function BlockStyleEditor({
           {renderFlatNumber(
             "Размер шрифта",
             style.headingSize ?? theme.headingSize,
-            0,
-            140,
+            12,
+            100,
             (value) => update({ headingSize: value }),
             {
               key: "mobileHeadingSize",
@@ -3227,7 +3227,7 @@ export function BlockStyleEditor({
               {renderFlatNumber(
                 "Размер шрифта",
                 style.subheadingSize ?? theme.subheadingSize,
-                0,
+                12,
                 100,
                 (value) => update({ subheadingSize: value }),
                 {
@@ -3270,8 +3270,8 @@ export function BlockStyleEditor({
           {renderFlatNumber(
             "Размер шрифта",
             style.textSize ?? theme.textSize,
-            0,
-            72,
+            12,
+            100,
             (value) => update({ textSize: value }),
             {
               key: "mobileTextSize",

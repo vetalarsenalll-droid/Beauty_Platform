@@ -13,6 +13,11 @@ function updateSelected(ctx: CrmPanelCtx, next: unknown) {
 }
 
 const HE001_DEFAULT_IMAGE_URL = "/api/v1/site-builder/block-preview/HE001";
+const HE001_DEFAULT_TITLE = "СЕРВИС, КОТОРОМУ ДОВЕРЯЮТ";
+const HE001_DEFAULT_SUBTITLE = "ВАШ КОМФОРТ В НАДЁЖНЫХ РУКАХ";
+const HE001_DEFAULT_DESCRIPTION =
+  "Современные решения и забота о деталях, чтобы вы чувствовали себя лучше каждый день";
+const HE001_DEFAULT_BUTTON_TEXT = "Записаться онлайн";
 
 export const HE001: BlockVersion = {
   blockCode: "HE001",
@@ -35,10 +40,19 @@ export const HE001: BlockVersion = {
       variant: "v1",
       data: {
         ...base,
-        title: "Онлайн-запись",
+        title: HE001_DEFAULT_TITLE,
+        subtitle: HE001_DEFAULT_SUBTITLE,
+        description: HE001_DEFAULT_DESCRIPTION,
+        buttonText: HE001_DEFAULT_BUTTON_TEXT,
         imageSource: { type: "custom", url: HE001_DEFAULT_IMAGE_URL },
         secondaryButtonSource: "",
-        style: { ...defaultBlockStyle, ...baseStyle },
+        style: {
+          ...defaultBlockStyle,
+          ...baseStyle,
+          headingSize: 26,
+          subheadingSize: 100,
+          textSize: 20,
+        },
       },
     };
   },

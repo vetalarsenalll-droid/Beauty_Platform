@@ -1529,7 +1529,14 @@ export function createBlock(type: BlockType): SiteBlock {
   const base = defaultBlockData[type] ?? {};
   const coverDefaults =
     type === "cover"
-      ? { imageSource: { type: "custom", url: "/api/v1/site-builder/block-preview/HE001" } }
+      ? {
+          title: "СЕРВИС, КОТОРОМУ ДОВЕРЯЮТ",
+          subtitle: "ВАШ КОМФОРТ В НАДЁЖНЫХ РУКАХ",
+          description:
+            "Современные решения и забота о деталях, чтобы вы чувствовали себя лучше каждый день",
+          buttonText: "Записаться онлайн",
+          imageSource: { type: "custom", url: "/api/v1/site-builder/block-preview/HE001" },
+        }
       : {};
   return {
     id: makeBlockId(),
@@ -1541,6 +1548,9 @@ export function createBlock(type: BlockType): SiteBlock {
       style: {
         ...defaultBlockStyle,
         ...(typeof base.style === "object" && base.style ? base.style : {}),
+        ...(type === "cover"
+          ? { headingSize: 26, subheadingSize: 100, textSize: 20 }
+          : {}),
       },
     },
   };

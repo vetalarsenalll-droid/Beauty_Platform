@@ -265,6 +265,7 @@ export default function PublicCoverV2Hero({
             style={{
               ...headingCss,
               textAlign: contentAlign,
+              whiteSpace: "pre-line",
               fontSize: "var(--bp-cover-heading-size)",
             }}
           >

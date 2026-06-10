@@ -220,6 +220,10 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
           : { ...defaultBlockStyle };
       block.data = {
         ...block.data,
+        title: "",
+        subtitle: "Онлайн-запись по услугам, специалистам и слотам",
+        description: "Выберите услугу, специалиста или группу и удобное время.",
+        buttonText: "Записаться онлайн",
         align: "center",
         imageSource: { type: "none" },
         style: {
@@ -238,6 +242,10 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
           : { ...defaultBlockStyle };
       block.data = {
         ...block.data,
+        title: "",
+        subtitle: "Онлайн-запись по услугам, специалистам и слотам",
+        description: "Выберите услугу, специалиста или группу и удобное время.",
+        buttonText: "Записаться онлайн",
         secondaryButtonSource: "",
         imageSource: { type: "none" },
         align: "left",

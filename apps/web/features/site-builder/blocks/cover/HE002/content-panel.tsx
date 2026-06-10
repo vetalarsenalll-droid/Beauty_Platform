@@ -355,7 +355,9 @@ export function CoverV2ContentPanel(ctx: CrmPanelCtx) {
 
             {isExpanded ? (
             <div className="space-y-3 px-3 pb-4 pt-1">
-              {renderCoverFlatTextInput("Заголовок", slide.title, (value) => updateSlide({ title: value }))}
+              {renderCoverFlatMultilineTextInput("Заголовок", slide.title, (value) =>
+                updateSlide({ title: value })
+              )}
               {renderCoverFlatMultilineTextInput("Описание", slide.description, (value) =>
                 updateSlide({ description: value })
               )}
