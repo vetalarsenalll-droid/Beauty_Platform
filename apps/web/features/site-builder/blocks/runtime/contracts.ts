@@ -1,8 +1,10 @@
 import type { Dispatch, ReactNode, RefObject, SetStateAction } from "react";
 import type { SiteBlock, SiteTheme } from "@/lib/site-builder";
 import type {
+  SiteBookingSettings as BookingSettings,
   SiteBranding as Branding,
   SiteEditorAccountProfile as AccountProfile,
+  SiteEditableLegalDocumentItem as EditableLegalDocumentItem,
   SiteLegalDocumentItem as LegalDocumentItem,
   SiteLocationItem as LocationItem,
   SitePromoItem as PromoItem,
@@ -86,6 +88,8 @@ export type CrmPanelCtx = {
   promos: PromoItem[];
   legalDocuments: LegalDocumentItem[];
   platformLegalDocuments: LegalDocumentItem[];
+  bookingSettings: BookingSettings;
+  editableLegalDocuments: EditableLegalDocumentItem[];
 
   activeTheme: SiteTheme;
   panelTheme: PanelTheme;
@@ -107,4 +111,6 @@ export type CrmPanelCtx = {
   updateLocationItem?: (location: LocationItem) => void;
   updateServiceItem?: (service: ServiceItem) => void;
   updateSpecialistItem?: (specialist: SpecialistItem) => void;
+  updateBookingSettings?: (settings: BookingSettings) => void;
+  updateEditableLegalDocuments?: (documents: EditableLegalDocumentItem[]) => void;
 };

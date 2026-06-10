@@ -9,7 +9,9 @@ import {
 import type {
   SiteAccountInfoWithPublicSlug as AccountInfo,
   SiteBranding as Branding,
+  SiteBookingSettings as BookingSettings,
   SiteEditorAccountProfile as AccountProfile,
+  SiteEditableLegalDocumentItem as EditableLegalDocumentItem,
   SiteLocationItem as LocationItem,
   SiteLegalDocumentItem as LegalDocumentItem,
   SitePromoItem as PromoItem,
@@ -51,6 +53,8 @@ export type SiteClientProps = {
   initialMobileViewport?: MobileViewportKey;
   initialPublicPage: PublicPageData;
   initialSeoPageSettings: SiteSeoPageSetting[];
+  initialBookingSettings: BookingSettings;
+  initialEditableLegalDocuments: EditableLegalDocumentItem[];
   account: AccountInfo;
   accountProfile: AccountProfile;
   branding: Branding;

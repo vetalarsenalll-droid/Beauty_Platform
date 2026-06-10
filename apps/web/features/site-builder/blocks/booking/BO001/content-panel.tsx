@@ -37,17 +37,6 @@ type BookingPolicySettings = {
   defaultReminderHours: number | null;
 };
 
-const defaultBookingPaymentSettings: BookingPaymentSettings = {
-  bookingOnlinePaymentMode: "DISABLED",
-  bookingAllowPayLater: true,
-  bookingAllowPrepaymentFixed: false,
-  bookingAllowPrepaymentPercent: false,
-  bookingAllowFullPayment: false,
-  bookingPrepaymentAmount: null,
-  bookingPrepaymentPercent: null,
-  bookingFullPaymentDiscountPercent: null,
-};
-
 const defaultBookingPolicySettings: BookingPolicySettings = {
   slotStepMinutes: 15,
   cancellationWindowHours: null,
@@ -130,89 +119,55 @@ function renderNumberInput(
 }
 
 export function BO001ContentPanel(ctx: CrmPanelCtx) {
-  const [legalDocs, setLegalDocs] = useState<LegalDoc[]>([]);
-  const [bookingPayment, setBookingPayment] = useState<BookingPaymentSettings>(defaultBookingPaymentSettings);
-  const [bookingPolicy, setBookingPolicy] = useState<BookingPolicySettings>(defaultBookingPolicySettings);
-  const [loading, setLoading] = useState(true);
-  const [bookingLoading, setBookingLoading] = useState(true);
+  const [legalDocs, setLegalDocs] = useState<LegalDoc[]>(ctx.editableLegalDocuments);
+  const [bookingPayment, setBookingPayment] = useState<BookingPaymentSettings>({
+    bookingOnlinePaymentMode: ctx.bookingSettings.bookingOnlinePaymentMode,
+    bookingAllowPayLater: ctx.bookingSettings.bookingAllowPayLater,
+    bookingAllowPrepaymentFixed: ctx.bookingSettings.bookingAllowPrepaymentFixed,
+    bookingAllowPrepaymentPercent: ctx.bookingSettings.bookingAllowPrepaymentPercent,
+    bookingAllowFullPayment: ctx.bookingSettings.bookingAllowFullPayment,
+    bookingPrepaymentAmount: ctx.bookingSettings.bookingPrepaymentAmount,
+    bookingPrepaymentPercent: ctx.bookingSettings.bookingPrepaymentPercent,
+    bookingFullPaymentDiscountPercent: ctx.bookingSettings.bookingFullPaymentDiscountPercent,
+  });
+  const [bookingPolicy, setBookingPolicy] = useState<BookingPolicySettings>({
+    slotStepMinutes: ctx.bookingSettings.slotStepMinutes,
+    cancellationWindowHours: ctx.bookingSettings.cancellationWindowHours,
+    rescheduleWindowHours: ctx.bookingSettings.rescheduleWindowHours,
+    holdTtlMinutes: ctx.bookingSettings.holdTtlMinutes,
+    defaultReminderHours: ctx.bookingSettings.defaultReminderHours,
+  });
   const [saving, setSaving] = useState(false);
   const [savingBookingPolicy, setSavingBookingPolicy] = useState(false);
   const [savingBookingPayment, setSavingBookingPayment] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const sectionTitle = ctx.currentPanelSections[0]?.label ?? "Документы и согласия";
+  const loading = false;
+  const bookingLoading = false;
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetch("/api/v1/crm/settings/legal")
-      .then((response) => response.json())
-      .then((payload) => {
-        if (cancelled) return;
-        setLegalDocs(Array.isArray(payload?.data) ? payload.data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setMessage("Не удалось загрузить документы.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    setLegalDocs(ctx.editableLegalDocuments);
+  }, [ctx.editableLegalDocuments]);
 
   useEffect(() => {
-    let cancelled = false;
-    setBookingLoading(true);
-    fetch("/api/v1/crm/settings/booking")
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          throw new Error(payload?.message ?? payload?.error?.message ?? "Failed to load booking settings");
-        }
-        return payload;
-      })
-      .then((payload) => {
-        if (cancelled) return;
-        const legacyMode =
-          payload?.data?.bookingOnlinePaymentMode ?? defaultBookingPaymentSettings.bookingOnlinePaymentMode;
-        setBookingPayment({
-          bookingOnlinePaymentMode: legacyMode,
-          bookingAllowPayLater: payload?.data?.bookingAllowPayLater ?? true,
-          bookingAllowPrepaymentFixed:
-            payload?.data?.bookingAllowPrepaymentFixed ?? legacyMode === "PREPAYMENT_FIXED",
-          bookingAllowPrepaymentPercent:
-            payload?.data?.bookingAllowPrepaymentPercent ?? legacyMode === "PREPAYMENT_PERCENT",
-          bookingAllowFullPayment: payload?.data?.bookingAllowFullPayment ?? legacyMode === "FULL_PAYMENT",
-          bookingPrepaymentAmount:
-            payload?.data?.bookingPrepaymentAmount ?? defaultBookingPaymentSettings.bookingPrepaymentAmount,
-          bookingPrepaymentPercent:
-            payload?.data?.bookingPrepaymentPercent ?? defaultBookingPaymentSettings.bookingPrepaymentPercent,
-          bookingFullPaymentDiscountPercent:
-            payload?.data?.bookingFullPaymentDiscountPercent ??
-            defaultBookingPaymentSettings.bookingFullPaymentDiscountPercent,
-        });
-        setBookingPolicy({
-          slotStepMinutes: payload?.data?.slotStepMinutes ?? defaultBookingPolicySettings.slotStepMinutes,
-          cancellationWindowHours:
-            payload?.data?.cancellationWindowHours ?? defaultBookingPolicySettings.cancellationWindowHours,
-          rescheduleWindowHours:
-            payload?.data?.rescheduleWindowHours ?? defaultBookingPolicySettings.rescheduleWindowHours,
-          holdTtlMinutes: payload?.data?.holdTtlMinutes ?? defaultBookingPolicySettings.holdTtlMinutes,
-          defaultReminderHours:
-            payload?.data?.defaultReminderHours ?? defaultBookingPolicySettings.defaultReminderHours,
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setMessage("Не удалось загрузить правила онлайн-оплаты.");
-      })
-      .finally(() => {
-        if (!cancelled) setBookingLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    setBookingPayment({
+      bookingOnlinePaymentMode: ctx.bookingSettings.bookingOnlinePaymentMode,
+      bookingAllowPayLater: ctx.bookingSettings.bookingAllowPayLater,
+      bookingAllowPrepaymentFixed: ctx.bookingSettings.bookingAllowPrepaymentFixed,
+      bookingAllowPrepaymentPercent: ctx.bookingSettings.bookingAllowPrepaymentPercent,
+      bookingAllowFullPayment: ctx.bookingSettings.bookingAllowFullPayment,
+      bookingPrepaymentAmount: ctx.bookingSettings.bookingPrepaymentAmount,
+      bookingPrepaymentPercent: ctx.bookingSettings.bookingPrepaymentPercent,
+      bookingFullPaymentDiscountPercent: ctx.bookingSettings.bookingFullPaymentDiscountPercent,
+    });
+    setBookingPolicy({
+      slotStepMinutes: ctx.bookingSettings.slotStepMinutes,
+      cancellationWindowHours: ctx.bookingSettings.cancellationWindowHours,
+      rescheduleWindowHours: ctx.bookingSettings.rescheduleWindowHours,
+      holdTtlMinutes: ctx.bookingSettings.holdTtlMinutes,
+      defaultReminderHours: ctx.bookingSettings.defaultReminderHours,
+    });
+  }, [ctx.bookingSettings]);
 
   const requiredCount = useMemo(
     () => legalDocs.filter((doc) => doc.isRequired).length,
@@ -239,7 +194,9 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
         setMessage(payload?.message ?? "Не удалось сохранить документы.");
         return;
       }
-      setLegalDocs(Array.isArray(payload?.data) ? payload.data : documents);
+      const nextDocuments = Array.isArray(payload?.data) ? payload.data : documents;
+      setLegalDocs(nextDocuments);
+      ctx.updateEditableLegalDocuments?.(nextDocuments);
       setMessage("Документы сохранены.");
     } catch {
       setMessage("Не удалось сохранить документы.");
@@ -264,7 +221,15 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
         setMessage(payload?.error?.message ?? payload?.message ?? "Не удалось сохранить политики записи.");
         return;
       }
-      setBookingPolicy((current) => ({ ...current, ...payload.data }));
+      const nextSettings = { ...ctx.bookingSettings, ...payload.data };
+      setBookingPolicy({
+        slotStepMinutes: nextSettings.slotStepMinutes,
+        cancellationWindowHours: nextSettings.cancellationWindowHours,
+        rescheduleWindowHours: nextSettings.rescheduleWindowHours,
+        holdTtlMinutes: nextSettings.holdTtlMinutes,
+        defaultReminderHours: nextSettings.defaultReminderHours,
+      });
+      ctx.updateBookingSettings?.(nextSettings);
       setMessage("Политики записи сохранены.");
     } catch {
       setMessage("Не удалось сохранить политики записи.");
@@ -292,7 +257,18 @@ export function BO001ContentPanel(ctx: CrmPanelCtx) {
         setMessage(payload?.error?.message ?? payload?.message ?? "Не удалось сохранить правила онлайн-оплаты.");
         return;
       }
-      setBookingPayment((current) => ({ ...current, ...payload.data }));
+      const nextSettings = { ...ctx.bookingSettings, ...payload.data };
+      setBookingPayment({
+        bookingOnlinePaymentMode: nextSettings.bookingOnlinePaymentMode,
+        bookingAllowPayLater: nextSettings.bookingAllowPayLater,
+        bookingAllowPrepaymentFixed: nextSettings.bookingAllowPrepaymentFixed,
+        bookingAllowPrepaymentPercent: nextSettings.bookingAllowPrepaymentPercent,
+        bookingAllowFullPayment: nextSettings.bookingAllowFullPayment,
+        bookingPrepaymentAmount: nextSettings.bookingPrepaymentAmount,
+        bookingPrepaymentPercent: nextSettings.bookingPrepaymentPercent,
+        bookingFullPaymentDiscountPercent: nextSettings.bookingFullPaymentDiscountPercent,
+      });
+      ctx.updateBookingSettings?.(nextSettings);
       setMessage("Правила онлайн-оплаты записи сохранены.");
     } catch {
       setMessage("Не удалось сохранить правила онлайн-оплаты.");

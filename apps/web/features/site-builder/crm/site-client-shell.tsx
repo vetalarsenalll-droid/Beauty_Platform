@@ -406,6 +406,8 @@ export default function SiteClient({
   initialMobileViewport = "mobile360",
   initialPublicPage,
   initialSeoPageSettings,
+  initialBookingSettings,
+  initialEditableLegalDocuments,
   account,
   accountProfile,
   branding,
@@ -424,6 +426,8 @@ export default function SiteClient({
   const [editableLocations, setEditableLocations] = useState<LocationItem[]>(locations);
   const [services, setServices] = useState<ServiceItem[]>(initialServices);
   const [specialists, setSpecialists] = useState<SpecialistItem[]>(initialSpecialists);
+  const [bookingSettings, setBookingSettings] = useState(initialBookingSettings);
+  const [editableLegalDocuments, setEditableLegalDocuments] = useState(initialEditableLegalDocuments);
   const [publishedPageUrl, setPublishedPageUrl] = useState<string | null>(null);
   const {
     draft,
@@ -448,6 +452,14 @@ export default function SiteClient({
   useEffect(() => {
     setSpecialists(initialSpecialists);
   }, [initialSpecialists]);
+
+  useEffect(() => {
+    setBookingSettings(initialBookingSettings);
+  }, [initialBookingSettings]);
+
+  useEffect(() => {
+    setEditableLegalDocuments(initialEditableLegalDocuments);
+  }, [initialEditableLegalDocuments]);
 
   const updateLocationItem = (location: LocationItem) => {
     setEditableLocations((prev) => prev.map((item) => (item.id === location.id ? location : item)));
@@ -2544,6 +2556,10 @@ export default function SiteClient({
                       updateSpecialistItem,
                       legalDocuments,
                       platformLegalDocuments,
+                      bookingSettings,
+                      editableLegalDocuments,
+                      updateBookingSettings: setBookingSettings,
+                      updateEditableLegalDocuments: setEditableLegalDocuments,
                       currentEntity,
                     })
                   ) : (
@@ -2576,6 +2592,10 @@ export default function SiteClient({
                       updateSpecialistItem,
                       legalDocuments,
                       platformLegalDocuments,
+                      bookingSettings,
+                      editableLegalDocuments,
+                      updateBookingSettings: setBookingSettings,
+                      updateEditableLegalDocuments: setEditableLegalDocuments,
                       currentEntity,
                     })
                   )
@@ -2675,6 +2695,10 @@ export default function SiteClient({
                     updateSpecialistItem,
                     legalDocuments,
                     platformLegalDocuments,
+                    bookingSettings,
+                    editableLegalDocuments,
+                    updateBookingSettings: setBookingSettings,
+                    updateEditableLegalDocuments: setEditableLegalDocuments,
                     currentEntity,
                   })
                 : null}

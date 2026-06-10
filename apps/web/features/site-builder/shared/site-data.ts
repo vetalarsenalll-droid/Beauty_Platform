@@ -185,6 +185,36 @@ export type SiteLegalDocumentItem = {
   publishedAt: string;
 };
 
+export type SiteEditableLegalDocumentItem = {
+  id?: number;
+  key: string;
+  title: string;
+  description?: string | null;
+  isRequired: boolean;
+  sortOrder: number;
+  content: string;
+  versionId?: number | null;
+  version?: number | null;
+};
+
+export type SiteBookingSettings = {
+  slotStepMinutes: number;
+  requireDeposit: boolean;
+  requirePaymentToConfirm: boolean;
+  bookingOnlinePaymentMode: "DISABLED" | "PREPAYMENT_FIXED" | "PREPAYMENT_PERCENT" | "FULL_PAYMENT";
+  bookingAllowPayLater: boolean;
+  bookingAllowPrepaymentFixed: boolean;
+  bookingAllowPrepaymentPercent: boolean;
+  bookingAllowFullPayment: boolean;
+  bookingPrepaymentAmount: number | null;
+  bookingPrepaymentPercent: number | null;
+  bookingFullPaymentDiscountPercent: number | null;
+  cancellationWindowHours: number | null;
+  rescheduleWindowHours: number | null;
+  holdTtlMinutes: number | null;
+  defaultReminderHours: number | null;
+};
+
 export type SitePaymentSettings = {
   requireDeposit: boolean;
   requirePaymentToConfirm: boolean;

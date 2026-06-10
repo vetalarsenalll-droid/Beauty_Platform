@@ -131,6 +131,7 @@ export default async function CrmSitePage({
     legalDocs,
     platformLegalDocs,
     seoPageSettings,
+    bookingSettings,
   ] = await Promise.all([
     prisma.location.findMany({
       where: { accountId: session.accountId },
@@ -200,9 +201,11 @@ export default async function CrmSitePage({
       orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
       select: {
         id: true,
+        key: true,
         title: true,
         description: true,
         isRequired: true,
+        sortOrder: true,
         versions: {
           where: { isActive: true },
           orderBy: { version: "desc" },
@@ -229,6 +232,26 @@ export default async function CrmSitePage({
     prisma.seoPageSetting.findMany({
       where: { accountId: session.accountId },
       orderBy: { pageKey: "asc" },
+    }),
+    prisma.accountSetting.findUnique({
+      where: { accountId: session.accountId },
+      select: {
+        slotStepMinutes: true,
+        requireDeposit: true,
+        requirePaymentToConfirm: true,
+        bookingOnlinePaymentMode: true,
+        bookingAllowPayLater: true,
+        bookingAllowPrepaymentFixed: true,
+        bookingAllowPrepaymentPercent: true,
+        bookingAllowFullPayment: true,
+        bookingPrepaymentAmount: true,
+        bookingPrepaymentPercent: true,
+        bookingFullPaymentDiscountPercent: true,
+        cancellationWindowHours: true,
+        rescheduleWindowHours: true,
+        holdTtlMinutes: true,
+        defaultReminderHours: true,
+      },
     }),
   ]);
 
@@ -432,6 +455,32 @@ export default async function CrmSitePage({
   };
 
   const publicSlug = account ? buildPublicSlugId(account.slug, account.id) : null;
+  const bookingOnlinePaymentMode = bookingSettings?.bookingOnlinePaymentMode ?? "DISABLED";
+  const initialBookingSettings = {
+    slotStepMinutes: bookingSettings?.slotStepMinutes ?? 15,
+    requireDeposit: bookingSettings?.requireDeposit ?? false,
+    requirePaymentToConfirm: bookingSettings?.requirePaymentToConfirm ?? false,
+    bookingOnlinePaymentMode,
+    bookingAllowPayLater: bookingSettings?.bookingAllowPayLater ?? true,
+    bookingAllowPrepaymentFixed:
+      bookingSettings?.bookingAllowPrepaymentFixed ?? bookingOnlinePaymentMode === "PREPAYMENT_FIXED",
+    bookingAllowPrepaymentPercent:
+      bookingSettings?.bookingAllowPrepaymentPercent ?? bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
+    bookingAllowFullPayment: bookingSettings?.bookingAllowFullPayment ?? bookingOnlinePaymentMode === "FULL_PAYMENT",
+    bookingPrepaymentAmount: bookingSettings?.bookingPrepaymentAmount
+      ? Number(bookingSettings.bookingPrepaymentAmount)
+      : null,
+    bookingPrepaymentPercent: bookingSettings?.bookingPrepaymentPercent
+      ? Number(bookingSettings.bookingPrepaymentPercent)
+      : null,
+    bookingFullPaymentDiscountPercent: bookingSettings?.bookingFullPaymentDiscountPercent
+      ? Number(bookingSettings.bookingFullPaymentDiscountPercent)
+      : null,
+    cancellationWindowHours: bookingSettings?.cancellationWindowHours ?? null,
+    rescheduleWindowHours: bookingSettings?.rescheduleWindowHours ?? null,
+    holdTtlMinutes: bookingSettings?.holdTtlMinutes ?? null,
+    defaultReminderHours: bookingSettings?.defaultReminderHours ?? null,
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -455,6 +504,18 @@ export default async function CrmSitePage({
           canonicalUrl: item.canonicalUrl ?? "",
           noIndex: item.noIndex ?? false,
           noFollow: item.noFollow ?? false,
+        }))}
+        initialBookingSettings={initialBookingSettings}
+        initialEditableLegalDocuments={legalDocs.map((doc) => ({
+          id: doc.id,
+          key: doc.key,
+          title: doc.title,
+          description: doc.description,
+          isRequired: doc.isRequired,
+          sortOrder: doc.sortOrder,
+          versionId: doc.versions[0]?.id ?? null,
+          version: doc.versions[0]?.version ?? null,
+          content: doc.versions[0]?.content ?? "",
         }))}
         account={{
           id: account?.id ?? session.accountId,
