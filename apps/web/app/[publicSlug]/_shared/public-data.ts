@@ -593,15 +593,14 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
     bookingAllowFullPayment:
       accountSettings?.bookingAllowFullPayment ??
       accountSettings?.bookingOnlinePaymentMode === "FULL_PAYMENT",
-    bookingPrepaymentAmount: accountSettings?.bookingPrepaymentAmount
-      ? Number(accountSettings.bookingPrepaymentAmount)
-      : null,
-    bookingPrepaymentPercent: accountSettings?.bookingPrepaymentPercent
-      ? Number(accountSettings.bookingPrepaymentPercent)
-      : null,
-    bookingFullPaymentDiscountPercent: accountSettings?.bookingFullPaymentDiscountPercent
-      ? Number(accountSettings.bookingFullPaymentDiscountPercent)
-      : null,
+    bookingPrepaymentAmount:
+      accountSettings?.bookingPrepaymentAmount == null ? null : Number(accountSettings.bookingPrepaymentAmount),
+    bookingPrepaymentPercent:
+      accountSettings?.bookingPrepaymentPercent == null ? null : Number(accountSettings.bookingPrepaymentPercent),
+    bookingFullPaymentDiscountPercent:
+      accountSettings?.bookingFullPaymentDiscountPercent == null
+        ? null
+        : Number(accountSettings.bookingFullPaymentDiscountPercent),
     onlinePaymentAvailable: Boolean(defaultPaymentConnection),
     provider: defaultPaymentConnection?.provider ?? null,
     mode: defaultPaymentConnection?.mode ?? null,

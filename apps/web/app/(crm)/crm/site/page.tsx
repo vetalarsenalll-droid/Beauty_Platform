@@ -467,15 +467,14 @@ export default async function CrmSitePage({
     bookingAllowPrepaymentPercent:
       bookingSettings?.bookingAllowPrepaymentPercent ?? bookingOnlinePaymentMode === "PREPAYMENT_PERCENT",
     bookingAllowFullPayment: bookingSettings?.bookingAllowFullPayment ?? bookingOnlinePaymentMode === "FULL_PAYMENT",
-    bookingPrepaymentAmount: bookingSettings?.bookingPrepaymentAmount
-      ? Number(bookingSettings.bookingPrepaymentAmount)
-      : null,
-    bookingPrepaymentPercent: bookingSettings?.bookingPrepaymentPercent
-      ? Number(bookingSettings.bookingPrepaymentPercent)
-      : null,
-    bookingFullPaymentDiscountPercent: bookingSettings?.bookingFullPaymentDiscountPercent
-      ? Number(bookingSettings.bookingFullPaymentDiscountPercent)
-      : null,
+    bookingPrepaymentAmount:
+      bookingSettings?.bookingPrepaymentAmount == null ? null : Number(bookingSettings.bookingPrepaymentAmount),
+    bookingPrepaymentPercent:
+      bookingSettings?.bookingPrepaymentPercent == null ? null : Number(bookingSettings.bookingPrepaymentPercent),
+    bookingFullPaymentDiscountPercent:
+      bookingSettings?.bookingFullPaymentDiscountPercent == null
+        ? null
+        : Number(bookingSettings.bookingFullPaymentDiscountPercent),
     cancellationWindowHours: bookingSettings?.cancellationWindowHours ?? null,
     rescheduleWindowHours: bookingSettings?.rescheduleWindowHours ?? null,
     holdTtlMinutes: bookingSettings?.holdTtlMinutes ?? null,

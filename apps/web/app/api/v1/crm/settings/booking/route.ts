@@ -72,9 +72,14 @@ export async function GET() {
       bookingAllowPrepaymentPercent:
         settings?.bookingAllowPrepaymentPercent ?? legacyAllows(settings).bookingAllowPrepaymentPercent,
       bookingAllowFullPayment: settings?.bookingAllowFullPayment ?? legacyAllows(settings).bookingAllowFullPayment,
-      bookingPrepaymentAmount: settings?.bookingPrepaymentAmount ? Number(settings.bookingPrepaymentAmount) : null,
-      bookingPrepaymentPercent: settings?.bookingPrepaymentPercent ? Number(settings.bookingPrepaymentPercent) : null,
-      bookingFullPaymentDiscountPercent: settings?.bookingFullPaymentDiscountPercent ? Number(settings.bookingFullPaymentDiscountPercent) : null,
+      bookingPrepaymentAmount:
+        settings?.bookingPrepaymentAmount == null ? null : Number(settings.bookingPrepaymentAmount),
+      bookingPrepaymentPercent:
+        settings?.bookingPrepaymentPercent == null ? null : Number(settings.bookingPrepaymentPercent),
+      bookingFullPaymentDiscountPercent:
+        settings?.bookingFullPaymentDiscountPercent == null
+          ? null
+          : Number(settings.bookingFullPaymentDiscountPercent),
       cancellationWindowHours: settings?.cancellationWindowHours ?? null,
       rescheduleWindowHours: settings?.rescheduleWindowHours ?? null,
       holdTtlMinutes: settings?.holdTtlMinutes ?? null,
@@ -122,10 +127,19 @@ export async function PATCH(request: Request) {
   if (bookingOnlinePaymentMode !== null) data.bookingOnlinePaymentMode = bookingOnlinePaymentMode;
   if (data.bookingAllowPrepaymentFixed === true) data.bookingAllowPrepaymentPercent = false;
   if (data.bookingAllowPrepaymentPercent === true) data.bookingAllowPrepaymentFixed = false;
-  if (bookingPrepaymentAmount !== null) data.bookingPrepaymentAmount = Math.max(0, bookingPrepaymentAmount);
-  if (bookingPrepaymentPercent !== null) data.bookingPrepaymentPercent = Math.min(100, Math.max(0, bookingPrepaymentPercent));
-  if (bookingFullPaymentDiscountPercent !== null) {
-    data.bookingFullPaymentDiscountPercent = Math.min(100, Math.max(0, bookingFullPaymentDiscountPercent));
+  if (hasOwn(body, "bookingPrepaymentAmount")) {
+    data.bookingPrepaymentAmount =
+      bookingPrepaymentAmount === null ? null : Math.max(0, bookingPrepaymentAmount);
+  }
+  if (hasOwn(body, "bookingPrepaymentPercent")) {
+    data.bookingPrepaymentPercent =
+      bookingPrepaymentPercent === null ? null : Math.min(100, Math.max(0, bookingPrepaymentPercent));
+  }
+  if (hasOwn(body, "bookingFullPaymentDiscountPercent")) {
+    data.bookingFullPaymentDiscountPercent =
+      bookingFullPaymentDiscountPercent === null
+        ? null
+        : Math.min(100, Math.max(0, bookingFullPaymentDiscountPercent));
   }
   if (hasOwn(body, "cancellationWindowHours")) data.cancellationWindowHours = cancellationWindowHours;
   if (hasOwn(body, "rescheduleWindowHours")) data.rescheduleWindowHours = rescheduleWindowHours;
@@ -183,9 +197,14 @@ export async function PATCH(request: Request) {
       bookingAllowPrepaymentFixed: updated.bookingAllowPrepaymentFixed,
       bookingAllowPrepaymentPercent: updated.bookingAllowPrepaymentPercent,
       bookingAllowFullPayment: updated.bookingAllowFullPayment,
-      bookingPrepaymentAmount: updated.bookingPrepaymentAmount ? Number(updated.bookingPrepaymentAmount) : null,
-      bookingPrepaymentPercent: updated.bookingPrepaymentPercent ? Number(updated.bookingPrepaymentPercent) : null,
-      bookingFullPaymentDiscountPercent: updated.bookingFullPaymentDiscountPercent ? Number(updated.bookingFullPaymentDiscountPercent) : null,
+      bookingPrepaymentAmount:
+        updated.bookingPrepaymentAmount == null ? null : Number(updated.bookingPrepaymentAmount),
+      bookingPrepaymentPercent:
+        updated.bookingPrepaymentPercent == null ? null : Number(updated.bookingPrepaymentPercent),
+      bookingFullPaymentDiscountPercent:
+        updated.bookingFullPaymentDiscountPercent == null
+          ? null
+          : Number(updated.bookingFullPaymentDiscountPercent),
       cancellationWindowHours: updated.cancellationWindowHours,
       rescheduleWindowHours: updated.rescheduleWindowHours,
       holdTtlMinutes: updated.holdTtlMinutes,
