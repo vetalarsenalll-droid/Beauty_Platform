@@ -12,6 +12,8 @@ function updateSelected(ctx: CrmPanelCtx, next: unknown) {
   ctx.updateBlock(ctx.block.id, () => next as typeof ctx.block);
 }
 
+const HE001_DEFAULT_IMAGE_URL = "/api/v1/site-builder/block-preview/HE001";
+
 export const HE001: BlockVersion = {
   blockCode: "HE001",
   normalizeData: (input) => {
@@ -34,6 +36,7 @@ export const HE001: BlockVersion = {
       data: {
         ...base,
         title: "Онлайн-запись",
+        imageSource: { type: "custom", url: HE001_DEFAULT_IMAGE_URL },
         secondaryButtonSource: "",
         style: { ...defaultBlockStyle, ...baseStyle },
       },

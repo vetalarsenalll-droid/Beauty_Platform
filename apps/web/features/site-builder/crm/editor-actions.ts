@@ -221,6 +221,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       block.data = {
         ...block.data,
         align: "center",
+        imageSource: { type: "none" },
         style: {
           ...currentStyle,
           textAlign: "center",
@@ -238,6 +239,7 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
       block.data = {
         ...block.data,
         secondaryButtonSource: "",
+        imageSource: { type: "none" },
         align: "left",
         coverImageInsetPx: 0,
         coverImageRadiusPx: 0,

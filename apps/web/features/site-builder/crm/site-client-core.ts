@@ -1527,12 +1527,17 @@ export const defaultBlockData: Record<string, Record<string, unknown>> = {
 
 export function createBlock(type: BlockType): SiteBlock {
   const base = defaultBlockData[type] ?? {};
+  const coverDefaults =
+    type === "cover"
+      ? { imageSource: { type: "custom", url: "/api/v1/site-builder/block-preview/HE001" } }
+      : {};
   return {
     id: makeBlockId(),
     type,
     variant: "v1",
     data: {
       ...base,
+      ...coverDefaults,
       style: {
         ...defaultBlockStyle,
         ...(typeof base.style === "object" && base.style ? base.style : {}),

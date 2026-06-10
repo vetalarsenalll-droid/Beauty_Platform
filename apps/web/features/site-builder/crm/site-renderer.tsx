@@ -3583,9 +3583,12 @@ export function renderCover(
   const resolveAnimClass = (value: string) => (value && value !== "none" ? `bp-anim bp-anim-${value}` : "");
   const resolveAnimStyle = (value: string, delayMs: number) =>
     value && value !== "none" ? ({ animationDelay: `${delayMs}ms` } as CSSProperties) : undefined;
-  const title = (data.title as string) || "Онлайн-запись";
-  const subtitle = (data.subtitle as string) || "";
-  const description = (data.description as string) || "";
+  const title = typeof data.title === "string" ? data.title : "Онлайн-запись";
+  const subtitle = typeof data.subtitle === "string" ? data.subtitle : "";
+  const description = typeof data.description === "string" ? data.description : "";
+  const hasTitleText = title.trim().length > 0;
+  const hasSubtitleText = subtitle.trim().length > 0;
+  const hasDescriptionText = description.trim().length > 0;
   const align = (data.align as "left" | "center" | "right") ?? style.textAlign;
   const contentAlign = style.textAlign ?? align;
   const contentVerticalAlignRaw =
@@ -3597,14 +3600,22 @@ export function renderCover(
       ? contentVerticalAlignRaw
       : "center";
   const showButton = Boolean(data.showButton);
-  const buttonText = (data.buttonText as string) || "Записаться";
+  const buttonText = typeof data.buttonText === "string" ? data.buttonText : "Записаться";
+  const hasButtonText = buttonText.trim().length > 0;
   const showSecondaryButton = Boolean(data.showSecondaryButton);
-  const secondaryButtonText = (data.secondaryButtonText as string) || "Наши соцсети";
+  const secondaryButtonText =
+    typeof data.secondaryButtonText === "string" ? data.secondaryButtonText : "Наши соцсети";
+  const hasSecondaryButtonText = secondaryButtonText.trim().length > 0;
   const secondaryButtonSource = (data.secondaryButtonSource as string) || "auto";
   const secondaryButtonHrefRaw =
     typeof data.secondaryButtonHref === "string" ? data.secondaryButtonHref.trim() : "";
   const socialHref = resolvePrimarySocialHref(accountProfile, secondaryButtonSource);
-  const secondaryButtonHref = secondaryButtonHrefRaw || socialHref;
+  const primaryButtonHref = account.publicSlug ? buildBookingLink({ publicSlug: account.publicSlug }) : "";
+  const secondaryButtonHref = secondaryButtonHrefRaw || socialHref || "";
+  const showPrimaryCoverButton = showButton && hasButtonText && Boolean(primaryButtonHref);
+  const showSecondaryCoverButton =
+    showSecondaryButton && hasSecondaryButtonText && Boolean(secondaryButtonHref);
+  const hasAnyCoverButton = showPrimaryCoverButton || showSecondaryCoverButton;
   const pickCoverModeValue = (lightRaw: string, darkRaw: string) =>
     theme.mode === "dark" ? darkRaw || lightRaw : lightRaw || darkRaw;
   const pickCoverButtonModeValue = (
@@ -4074,7 +4085,7 @@ export function renderCover(
             : `slide-${idx + 1}`,
         title: localizedTitle || title,
         description: localizedDescription || description || subtitle,
-        buttonText: localizedButtonText || buttonText || "Подробнее",
+        buttonText: localizedButtonText || buttonText,
         buttonHref:
           resolvedPageHref ||
           slideButtonHref ||
@@ -4089,9 +4100,9 @@ export function renderCover(
       : [
           {
             id: "slide-fallback",
-            title: title || "Онлайн-запись",
+            title,
             description: description || subtitle,
-            buttonText: buttonText || "Подробнее",
+            buttonText,
             buttonHref: account.publicSlug ? buildBookingLink({ publicSlug: account.publicSlug }) : "#",
             imageUrl: null,
           },
@@ -4292,21 +4303,23 @@ export function renderCover(
             }}
           >
             <div style={{ width: "min(100%, 640px)" }}>
-              <h2
-                className={`leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
-                style={{
-                  ...headingStyle(style, theme),
-                  textAlign: contentAlign,
-                  fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
-                    effectiveHeadingMobileSize,
-                    forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
-                  )}px)`,
-                  ...(resolveAnimStyle(animHeading, 0) ?? {}),
-                }}
-              >
-                {title}
-              </h2>
-              {subtitle && (
+              {hasTitleText && (
+                <h2
+                  className={`leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
+                  style={{
+                    ...headingStyle(style, theme),
+                    textAlign: contentAlign,
+                    fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
+                      effectiveHeadingMobileSize,
+                      forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
+                    )}px)`,
+                    ...(resolveAnimStyle(animHeading, 0) ?? {}),
+                  }}
+                >
+                  {title}
+                </h2>
+              )}
+              {hasSubtitleText && (
                 <p
                   className={`mt-6 leading-[1.25] ${resolveAnimClass(animSubtitle)}`}
                   style={{
@@ -4323,7 +4336,7 @@ export function renderCover(
                   {subtitle}
                 </p>
               )}
-              {description && (
+              {hasDescriptionText && (
                 <p
                   className={`mt-5 max-w-[720px] leading-[1.45] ${resolveAnimClass(animDescription)}`}
                   style={{
@@ -4343,97 +4356,99 @@ export function renderCover(
                   {description}
                 </p>
               )}
-              <div
-                className="mt-7 flex flex-wrap items-center gap-3"
-                style={{
-                  justifyContent:
-                    contentAlign === "center"
-                      ? "center"
-                      : contentAlign === "right"
-                        ? "flex-end"
-                        : "flex-start",
-                }}
-              >
-                {showButton && account.publicSlug && (
-                  <a
-                    href={buildBookingLink({ publicSlug: account.publicSlug })}
-                    className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
-                    style={{
-                      ...buttonStyle(style, theme),
-                      ["--cover-primary-hover-bg" as string]:
-                        primaryButtonHoverBgColor || "transparent",
-                      ["--cover-primary-hover-bg-light" as string]:
-                        primaryButtonHoverBgColorLight,
-                      ["--cover-primary-hover-bg-dark" as string]:
-                        primaryButtonHoverBgColorDark,
-                      borderStyle: "solid",
-                      borderWidth:
-                        primaryButtonBorderColor !== "transparent" &&
-                        primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? 1
-                          : 0,
-                      borderColor:
-                        primaryButtonBorderColor !== "transparent" &&
-                        primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? primaryButtonBorderColor
-                          : "transparent",
-                      minHeight: "clamp(46px, 6cqw, 54px)",
-                      paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
-                      paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                      fontSize: "clamp(14px, 2cqw, 16px)",
-                      transition: "background-color 180ms ease",
-                      ...(resolveAnimStyle(animButton, 320) ?? {}),
-                    }}
-                  >
-                    {buttonText}
-                  </a>
-                )}
-                {showSecondaryButton && secondaryButtonHref && (
-                  <a
-                    href={secondaryButtonHref}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`bp-cover-secondary-hover inline-flex items-center whitespace-nowrap border font-semibold transition ${resolveAnimClass(animButton)}`}
-                    style={{
-                      ["--cover-secondary-hover-bg" as string]:
-                        secondaryButtonHoverBgColor || "rgba(255,255,255,0.1)",
-                      ["--cover-secondary-hover-bg-light" as string]:
-                        secondaryButtonHoverBgColorLight,
-                      ["--cover-secondary-hover-bg-dark" as string]:
-                        secondaryButtonHoverBgColorDark,
-                      backgroundColor:
-                        secondaryButtonColor !== "transparent" &&
-                        secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? secondaryButtonColor
-                          : "transparent",
-                      color:
-                        secondaryButtonTextColor !== "transparent" &&
-                        secondaryButtonTextColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? secondaryButtonTextColor
-                          : buttonStyle(style, theme).color,
-                      borderColor:
-                        secondaryButtonBorderColor !== "transparent" &&
-                        secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? secondaryButtonBorderColor
-                          : "transparent",
-                      borderWidth:
-                        secondaryButtonBorderColor !== "transparent" &&
-                        secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
-                          ? 1
-                          : 0,
-                      borderRadius: secondaryButtonRadius,
-                      minHeight: "clamp(46px, 6cqw, 54px)",
-                      paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
-                      paddingBlock: "clamp(10px, 1.2cqw, 12px)",
-                      fontSize: "clamp(14px, 2cqw, 16px)",
-                      transition: "background-color 180ms ease",
-                      ...(resolveAnimStyle(animButton, 380) ?? {}),
-                    }}
-                  >
-                    {secondaryButtonText}
-                  </a>
-                )}
-              </div>
+              {hasAnyCoverButton && (
+                <div
+                  className="mt-7 flex flex-wrap items-center gap-3"
+                  style={{
+                    justifyContent:
+                      contentAlign === "center"
+                        ? "center"
+                        : contentAlign === "right"
+                          ? "flex-end"
+                          : "flex-start",
+                  }}
+                >
+                  {showPrimaryCoverButton && (
+                    <a
+                      href={primaryButtonHref}
+                      className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
+                      style={{
+                        ...buttonStyle(style, theme),
+                        ["--cover-primary-hover-bg" as string]:
+                          primaryButtonHoverBgColor || "transparent",
+                        ["--cover-primary-hover-bg-light" as string]:
+                          primaryButtonHoverBgColorLight,
+                        ["--cover-primary-hover-bg-dark" as string]:
+                          primaryButtonHoverBgColorDark,
+                        borderStyle: "solid",
+                        borderWidth:
+                          primaryButtonBorderColor !== "transparent" &&
+                          primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? 1
+                            : 0,
+                        borderColor:
+                          primaryButtonBorderColor !== "transparent" &&
+                          primaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? primaryButtonBorderColor
+                            : "transparent",
+                        minHeight: "clamp(46px, 6cqw, 54px)",
+                        paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
+                        paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                        fontSize: "clamp(14px, 2cqw, 16px)",
+                        transition: "background-color 180ms ease",
+                        ...(resolveAnimStyle(animButton, 320) ?? {}),
+                      }}
+                    >
+                      {buttonText}
+                    </a>
+                  )}
+                  {showSecondaryCoverButton && (
+                    <a
+                      href={secondaryButtonHref}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`bp-cover-secondary-hover inline-flex items-center whitespace-nowrap border font-semibold transition ${resolveAnimClass(animButton)}`}
+                      style={{
+                        ["--cover-secondary-hover-bg" as string]:
+                          secondaryButtonHoverBgColor || "rgba(255,255,255,0.1)",
+                        ["--cover-secondary-hover-bg-light" as string]:
+                          secondaryButtonHoverBgColorLight,
+                        ["--cover-secondary-hover-bg-dark" as string]:
+                          secondaryButtonHoverBgColorDark,
+                        backgroundColor:
+                          secondaryButtonColor !== "transparent" &&
+                          secondaryButtonColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? secondaryButtonColor
+                            : "transparent",
+                        color:
+                          secondaryButtonTextColor !== "transparent" &&
+                          secondaryButtonTextColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? secondaryButtonTextColor
+                            : buttonStyle(style, theme).color,
+                        borderColor:
+                          secondaryButtonBorderColor !== "transparent" &&
+                          secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? secondaryButtonBorderColor
+                            : "transparent",
+                        borderWidth:
+                          secondaryButtonBorderColor !== "transparent" &&
+                          secondaryButtonBorderColor.toLowerCase() !== "rgba(0,0,0,0)"
+                            ? 1
+                            : 0,
+                        borderRadius: secondaryButtonRadius,
+                        minHeight: "clamp(46px, 6cqw, 54px)",
+                        paddingInline: forceMobileLayout ? "20px" : "clamp(24px, 3.2cqw, 40px)",
+                        paddingBlock: "clamp(10px, 1.2cqw, 12px)",
+                        fontSize: "clamp(14px, 2cqw, 16px)",
+                        transition: "background-color 180ms ease",
+                        ...(resolveAnimStyle(animButton, 380) ?? {}),
+                      }}
+                    >
+                      {secondaryButtonText}
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -4498,21 +4513,23 @@ export function renderCover(
             marginRight: 0,
           }}
         >
-          <h2
-            className={`text-white leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
-            style={{
-              ...headingStyle(style, theme),
-              textAlign: contentAlign,
-              fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
-                effectiveHeadingMobileSize,
-                forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
-              )}px)`,
-              ...(resolveAnimStyle(animHeading, 0) ?? {}),
-            }}
-          >
-            {title}
-          </h2>
-          {subtitle && (
+          {hasTitleText && (
+            <h2
+              className={`text-white leading-[1.08] tracking-[-0.01em] ${resolveAnimClass(animHeading)}`}
+              style={{
+                ...headingStyle(style, theme),
+                textAlign: contentAlign,
+                fontSize: `clamp(${effectiveHeadingMobileSize}px, ${forceMobileLayout ? "8cqw" : "9cqw"}, ${Math.max(
+                  effectiveHeadingMobileSize,
+                  forceMobileLayout ? effectiveHeadingMobileSize : headingDesktopSize
+                )}px)`,
+                ...(resolveAnimStyle(animHeading, 0) ?? {}),
+              }}
+            >
+              {title}
+            </h2>
+          )}
+          {hasSubtitleText && (
             <p
               className={`mt-6 text-white/90 leading-[1.25] ${resolveAnimClass(animSubtitle)}`}
               style={{
@@ -4529,7 +4546,7 @@ export function renderCover(
               {subtitle}
             </p>
           )}
-          {description && (
+          {hasDescriptionText && (
             <p
               className={`mt-5 max-w-[720px] text-white/80 leading-[1.45] ${resolveAnimClass(animDescription)}`}
               style={{
@@ -4549,21 +4566,22 @@ export function renderCover(
               {description}
             </p>
           )}
-          <div
-            className="mt-7 flex flex-wrap items-center gap-3"
-            style={{
-              flexWrap: "wrap",
-              justifyContent:
-                contentAlign === "center"
-                  ? "center"
-                  : contentAlign === "right"
-                    ? "flex-end"
-                    : "flex-start",
-            }}
-          >
-            {showButton && account.publicSlug && (
+          {hasAnyCoverButton && (
+            <div
+              className="mt-7 flex flex-wrap items-center gap-3"
+              style={{
+                flexWrap: "wrap",
+                justifyContent:
+                  contentAlign === "center"
+                    ? "center"
+                    : contentAlign === "right"
+                      ? "flex-end"
+                      : "flex-start",
+              }}
+            >
+              {showPrimaryCoverButton && (
                 <a
-                  href={buildBookingLink({ publicSlug: account.publicSlug })}
+                  href={primaryButtonHref}
                   className={`bp-cover-primary-hover inline-flex items-center whitespace-nowrap font-semibold ${resolveAnimClass(animButton)}`}
                   style={{
                     ...buttonStyle(style, theme),
@@ -4595,7 +4613,7 @@ export function renderCover(
                   {buttonText}
                 </a>
               )}
-            {showSecondaryButton && secondaryButtonHref && (
+              {showSecondaryCoverButton && (
                 <a
                   href={secondaryButtonHref}
                   target="_blank"
@@ -4639,8 +4657,9 @@ export function renderCover(
                 >
                   {secondaryButtonText}
                 </a>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {arrowMode === "down" && (
