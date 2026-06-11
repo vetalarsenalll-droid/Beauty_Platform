@@ -1,12 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { PaymentMethodCode, PaymentProviderCode } from "./types";
-
-function addMonths(from: Date, months: number) {
-  const next = new Date(from);
-  next.setMonth(next.getMonth() + months);
-  return next;
-}
+import { activatePaidPlatformSubscription } from "@/lib/platform-subscriptions";
 
 function readInvoicePlanId(metadata: unknown) {
   if (!metadata || typeof metadata !== "object" || !("planId" in metadata)) return null;
@@ -52,7 +47,10 @@ export async function applySuccessfulPlatformPayment(input: {
           status: "SUCCEEDED",
           method: input.method ?? invoice.paymentMethod ?? null,
           providerStatus: input.providerStatus ?? "CONFIRMED",
-          rawProviderJson: input.rawProviderJson === undefined ? undefined : (input.rawProviderJson as Prisma.InputJsonValue),
+          rawProviderJson:
+            input.rawProviderJson === undefined
+              ? undefined
+              : (input.rawProviderJson as Prisma.InputJsonValue),
           paidAt,
         },
       });
@@ -67,7 +65,10 @@ export async function applySuccessfulPlatformPayment(input: {
           providerRef: input.providerPaymentId,
           method: input.method ?? invoice.paymentMethod ?? null,
           providerStatus: input.providerStatus ?? "CONFIRMED",
-          rawProviderJson: input.rawProviderJson === undefined ? undefined : (input.rawProviderJson as Prisma.InputJsonValue),
+          rawProviderJson:
+            input.rawProviderJson === undefined
+              ? undefined
+              : (input.rawProviderJson as Prisma.InputJsonValue),
           paidAt,
         },
       });
@@ -85,7 +86,15 @@ export async function applySuccessfulPlatformPayment(input: {
       },
     });
 
-    const aiPurchases = await tx.$queryRaw<Array<{ id: number; accountId: number; creditRub: Prisma.Decimal; creditTokens: number; status: string }>>`
+    const aiPurchases = await tx.$queryRaw<
+      Array<{
+        id: number;
+        accountId: number;
+        creditRub: Prisma.Decimal;
+        creditTokens: number;
+        status: string;
+      }>
+    >`
       SELECT "id", "accountId", "creditRub", "creditTokens", "status"
       FROM "AiAccessPurchase"
       WHERE "invoiceId" = ${invoice.id}
@@ -110,35 +119,13 @@ export async function applySuccessfulPlatformPayment(input: {
 
     if (aiPurchases.length === 0) {
       const paidPlanId = readInvoicePlanId(invoice.metadataJson);
-      if (invoice.subscriptionId) {
-        await tx.platformSubscription.update({
-          where: { id: invoice.subscriptionId },
-          data: {
-            status: "ACTIVE",
-            ...(paidPlanId ? { planId: paidPlanId } : {}),
-            nextBillingAt: addMonths(paidAt, 1),
-          },
-        });
-        if (paidPlanId) {
-          await tx.account.update({
-            where: { id: invoice.accountId },
-            data: { planId: paidPlanId },
-          });
-        }
-      } else if (paidPlanId || invoice.account.planId) {
-        const planId = (paidPlanId ?? invoice.account.planId) as number;
-        await tx.platformSubscription.create({
-          data: {
-            accountId: invoice.accountId,
-            planId,
-            status: "ACTIVE",
-            startedAt: paidAt,
-            nextBillingAt: addMonths(paidAt, 1),
-          },
-        });
-        await tx.account.update({
-          where: { id: invoice.accountId },
-          data: { planId },
+      const planId = (paidPlanId ?? invoice.account.planId) as number | null;
+      if (planId) {
+        await activatePaidPlatformSubscription(tx, {
+          accountId: invoice.accountId,
+          planId,
+          paidAt,
+          subscriptionId: invoice.subscriptionId,
         });
       }
     }

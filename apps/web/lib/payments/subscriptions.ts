@@ -1,13 +1,24 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { prisma } from "@/lib/prisma";
+import { formatPlanPeriod } from "@/lib/platform-subscriptions";
 
 export async function requestSubscriptionInvoice(accountId: number, planId: number) {
-  const plan = await prisma.platformPlan.findFirst({
+  const db = prisma as any;
+  const plan = await db.platformPlan.findFirst({
     where: { id: planId, isActive: true },
-    select: { id: true, name: true, priceMonthly: true, currency: true },
+    select: {
+      id: true,
+      name: true,
+      priceMonthly: true,
+      billingPeriodMonths: true,
+      gracePeriodDays: true,
+      currency: true,
+    },
   });
   if (!plan) return null;
 
-  return prisma.$transaction(async (tx) => {
+  return db.$transaction(async (tx: any) => {
     const subscription = await tx.platformSubscription.findFirst({
       where: { accountId, status: { in: ["ACTIVE", "PAST_DUE"] } },
       orderBy: { createdAt: "desc" },
@@ -26,7 +37,7 @@ export async function requestSubscriptionInvoice(accountId: number, planId: numb
     });
     if (existing) return existing.id;
 
-    const description = `Подписка CRM ${plan.name} на 1 месяц`;
+    const description = `Подписка CRM ${plan.name} на ${formatPlanPeriod(plan.billingPeriodMonths)}`;
     const invoice = await tx.platformInvoice.create({
       data: {
         accountId,
@@ -36,7 +47,11 @@ export async function requestSubscriptionInvoice(accountId: number, planId: numb
         amount: plan.priceMonthly,
         currency: plan.currency,
         description,
-        metadataJson: { planId: plan.id, billingPeriod: "month" },
+        metadataJson: {
+          planId: plan.id,
+          billingPeriodMonths: plan.billingPeriodMonths,
+          gracePeriodDays: plan.gracePeriodDays,
+        },
         issuedAt: new Date(),
         items: {
           create: {
@@ -47,7 +62,11 @@ export async function requestSubscriptionInvoice(accountId: number, planId: numb
             vat: "none",
             paymentObject: "service",
             paymentMethod: "full_payment",
-            metadataJson: { planId: plan.id, billingPeriod: "month" },
+            metadataJson: {
+              planId: plan.id,
+              billingPeriodMonths: plan.billingPeriodMonths,
+              gracePeriodDays: plan.gracePeriodDays,
+            },
           },
         },
       },

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 
@@ -8,9 +8,10 @@ type PlanCreateFormProps = {
 
 export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
   const [name, setName] = useState("");
-  const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
   const [priceMonthly, setPriceMonthly] = useState("");
+  const [billingPeriodMonths, setBillingPeriodMonths] = useState("1");
+  const [gracePeriodDays, setGracePeriodDays] = useState("5");
   const [currency, setCurrency] = useState("RUB");
   const [limitLocations, setLimitLocations] = useState("");
   const [limitServices, setLimitServices] = useState("");
@@ -31,9 +32,10 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
-          code,
           description: description.trim() ? description.trim() : null,
           priceMonthly,
+          billingPeriodMonths: Number(billingPeriodMonths),
+          gracePeriodDays: Number(gracePeriodDays),
           currency,
         }),
       });
@@ -65,9 +67,10 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
       }
 
       setName("");
-      setCode("");
       setDescription("");
       setPriceMonthly("");
+      setBillingPeriodMonths("1");
+      setGracePeriodDays("5");
       setLimitLocations("");
       setLimitServices("");
       setLimitSpecialists("");
@@ -95,18 +98,17 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           />
         </label>
         <label className="flex flex-col gap-2 text-sm">
-          Код
+          Валюта
           <input
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
+            value={currency}
+            onChange={(event) => setCurrency(event.target.value)}
             className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            required
           />
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-2 text-sm">
-          Цена в месяц
+          Цена тарифа
           <input
             value={priceMonthly}
             onChange={(event) => setPriceMonthly(event.target.value)}
@@ -115,11 +117,25 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           />
         </label>
         <label className="flex flex-col gap-2 text-sm">
-          Валюта
+          Срок подписки, мес.
           <input
-            value={currency}
-            onChange={(event) => setCurrency(event.target.value)}
+            type="number"
+            min="1"
+            value={billingPeriodMonths}
+            onChange={(event) => setBillingPeriodMonths(event.target.value)}
             className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            required
+          />
+        </label>
+        <label className="flex flex-col gap-2 text-sm">
+          Льготный период, дней
+          <input
+            type="number"
+            min="0"
+            value={gracePeriodDays}
+            onChange={(event) => setGracePeriodDays(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+            required
           />
         </label>
       </div>

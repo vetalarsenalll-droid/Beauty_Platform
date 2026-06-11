@@ -1,6 +1,7 @@
 // apps/web/lib/public-booking.ts
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/api";
+import { getPublicAccountBySlug } from "@/lib/platform-subscriptions";
 
 export type PublicAccount = {
   id: number;
@@ -27,25 +28,17 @@ export async function resolvePublicAccount(request: Request): Promise<ResolveRes
 
   let account =
     accountSlug.length > 0
-      ? await prisma.account.findFirst({
-          where: { slug: accountSlug, status: "ACTIVE" },
-          select: { id: true, name: true, slug: true, timeZone: true },
-        })
+      ? await getPublicAccountBySlug(accountSlug)
       : null;
 
   if (!account && host && host !== "localhost" && host !== "127.0.0.1") {
     const domain = await prisma.accountDomain.findFirst({
       where: { domain: host },
-      include: { account: true },
+      select: { account: { select: { slug: true } } },
     });
 
-    if (domain?.account?.status === "ACTIVE") {
-      account = {
-        id: domain.account.id,
-        name: domain.account.name,
-        slug: domain.account.slug,
-        timeZone: domain.account.timeZone,
-      };
+    if (domain?.account?.slug) {
+      account = await getPublicAccountBySlug(domain.account.slug);
     }
   }
 

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getClientSession } from "@/lib/auth";
 import { buildPublicSlugId } from "@/lib/public-slug";
+import { getPublicAccountBySlug } from "@/lib/platform-subscriptions";
 import { renderPublicMenu } from "@/app/[publicSlug]/_shared/menu-render";
 
 type PageParams = {
@@ -28,10 +29,7 @@ export default async function BookingLegalPage({
     notFound();
   }
 
-  const account = await prisma.account.findUnique({
-    where: { slug: accountSlug },
-    select: { id: true, name: true, slug: true },
-  });
+  const account = await getPublicAccountBySlug(accountSlug);
 
   if (!account) {
     notFound();

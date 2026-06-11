@@ -6,6 +6,8 @@ type SubscriptionCheckoutProps = {
   planId: number;
   name: string;
   priceLabel: string;
+  billingPeriodLabel: string;
+  gracePeriodDays: number;
   description: string | null;
   isCurrent: boolean;
 };
@@ -23,6 +25,8 @@ export default function SubscriptionCheckout({
   planId,
   name,
   priceLabel,
+  billingPeriodLabel,
+  gracePeriodDays,
   description,
   isCurrent,
 }: SubscriptionCheckoutProps) {
@@ -73,7 +77,10 @@ export default function SubscriptionCheckout({
           {isCurrent ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">текущий</span> : null}
         </div>
         <div className="mt-4 text-2xl font-semibold">{priceLabel} ₽</div>
-        <div className="mt-1 text-sm text-[color:var(--bp-muted)]">за 1 месяц</div>
+        <div className="mt-1 text-sm text-[color:var(--bp-muted)]">за {billingPeriodLabel}</div>
+        {gracePeriodDays > 0 ? (
+          <div className="mt-1 text-xs text-[color:var(--bp-muted)]">Льготный период после окончания: {gracePeriodDays} дн.</div>
+        ) : null}
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -92,12 +99,15 @@ export default function SubscriptionCheckout({
                 <h3 className="mt-1 text-xl font-semibold">{name}</h3>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-sm">
-                ×
+                X
               </button>
             </div>
             <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] p-4">
               <div className="text-2xl font-semibold">{priceLabel} ₽</div>
-              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">1 месяц CRM</div>
+              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">{billingPeriodLabel} CRM</div>
+              {gracePeriodDays > 0 ? (
+                <div className="mt-1 text-xs text-[color:var(--bp-muted)]">После окончания будет {gracePeriodDays} дней на продление.</div>
+              ) : null}
             </div>
             <div className="mt-4 grid gap-3">
               <button type="button" disabled={loadingMethod != null} onClick={() => startCheckout("card")} className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
@@ -117,7 +127,7 @@ export default function SubscriptionCheckout({
               </div>
             ) : null}
             {error ? <div className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div> : null}
-            <p className="mt-4 text-xs text-[color:var(--bp-muted)]">После подтверждения банка подписка продлится автоматически.</p>
+            <p className="mt-4 text-xs text-[color:var(--bp-muted)]">После подтверждения банка срок подписки продлится автоматически.</p>
           </div>
         </div>
       ) : null}

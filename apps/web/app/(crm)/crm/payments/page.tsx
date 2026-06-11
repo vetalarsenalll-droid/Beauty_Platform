@@ -1,6 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { requireCrmPermission } from "@/lib/auth";
 import { money } from "@/lib/ai-billing";
 import { prisma } from "@/lib/prisma";
+import { formatPlanPeriod, reconcileAccountSubscriptionState } from "@/lib/platform-subscriptions";
 import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 import AccountPaymentsClient from "./account-payments-client";
@@ -97,6 +100,7 @@ function providerStatusLabel(value: string | null | undefined) {
 
 export default async function CrmPaymentsPage({ searchParams }: PageProps) {
   const session = await requireCrmPermission("crm.payments.read");
+  const subscriptionState = await reconcileAccountSubscriptionState(session.accountId);
   const rawParams = (await Promise.resolve(searchParams ?? {})) as Record<string, string | string[] | undefined>;
   const rawPaymentStatus = pickParam(rawParams, "paymentStatus");
   const rawPaymentProvider = pickParam(rawParams, "paymentProvider");
@@ -126,22 +130,31 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
     ];
   }
 
+  const db = prisma as any;
   const [account, plans, subscription, invoices, accountPaymentConnections, clientPayments] = await Promise.all([
-    prisma.account.findUnique({
+    db.account.findUnique({
       where: { id: session.accountId },
-      select: { planId: true, plan: { select: { name: true } } },
+      select: { planId: true, suspendedByBillingAt: true, plan: { select: { name: true } } },
     }),
-    prisma.platformPlan.findMany({
+    db.platformPlan.findMany({
       where: { isActive: true },
       orderBy: { priceMonthly: "asc" },
-      select: { id: true, name: true, description: true, priceMonthly: true, currency: true },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        priceMonthly: true,
+        billingPeriodMonths: true,
+        gracePeriodDays: true,
+        currency: true,
+      },
     }),
-    prisma.platformSubscription.findFirst({
-      where: { accountId: session.accountId, status: { in: ["ACTIVE", "PAST_DUE"] } },
+    db.platformSubscription.findFirst({
+      where: { accountId: session.accountId },
       orderBy: { createdAt: "desc" },
       include: { plan: { select: { name: true } } },
     }),
-    prisma.platformInvoice.findMany({
+    db.platformInvoice.findMany({
       where: { accountId: session.accountId },
       orderBy: { createdAt: "desc" },
       take: 12,
@@ -159,7 +172,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
         paidAt: true,
       },
     }),
-    prisma.accountPaymentConnection.findMany({
+    db.accountPaymentConnection.findMany({
       where: { accountId: session.accountId },
       orderBy: [{ isDefault: "desc" }, { id: "asc" }],
       select: {
@@ -179,7 +192,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
         lastTestStatus: true,
       },
     }),
-    prisma.paymentIntent.findMany({
+    db.paymentIntent.findMany({
       where: paymentWhere,
       orderBy: { createdAt: "desc" },
       take: 50,
@@ -211,7 +224,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
   ]);
 
   const currentPlanId = subscription?.planId ?? account?.planId ?? null;
-  const paymentConnections = accountPaymentConnections.map((connection) => ({
+  const paymentConnections = accountPaymentConnections.map((connection: any) => ({
     ...connection,
     credentialsMasked:
       connection.credentialsMasked && typeof connection.credentialsMasked === "object" && !Array.isArray(connection.credentialsMasked)
@@ -219,6 +232,12 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
         : null,
     lastTestedAt: connection.lastTestedAt?.toISOString() ?? null,
   }));
+  const billingMessage =
+    subscriptionState.accessStatus === "past_due" && subscription?.graceEndsAt
+      ? `Срок тарифа истёк. Продлите подписку до ${subscription.graceEndsAt.toLocaleDateString("ru-RU")}, иначе аккаунт будет заморожен.`
+      : account?.suspendedByBillingAt
+        ? "Аккаунт заморожен из-за неоплаченной подписки. После оплаты доступ восстановится автоматически."
+        : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -229,15 +248,18 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
           Текущий тариф: {subscription?.plan.name ?? account?.plan?.name ?? "не выбран"}
           {subscription?.nextBillingAt ? ` · оплачен до ${subscription.nextBillingAt.toLocaleDateString("ru-RU")}` : ""}
         </p>
+        {billingMessage ? <p className="mt-2 text-sm text-amber-700">{billingMessage}</p> : null}
       </header>
 
       <section className="grid gap-4 lg:grid-cols-3">
-        {plans.map((plan) => (
+        {plans.map((plan: any) => (
           <SubscriptionCheckout
             key={plan.id}
             planId={plan.id}
             name={plan.name}
             priceLabel={money(plan.priceMonthly)}
+            billingPeriodLabel={formatPlanPeriod(plan.billingPeriodMonths)}
+            gracePeriodDays={plan.gracePeriodDays}
             description={plan.description}
             isCurrent={plan.id === currentPlanId}
           />
@@ -323,12 +345,12 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
               </tr>
             </thead>
             <tbody>
-              {clientPayments.map((payment) => {
-                const serviceNames = payment.appointment?.services.map((item) => item.service.name).join(", ");
+              {clientPayments.map((payment: any) => {
+                const serviceNames = payment.appointment?.services.map((item: any) => item.service.name).join(", ");
                 const lastTransaction = payment.transactions[0];
                 const refundTotal = payment.refunds
-                  .filter((refund) => refund.status === "PENDING" || refund.status === "SUCCEEDED")
-                  .reduce((sum, refund) => sum + Number(refund.amount), 0);
+                  .filter((refund: any) => refund.status === "PENDING" || refund.status === "SUCCEEDED")
+                  .reduce((sum: number, refund: any) => sum + Number(refund.amount), 0);
                 return (
                   <tr key={payment.id} className="border-t border-[color:var(--bp-stroke)] align-top">
                     <td className="py-3 pr-3">
@@ -361,7 +383,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
                         <>
                           <div>{money(refundTotal)} {payment.currency}</div>
                           <div className="mt-1 grid gap-1 text-xs text-[color:var(--bp-muted)]">
-                            {payment.refunds.map((refund, refundIndex) => (
+                            {payment.refunds.map((refund: any, refundIndex: number) => (
                               <div key={refund.id}>
                                 Возврат {refundIndex + 1}: {refundStatusLabels[refund.status] ?? refund.status}
                                 {" · "}
@@ -398,7 +420,7 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Счета платформы</h2>
         <div className="mt-4 grid gap-3 text-sm">
-          {invoices.map((invoice) => (
+          {invoices.map((invoice: any) => (
             <div key={invoice.id} className="rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -15,6 +17,8 @@ type DbPlan = {
   code: string;
   description: string | null;
   priceMonthly: Prisma.Decimal;
+  billingPeriodMonths: number;
+  gracePeriodDays: number;
   currency: string;
   isActive: boolean;
   createdAt: Date;
@@ -25,9 +29,10 @@ function mapPlan(plan: DbPlan) {
   return {
     id: plan.id,
     name: plan.name,
-    code: plan.code,
     description: plan.description,
     priceMonthly: plan.priceMonthly.toString(),
+    billingPeriodMonths: plan.billingPeriodMonths,
+    gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
     isActive: plan.isActive,
     createdAt: plan.createdAt.toISOString(),
@@ -45,7 +50,8 @@ export async function GET(_request: Request, { params }: Params) {
     return jsonError("VALIDATION_FAILED", "Некорректный id тарифа", null, 400);
   }
 
-  const plan = await prisma.platformPlan.findUnique({ where: { id: planId } });
+  const db = prisma as any;
+  const plan = await db.platformPlan.findUnique({ where: { id: planId } });
   if (!plan) {
     return jsonError("NOT_FOUND", "Тариф не найден", null, 404);
   }
@@ -72,20 +78,38 @@ export async function PATCH(request: Request, { params }: Params) {
 
   const data: {
     name?: string;
-    code?: string;
     description?: string | null;
     priceMonthly?: Prisma.Decimal;
+    billingPeriodMonths?: number;
+    gracePeriodDays?: number;
     currency?: string;
     isActive?: boolean;
   } = {};
 
   if (body.name !== undefined) data.name = String(body.name).trim();
-  if (body.code !== undefined) data.code = String(body.code).trim();
   if (body.description !== undefined) {
     data.description = body.description ? String(body.description).trim() : null;
   }
   if (body.currency !== undefined) data.currency = String(body.currency).trim();
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
+  if (body.billingPeriodMonths !== undefined) {
+    const value = Number(body.billingPeriodMonths);
+    if (!Number.isInteger(value) || value <= 0) {
+      return jsonError("VALIDATION_FAILED", "Некорректный срок тарифа", {
+        fields: [{ path: "billingPeriodMonths", issue: "invalid" }],
+      });
+    }
+    data.billingPeriodMonths = value;
+  }
+  if (body.gracePeriodDays !== undefined) {
+    const value = Number(body.gracePeriodDays);
+    if (!Number.isInteger(value) || value < 0) {
+      return jsonError("VALIDATION_FAILED", "Некорректный льготный период", {
+        fields: [{ path: "gracePeriodDays", issue: "invalid" }],
+      });
+    }
+    data.gracePeriodDays = value;
+  }
   if (body.priceMonthly !== undefined) {
     try {
       data.priceMonthly = new Prisma.Decimal(body.priceMonthly);
@@ -97,7 +121,8 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   try {
-    const updated = await prisma.platformPlan.update({
+    const db = prisma as any;
+    const updated = await db.platformPlan.update({
       where: { id: planId },
       data,
     });
@@ -109,25 +134,14 @@ export async function PATCH(request: Request, { params }: Params) {
       targetId: updated.id,
       diffJson: {
         ...data,
-        priceMonthly: data.priceMonthly
-          ? data.priceMonthly.toString()
-          : undefined,
+        priceMonthly: data.priceMonthly?.toString(),
       },
     });
 
     const response = jsonOk(mapPlan(updated as DbPlan));
     return applyAccessCookie(response, auth);
   } catch (error: unknown) {
-    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
-    if (caught.code === "P2002") {
-      const target = Array.isArray(caught.meta?.target)
-        ? caught.meta.target[0]
-        : caught.meta?.target;
-      const field = target === "name" ? "name" : "code";
-      const message =
-        field === "name" ? "Название уже используется" : "Код уже используется";
-      return jsonError("DUPLICATE", message, { field }, 409);
-    }
+    const caught = error as { code?: string };
     if (caught.code === "P2025") {
       return jsonError("NOT_FOUND", "Тариф не найден", null, 404);
     }

@@ -6,14 +6,9 @@ import {
   requirePlatformApiPermission,
 } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
+import { activatePaidPlatformSubscription } from "@/lib/platform-subscriptions";
 
 type Params = { params: Promise<{ id: string }> };
-
-function addMonths(from: Date, months: number) {
-  const next = new Date(from);
-  next.setMonth(next.getMonth() + months);
-  return next;
-}
 
 export async function POST(_request: Request, { params }: Params) {
   const auth = await requirePlatformApiPermission("platform.plans");
@@ -81,28 +76,19 @@ export async function POST(_request: Request, { params }: Params) {
         },
       });
     }
-  } else if (invoice.subscriptionId) {
-    await prisma.platformSubscription.update({
-      where: { id: invoice.subscriptionId },
-      data: {
-        status: "ACTIVE",
-        nextBillingAt: addMonths(paidAt, 1),
-      },
-    });
   } else {
     const account = await prisma.account.findUnique({
       where: { id: invoice.accountId },
       select: { planId: true },
     });
     if (account?.planId) {
-      await prisma.platformSubscription.create({
-        data: {
+      await prisma.$transaction(async (tx) => {
+        await activatePaidPlatformSubscription(tx, {
           accountId: invoice.accountId,
-          planId: account.planId,
-          status: "ACTIVE",
-          startedAt: paidAt,
-          nextBillingAt: addMonths(paidAt, 1),
-        },
+          planId: account.planId as number,
+          paidAt,
+          subscriptionId: invoice.subscriptionId,
+        });
       });
     }
   }

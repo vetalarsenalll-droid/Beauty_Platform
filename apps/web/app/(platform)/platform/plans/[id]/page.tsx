@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
+import { formatPlanPeriod } from "@/lib/platform-subscriptions";
 import PlanRowActions from "../plan-row-actions";
 import PlanLimitsEditor from "../plan-limits-editor";
 
@@ -17,7 +20,7 @@ export default async function PlanProfilePage({ params }: PageProps) {
     notFound();
   }
 
-  const plan = await prisma.platformPlan.findUnique({
+  const plan = await (prisma as any).platformPlan.findUnique({
     where: { id: planId },
     include: { features: true },
   });
@@ -27,9 +30,11 @@ export default async function PlanProfilePage({ params }: PageProps) {
   const planForm = {
     planId: plan.id,
     initialName: plan.name,
-    initialCode: plan.code,
     initialPrice: plan.priceMonthly.toString(),
+    initialBillingPeriodMonths: plan.billingPeriodMonths,
+    initialGracePeriodDays: plan.gracePeriodDays,
     initialCurrency: plan.currency,
+    initialDescription: plan.description ?? "",
     initialActive: plan.isActive,
   };
 
@@ -42,7 +47,8 @@ export default async function PlanProfilePage({ params }: PageProps) {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{plan.name}</h1>
           <p className="text-[color:var(--bp-muted)]">
-            {plan.priceMonthly.toString()} {plan.currency} · {plan.code}
+            {plan.priceMonthly.toString()} {plan.currency} за {formatPlanPeriod(plan.billingPeriodMonths)}
+            {plan.gracePeriodDays > 0 ? ` · льготный период ${plan.gracePeriodDays} дн.` : ""}
           </p>
         </div>
         <Link

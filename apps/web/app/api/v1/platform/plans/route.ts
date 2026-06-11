@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { prisma } from "@/lib/prisma";
 import { jsonError, jsonOk } from "@/lib/api";
 import {
@@ -5,6 +7,7 @@ import {
   requirePlatformApiPermission,
 } from "@/lib/platform-api";
 import { logPlatformAudit } from "@/lib/audit";
+import { generatePlatformPlanCode } from "@/lib/platform-subscriptions";
 import { Prisma } from "@prisma/client";
 
 type DbPlan = {
@@ -13,6 +16,8 @@ type DbPlan = {
   code: string;
   description: string | null;
   priceMonthly: Prisma.Decimal;
+  billingPeriodMonths: number;
+  gracePeriodDays: number;
   currency: string;
   isActive: boolean;
   createdAt: Date;
@@ -23,9 +28,10 @@ function mapPlan(plan: DbPlan) {
   return {
     id: plan.id,
     name: plan.name,
-    code: plan.code,
     description: plan.description,
     priceMonthly: plan.priceMonthly.toString(),
+    billingPeriodMonths: plan.billingPeriodMonths,
+    gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
     isActive: plan.isActive,
     createdAt: plan.createdAt.toISOString(),
@@ -37,11 +43,12 @@ export async function GET() {
   const auth = await requirePlatformApiPermission("platform.plans");
   if ("response" in auth) return auth.response;
 
-  const plans = await prisma.platformPlan.findMany({
+  const db = prisma as any;
+  const plans = await db.platformPlan.findMany({
     orderBy: { createdAt: "desc" },
   });
 
-  const response = jsonOk(plans.map((plan) => mapPlan(plan as DbPlan)));
+  const response = jsonOk(plans.map((plan: DbPlan) => mapPlan(plan)));
   return applyAccessCookie(response, auth);
 }
 
@@ -56,21 +63,37 @@ export async function POST(request: Request) {
   }
 
   const name = String(body.name ?? "").trim();
-  const code = String(body.code ?? "").trim();
   const description = body.description ? String(body.description).trim() : null;
   const currency = String(body.currency ?? "RUB").trim();
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
+  const billingPeriodMonths = Number(body.billingPeriodMonths ?? 1);
+  const gracePeriodDays = Number(body.gracePeriodDays ?? 5);
 
-  if (!name || !code || body.priceMonthly === undefined) {
-    return jsonError("VALIDATION_FAILED", "Название, код и цена обязательны", {
+  if (!name || body.priceMonthly === undefined) {
+    return jsonError("VALIDATION_FAILED", "Название, цена и срок подписки обязательны", {
       fields: [
         { path: "name", issue: name ? null : "required" },
-        { path: "code", issue: code ? null : "required" },
         {
           path: "priceMonthly",
           issue: body.priceMonthly !== undefined ? null : "required",
         },
+        {
+          path: "billingPeriodMonths",
+          issue: Number.isInteger(billingPeriodMonths) && billingPeriodMonths > 0 ? null : "invalid",
+        },
       ],
+    });
+  }
+
+  if (!Number.isInteger(billingPeriodMonths) || billingPeriodMonths <= 0) {
+    return jsonError("VALIDATION_FAILED", "Некорректный срок тарифа", {
+      fields: [{ path: "billingPeriodMonths", issue: "invalid" }],
+    });
+  }
+
+  if (!Number.isInteger(gracePeriodDays) || gracePeriodDays < 0) {
+    return jsonError("VALIDATION_FAILED", "Некорректный льготный период", {
+      fields: [{ path: "gracePeriodDays", issue: "invalid" }],
     });
   }
 
@@ -84,15 +107,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const created = await prisma.platformPlan.create({
-      data: {
-        name,
-        code,
-        description: description || undefined,
-        priceMonthly: price,
-        currency,
-        isActive,
-      },
+    const db = prisma as any;
+    const created = await db.$transaction(async (tx: any) => {
+      const code = await generatePlatformPlanCode(name, tx);
+      return tx.platformPlan.create({
+        data: {
+          name,
+          code,
+          description: description || undefined,
+          priceMonthly: price,
+          billingPeriodMonths,
+          gracePeriodDays,
+          currency,
+          isActive,
+        },
+      });
     });
 
     await logPlatformAudit({
@@ -102,9 +131,11 @@ export async function POST(request: Request) {
       targetId: created.id,
       diffJson: {
         name,
-        code,
+        code: created.code,
         description,
         priceMonthly: price.toString(),
+        billingPeriodMonths,
+        gracePeriodDays,
         currency,
         isActive,
       },
@@ -112,17 +143,7 @@ export async function POST(request: Request) {
 
     const response = jsonOk(mapPlan(created as DbPlan), 201);
     return applyAccessCookie(response, auth);
-  } catch (error: unknown) {
-    const caught = error as { code?: string; message?: string; meta?: { target?: string | string[] } };
-    if (caught.code === "P2002") {
-      const target = Array.isArray(caught.meta?.target)
-        ? caught.meta.target[0]
-        : caught.meta?.target;
-      const field = target === "name" ? "name" : "code";
-      const message =
-        field === "name" ? "Название уже используется" : "Код уже используется";
-      return jsonError("DUPLICATE", message, { field }, 409);
-    }
+  } catch {
     return jsonError("SERVER_ERROR", "Не удалось создать тариф", null, 500);
   }
 }

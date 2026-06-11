@@ -1,6 +1,7 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
 import { getAccountSlotStepMinutes } from "@/lib/public-booking";
+import { getPublicAccountById } from "@/lib/platform-subscriptions";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-builder";
 import type {
   PublicSiteData,
@@ -31,10 +32,7 @@ export async function loadPublicData(publicSlug: string): Promise<PublicSiteData
   const parsed = parsePublicSlugId(publicSlug);
   if (!parsed) return null;
 
-  const account = await prisma.account.findUnique({
-    where: { id: parsed.id },
-    select: { id: true, name: true, slug: true, timeZone: true },
-  });
+  const account = await getPublicAccountById(parsed.id);
   if (!account) return null;
 
   const publicPage = await prisma.publicPage.findFirst({

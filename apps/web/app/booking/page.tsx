@@ -1,6 +1,6 @@
 ﻿import { notFound, redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
+import { getPublicAccountBySlug } from "@/lib/platform-subscriptions";
 
 type BookingEntryProps = {
   searchParams: Promise<{
@@ -15,10 +15,7 @@ export default async function BookingEntry({ searchParams }: BookingEntryProps) 
     notFound();
   }
 
-  const account = await prisma.account.findUnique({
-    where: { slug: accountSlug },
-    select: { id: true, slug: true },
-  });
+  const account = await getPublicAccountBySlug(accountSlug);
 
   if (!account) {
     notFound();
