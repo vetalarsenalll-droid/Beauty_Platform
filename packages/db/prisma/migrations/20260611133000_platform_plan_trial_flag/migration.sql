@@ -1,0 +1,2 @@
+ALTER TABLE "PlatformPlan"
+ADD COLUMN "isTrial" BOOLEAN NOT NULL DEFAULT false;

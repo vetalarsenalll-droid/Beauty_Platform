@@ -6,7 +6,7 @@ import { formatPlanPeriod } from "@/lib/platform-subscriptions";
 export async function requestSubscriptionInvoice(accountId: number, planId: number) {
   const db = prisma as any;
   const plan = await db.platformPlan.findFirst({
-    where: { id: planId, isActive: true },
+    where: { id: planId, isActive: true, isTrial: false },
     select: {
       id: true,
       name: true,

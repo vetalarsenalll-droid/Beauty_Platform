@@ -67,9 +67,15 @@ const NAV_ITEMS: NavItem[] = [
     permission: "crm.clients.read",
   },
   {
-    label: "Оплаты/Финансы",
+    label: "Оплата",
     href: "/crm/payments",
     icon: <IconWallet />,
+    permission: "crm.payments.read",
+  },
+  {
+    label: "Тарифы и платежи",
+    href: "/crm/billing",
+    icon: <IconReceipt />,
     permission: "crm.payments.read",
   },
   {
@@ -95,6 +101,12 @@ const NAV_ITEMS: NavItem[] = [
     href: "/crm/assistant/site",
     icon: <IconSpark />,
     permission: "crm.assistant.site.read",
+  },
+  {
+    label: "CRM агент",
+    href: "/crm/agent",
+    icon: <IconBot />,
+    permission: "crm.assistant.agent.use",
   },
   {
     label: "Сайт",
@@ -806,6 +818,17 @@ function IconWallet() {
   );
 }
 
+function IconReceipt() {
+  return (
+    <IconBase>
+      <path d="M6 3h12v18l-2-1.2-2 1.2-2-1.2-2 1.2-2-1.2L6 21V3Z" />
+      <path d="M9 8h6" />
+      <path d="M9 12h6" />
+      <path d="M9 16h4" />
+    </IconBase>
+  );
+}
+
 function IconPulse() {
   return (
     <IconBase>
@@ -820,6 +843,20 @@ function IconSpark() {
       <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z" />
       <path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9Z" />
       <path d="M5 14l.7 1.6L7.5 16l-1.8.4L5 18l-.7-1.6L2.5 16l1.8-.4Z" />
+    </IconBase>
+  );
+}
+
+function IconBot() {
+  return (
+    <IconBase>
+      <path d="M12 6V3" />
+      <rect x="5" y="7" width="14" height="12" rx="3" />
+      <path d="M9 12h.01" />
+      <path d="M15 12h.01" />
+      <path d="M9 16h6" />
+      <path d="M4 13H2" />
+      <path d="M22 13h-2" />
     </IconBase>
   );
 }

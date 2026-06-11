@@ -11,7 +11,7 @@ export default async function PlatformSettingsPage() {
     prisma.platformSetting.findMany({ orderBy: { key: "asc" } }),
     prisma.templateLibrary.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.platformPlan.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isTrial: true },
       orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
       select: { id: true, name: true },
     }),

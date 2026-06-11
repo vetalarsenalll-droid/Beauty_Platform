@@ -35,6 +35,7 @@ export default async function PlanProfilePage({ params }: PageProps) {
     initialGracePeriodDays: plan.gracePeriodDays,
     initialCurrency: plan.currency,
     initialDescription: plan.description ?? "",
+    initialTrial: plan.isTrial,
     initialActive: plan.isActive,
   };
 

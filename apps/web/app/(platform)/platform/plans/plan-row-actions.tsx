@@ -11,6 +11,7 @@ type PlanRowActionsProps = {
   initialGracePeriodDays: number;
   initialCurrency: string;
   initialDescription: string;
+  initialTrial: boolean;
   initialActive: boolean;
 };
 
@@ -22,6 +23,7 @@ export default function PlanRowActions({
   initialGracePeriodDays,
   initialCurrency,
   initialDescription,
+  initialTrial,
   initialActive,
 }: PlanRowActionsProps) {
   const router = useRouter();
@@ -33,6 +35,7 @@ export default function PlanRowActions({
   const [gracePeriodDays, setGracePeriodDays] = useState(String(initialGracePeriodDays));
   const [currency, setCurrency] = useState(initialCurrency);
   const [description, setDescription] = useState(initialDescription);
+  const [trial, setTrial] = useState(initialTrial);
   const [active, setActive] = useState(initialActive);
   const [saving, setSaving] = useState(false);
 
@@ -49,6 +52,7 @@ export default function PlanRowActions({
           billingPeriodMonths: Number(billingPeriodMonths),
           gracePeriodDays: Number(gracePeriodDays),
           currency,
+          isTrial: trial,
           isActive: active,
         }),
       });
@@ -64,6 +68,7 @@ export default function PlanRowActions({
       setBillingPeriodMonths(String(payload?.data?.billingPeriodMonths ?? billingPeriodMonths));
       setGracePeriodDays(String(payload?.data?.gracePeriodDays ?? gracePeriodDays));
       setCurrency(payload?.data?.currency ?? currency);
+      setTrial(payload?.data?.isTrial ?? trial);
       setActive(payload?.data?.isActive ?? active);
       router.refresh();
     } finally {
@@ -134,6 +139,14 @@ export default function PlanRowActions({
           className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
           placeholder="Что входит в тариф"
         />
+      </label>
+      <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
+        <input
+          type="checkbox"
+          checked={trial}
+          onChange={(event) => setTrial(event.target.checked)}
+        />
+        Пробный тариф
       </label>
       <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
         <input

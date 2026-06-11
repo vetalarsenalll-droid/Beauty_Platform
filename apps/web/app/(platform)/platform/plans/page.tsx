@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
@@ -9,8 +7,8 @@ import PlanCreateForm from "./plan-create-form";
 export default async function PlatformPlansPage() {
   await requirePlatformPermission("platform.plans");
 
-  const plans = await (prisma as any).platformPlan.findMany({
-    orderBy: { createdAt: "desc" },
+  const plans = await prisma.platformPlan.findMany({
+    orderBy: [{ isTrial: "desc" }, { createdAt: "desc" }],
   });
 
   return (
@@ -23,14 +21,14 @@ export default async function PlatformPlansPage() {
           Планы и условия платформы
         </h1>
         <p className="text-[color:var(--bp-muted)]">
-          Управляйте тарифами, лимитами и доступными модулями.
+          Управляйте ценами, trial-тарифами, лимитами и доступными модулями.
         </p>
       </header>
 
       <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Новый тариф</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Код тарифа создаётся автоматически. Здесь задаются только бизнес-параметры.
+          Код тарифа создаётся автоматически. Пробный тариф используется только для trial и не продаётся в CRM.
         </p>
         <div className="mt-4">
           <PlanCreateForm />
@@ -45,7 +43,7 @@ export default async function PlatformPlansPage() {
               Тарифов пока нет. Создайте первый тариф выше.
             </div>
           ) : (
-            plans.map((plan: any) => (
+            plans.map((plan) => (
               <div
                 key={plan.id}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] px-4 py-3"
@@ -56,10 +54,22 @@ export default async function PlatformPlansPage() {
                     <span className="rounded-full bg-[color:var(--bp-chip)] px-2 py-0.5 text-xs">
                       {plan.isActive ? "Активен" : "Выключен"}
                     </span>
+                    {plan.isTrial ? (
+                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
+                        Trial
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">
+                        Продажа
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
-                    {plan.priceMonthly.toString()} {plan.currency} за {formatPlanPeriod(plan.billingPeriodMonths)}
-                    {plan.gracePeriodDays > 0 ? ` · льготный период ${plan.gracePeriodDays} дн.` : ""}
+                    {plan.priceMonthly.toString()} {plan.currency} за{" "}
+                    {formatPlanPeriod(plan.billingPeriodMonths)}
+                    {plan.gracePeriodDays > 0
+                      ? ` · льготный период ${plan.gracePeriodDays} дн.`
+                      : ""}
                   </div>
                 </div>
                 <Link

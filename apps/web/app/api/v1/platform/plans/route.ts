@@ -19,6 +19,7 @@ type DbPlan = {
   billingPeriodMonths: number;
   gracePeriodDays: number;
   currency: string;
+  isTrial: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +34,7 @@ function mapPlan(plan: DbPlan) {
     billingPeriodMonths: plan.billingPeriodMonths,
     gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
+    isTrial: plan.isTrial,
     isActive: plan.isActive,
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
@@ -66,6 +68,7 @@ export async function POST(request: Request) {
   const description = body.description ? String(body.description).trim() : null;
   const currency = String(body.currency ?? "RUB").trim();
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
+  const isTrial = body.isTrial !== undefined ? Boolean(body.isTrial) : false;
   const billingPeriodMonths = Number(body.billingPeriodMonths ?? 1);
   const gracePeriodDays = Number(body.gracePeriodDays ?? 5);
 
@@ -119,6 +122,7 @@ export async function POST(request: Request) {
           billingPeriodMonths,
           gracePeriodDays,
           currency,
+          isTrial,
           isActive,
         },
       });
@@ -137,6 +141,7 @@ export async function POST(request: Request) {
         billingPeriodMonths,
         gracePeriodDays,
         currency,
+        isTrial,
         isActive,
       },
     });

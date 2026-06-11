@@ -517,11 +517,11 @@ export async function createTrialSubscriptionForAccount(
 
   const planPromise = settings.trialPlanId
     ? tx.platformPlan.findFirst({
-        where: { id: settings.trialPlanId, isActive: true },
+        where: { id: settings.trialPlanId, isActive: true, isTrial: true },
         select: { id: true, name: true },
       })
     : tx.platformPlan.findFirst({
-        where: { isActive: true },
+        where: { isActive: true, isTrial: true },
         orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
         select: { id: true, name: true },
       });

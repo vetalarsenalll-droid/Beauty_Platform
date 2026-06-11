@@ -38,7 +38,7 @@ export async function POST(request: Request, { params }: Params) {
       customerEmail: auth.session.email,
     });
 
-    revalidatePath("/crm/payments");
+    revalidatePath("/crm/billing");
     const response = jsonOk({ invoiceId, ...checkout });
     return applyCrmAccessCookie(response, auth);
   } catch (error) {

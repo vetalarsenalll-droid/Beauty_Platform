@@ -6,6 +6,21 @@ type PlanCreateFormProps = {
   onCreated?: () => void;
 };
 
+const limitFields = [
+  { key: "limit.locations", label: "Лимит локаций", placeholder: "Например, 1" },
+  { key: "limit.services", label: "Лимит услуг", placeholder: "Например, 30" },
+  { key: "limit.specialists", label: "Лимит специалистов", placeholder: "Например, 5" },
+  { key: "limit.staff", label: "Лимит сотрудников", placeholder: "Например, 10" },
+  { key: "limit.clients", label: "Лимит клиентов", placeholder: "Например, 1000" },
+] as const;
+
+const moduleFields = [
+  { key: "module.online_booking", label: "Онлайн-запись" },
+  { key: "module.site_builder", label: "Конструктор сайта" },
+  { key: "module.ai_assistant", label: "AI-ассистент" },
+  { key: "module.crm_agent", label: "CRM-агент" },
+] as const;
+
 export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -13,11 +28,14 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
   const [billingPeriodMonths, setBillingPeriodMonths] = useState("1");
   const [gracePeriodDays, setGracePeriodDays] = useState("5");
   const [currency, setCurrency] = useState("RUB");
-  const [limitLocations, setLimitLocations] = useState("");
-  const [limitServices, setLimitServices] = useState("");
-  const [limitSpecialists, setLimitSpecialists] = useState("");
-  const [limitStaff, setLimitStaff] = useState("");
-  const [limitClients, setLimitClients] = useState("");
+  const [isTrial, setIsTrial] = useState(false);
+  const [limits, setLimits] = useState<Record<string, string>>({});
+  const [modules, setModules] = useState<Record<string, boolean>>({
+    "module.online_booking": true,
+    "module.site_builder": false,
+    "module.ai_assistant": false,
+    "module.crm_agent": false,
+  });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -37,6 +55,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           billingPeriodMonths: Number(billingPeriodMonths),
           gracePeriodDays: Number(gracePeriodDays),
           currency,
+          isTrial,
         }),
       });
 
@@ -50,12 +69,14 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
       const planId = payload?.data?.id as number | undefined;
       if (planId) {
         const features = [
-          { key: "limit.locations", value: limitLocations },
-          { key: "limit.services", value: limitServices },
-          { key: "limit.specialists", value: limitSpecialists },
-          { key: "limit.staff", value: limitStaff },
-          { key: "limit.clients", value: limitClients },
-        ].filter((item) => item.value.trim().length > 0);
+          ...limitFields
+            .map((field) => ({ key: field.key, value: limits[field.key] ?? "" }))
+            .filter((item) => item.value.trim().length > 0),
+          ...moduleFields.map((field) => ({
+            key: field.key,
+            value: modules[field.key] ? "true" : "false",
+          })),
+        ];
 
         for (const item of features) {
           await fetch(`/api/v1/platform/plans/${planId}/features`, {
@@ -71,11 +92,14 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
       setPriceMonthly("");
       setBillingPeriodMonths("1");
       setGracePeriodDays("5");
-      setLimitLocations("");
-      setLimitServices("");
-      setLimitSpecialists("");
-      setLimitStaff("");
-      setLimitClients("");
+      setIsTrial(false);
+      setLimits({});
+      setModules({
+        "module.online_booking": true,
+        "module.site_builder": false,
+        "module.ai_assistant": false,
+        "module.crm_agent": false,
+      });
       if (onCreated) onCreated();
       else window.location.reload();
     } catch {
@@ -106,6 +130,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           />
         </label>
       </div>
+
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-2 text-sm">
           Цена тарифа
@@ -139,6 +164,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           />
         </label>
       </div>
+
       <label className="flex flex-col gap-2 text-sm">
         Описание
         <input
@@ -147,57 +173,56 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
         />
       </label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Лимит локаций
-          <input
-            value={limitLocations}
-            onChange={(event) => setLimitLocations(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            placeholder="Например, 3"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Лимит услуг
-          <input
-            value={limitServices}
-            onChange={(event) => setLimitServices(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            placeholder="Например, 50"
-          />
-        </label>
+
+      <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-3 text-sm">
+        <input
+          type="checkbox"
+          checked={isTrial}
+          onChange={(event) => setIsTrial(event.target.checked)}
+        />
+        Пробный тариф. Используется для trial и не продаётся на витрине CRM.
+      </label>
+
+      <div>
+        <h3 className="text-sm font-semibold">Лимиты</h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          {limitFields.map((field) => (
+            <label key={field.key} className="flex flex-col gap-2 text-sm">
+              {field.label}
+              <input
+                value={limits[field.key] ?? ""}
+                onChange={(event) =>
+                  setLimits((prev) => ({ ...prev, [field.key]: event.target.value }))
+                }
+                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+                placeholder={field.placeholder}
+              />
+            </label>
+          ))}
+        </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Лимит специалистов
-          <input
-            value={limitSpecialists}
-            onChange={(event) => setLimitSpecialists(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            placeholder="Например, 10"
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Лимит сотрудников
-          <input
-            value={limitStaff}
-            onChange={(event) => setLimitStaff(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            placeholder="Например, 20"
-          />
-        </label>
+
+      <div>
+        <h3 className="text-sm font-semibold">Модули тарифа</h3>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          {moduleFields.map((field) => (
+            <label
+              key={field.key}
+              className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-3 text-sm"
+            >
+              <input
+                type="checkbox"
+                checked={Boolean(modules[field.key])}
+                onChange={(event) =>
+                  setModules((prev) => ({ ...prev, [field.key]: event.target.checked }))
+                }
+              />
+              {field.label}
+            </label>
+          ))}
+        </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-2 text-sm">
-          Лимит клиентов
-          <input
-            value={limitClients}
-            onChange={(event) => setLimitClients(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            placeholder="Например, 2000"
-          />
-        </label>
-      </div>
+
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       <button
         type="submit"

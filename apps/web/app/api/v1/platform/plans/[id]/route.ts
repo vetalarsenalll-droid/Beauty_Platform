@@ -20,6 +20,7 @@ type DbPlan = {
   billingPeriodMonths: number;
   gracePeriodDays: number;
   currency: string;
+  isTrial: boolean;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -34,6 +35,7 @@ function mapPlan(plan: DbPlan) {
     billingPeriodMonths: plan.billingPeriodMonths,
     gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
+    isTrial: plan.isTrial,
     isActive: plan.isActive,
     createdAt: plan.createdAt.toISOString(),
     updatedAt: plan.updatedAt.toISOString(),
@@ -83,6 +85,7 @@ export async function PATCH(request: Request, { params }: Params) {
     billingPeriodMonths?: number;
     gracePeriodDays?: number;
     currency?: string;
+    isTrial?: boolean;
     isActive?: boolean;
   } = {};
 
@@ -91,6 +94,7 @@ export async function PATCH(request: Request, { params }: Params) {
     data.description = body.description ? String(body.description).trim() : null;
   }
   if (body.currency !== undefined) data.currency = String(body.currency).trim();
+  if (body.isTrial !== undefined) data.isTrial = Boolean(body.isTrial);
   if (body.isActive !== undefined) data.isActive = Boolean(body.isActive);
   if (body.billingPeriodMonths !== undefined) {
     const value = Number(body.billingPeriodMonths);
