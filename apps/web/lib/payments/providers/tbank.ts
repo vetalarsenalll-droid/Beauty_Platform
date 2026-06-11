@@ -243,15 +243,26 @@ async function createTbankPayment(input: CreatePaymentInput): Promise<CreatePaym
   let qrPayload: string | undefined;
   let qrUrl: string | undefined;
   if (input.method === "sbp" && config.tbank.sbpEnabled) {
-    const qrRequest: Record<string, unknown> = {
+    const imageQrRequest: Record<string, unknown> = {
       TerminalKey: config.tbank.terminalKey,
       PaymentId: init.PaymentId,
+      DataType: "IMAGE",
     };
-    qrRequest.Token = buildTbankToken(qrRequest, config.tbank.password);
-    const qr = await tbankRequest<TbankQrResponse>("GetQr", qrRequest);
-    if (qr.Success) {
-      qrPayload = qr.Payload || qr.Data || qr.QR;
-      qrUrl = qr.Data || qr.QR;
+    imageQrRequest.Token = buildTbankToken(imageQrRequest, config.tbank.password);
+    const imageQr = await tbankRequest<TbankQrResponse>("GetQr", imageQrRequest);
+    if (imageQr.Success) {
+      qrUrl = imageQr.Data || imageQr.QR || imageQr.Payload;
+    }
+
+    const payloadQrRequest: Record<string, unknown> = {
+      TerminalKey: config.tbank.terminalKey,
+      PaymentId: init.PaymentId,
+      DataType: "PAYLOAD",
+    };
+    payloadQrRequest.Token = buildTbankToken(payloadQrRequest, config.tbank.password);
+    const payloadQr = await tbankRequest<TbankQrResponse>("GetQr", payloadQrRequest);
+    if (payloadQr.Success) {
+      qrPayload = payloadQr.Data || payloadQr.Payload || payloadQr.QR;
     }
   }
 

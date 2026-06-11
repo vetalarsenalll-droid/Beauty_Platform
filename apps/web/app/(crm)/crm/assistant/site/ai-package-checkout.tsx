@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { UnoptimizedImage } from "@/components/unoptimized-image";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type AiPackageCheckoutProps = {
   packageId: number;
@@ -22,6 +23,29 @@ type CheckoutResponse = {
   error?: { message?: string };
 };
 
+type PaymentSheet = {
+  invoiceId: number;
+  amountLabel: string;
+  paymentUrl: string | null;
+  cardPaymentUrl: string | null;
+  qrUrl: string | null;
+  qrPayload: string | null;
+};
+
+const svgToDataUri = (svg: string) => {
+  if (svg.startsWith("data:")) return svg;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+};
+
+const crispQrSvgMarkup = (svg: string) => {
+  const trimmed = svg.trim();
+  if (!trimmed.startsWith("<svg")) return null;
+  return trimmed
+    .replace(/<svg(?![^>]*shape-rendering=)/i, '<svg shape-rendering="crispEdges"')
+    .replace(/<path(?![^>]*shape-rendering=)/gi, '<path shape-rendering="crispEdges"')
+    .replace(/<rect(?![^>]*shape-rendering=)/gi, '<rect shape-rendering="crispEdges"');
+};
+
 export default function AiPackageCheckout({
   packageId,
   name,
@@ -34,11 +58,22 @@ export default function AiPackageCheckout({
   const [open, setOpen] = useState(false);
   const [loadingMethod, setLoadingMethod] = useState<"card" | "sbp" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [qr, setQr] = useState<{ qrUrl?: string; qrPayload?: string } | null>(null);
+  const [paymentSheet, setPaymentSheet] = useState<PaymentSheet | null>(null);
+  const qrMarkup = useMemo(
+    () => (paymentSheet?.qrUrl ? crispQrSvgMarkup(paymentSheet.qrUrl) : null),
+    [paymentSheet?.qrUrl]
+  );
+  const qrImageSrc =
+    paymentSheet?.qrUrl && !qrMarkup
+      ? paymentSheet.qrUrl.trim().startsWith("<svg")
+        ? svgToDataUri(paymentSheet.qrUrl.trim())
+        : paymentSheet.qrUrl.trim().startsWith("http") || paymentSheet.qrUrl.trim().startsWith("data:")
+          ? paymentSheet.qrUrl
+          : null
+      : null;
 
-  const startCheckout = async (method: "card" | "sbp") => {
+  const startCheckout = useCallback(async (method: "card" | "sbp") => {
     setError(null);
-    setQr(null);
     setLoadingMethod(method);
     try {
       const response = await fetch(`/api/v1/crm/assistant/packages/${packageId}/checkout`, {
@@ -51,20 +86,51 @@ export default function AiPackageCheckout({
         setError(payload?.error?.message ?? "Не удалось создать оплату");
         return;
       }
-      if (method === "sbp" && (payload.data.qrUrl || payload.data.qrPayload)) {
-        setQr({ qrUrl: payload.data.qrUrl, qrPayload: payload.data.qrPayload });
+      if (method === "card") {
+        if (payload.data.paymentUrl) {
+          setPaymentSheet((current) => ({
+            invoiceId: payload.data!.invoiceId,
+            amountLabel: priceLabel,
+            paymentUrl: current?.paymentUrl ?? payload.data!.paymentUrl ?? null,
+            cardPaymentUrl: payload.data!.paymentUrl ?? null,
+            qrUrl: current?.qrUrl ?? null,
+            qrPayload: current?.qrPayload ?? null,
+          }));
+          window.open(payload.data.paymentUrl, "_blank", "noopener,noreferrer");
+          return;
+        }
+        setError("Банк не вернул ссылку на оплату картой");
         return;
       }
-      if (payload.data.paymentUrl) {
-        window.location.href = payload.data.paymentUrl;
-        return;
+
+      setPaymentSheet({
+        invoiceId: payload.data.invoiceId,
+        amountLabel: priceLabel,
+        paymentUrl: payload.data.paymentUrl ?? null,
+        cardPaymentUrl: null,
+        qrUrl: payload.data.qrUrl ?? null,
+        qrPayload: payload.data.qrPayload ?? null,
+      });
+      if (!payload.data.qrUrl && !payload.data.qrPayload) {
+        setError("Банк не вернул QR-код СБП. Можно оплатить картой.");
       }
-      setError("Банк не вернул ссылку на оплату");
     } catch {
       setError("Не удалось создать оплату");
     } finally {
       setLoadingMethod(null);
     }
+  }, [packageId, priceLabel]);
+
+  useEffect(() => {
+    if (!open || paymentSheet || loadingMethod) return;
+    void startCheckout("sbp");
+  }, [loadingMethod, open, paymentSheet, startCheckout]);
+
+  const closeModal = () => {
+    setOpen(false);
+    setError(null);
+    setLoadingMethod(null);
+    setPaymentSheet(null);
   };
 
   return (
@@ -77,7 +143,10 @@ export default function AiPackageCheckout({
         {description ? <div className="mt-2 text-xs text-[color:var(--bp-muted)]">{description}</div> : null}
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setOpen(true);
+            setError(null);
+          }}
           className="mt-4 w-full rounded-xl bg-[color:var(--bp-accent)] px-3 py-2 text-sm font-medium text-white"
         >
           {pendingInvoiceId ? `Оплатить счёт #${pendingInvoiceId}` : "Купить"}
@@ -85,56 +154,114 @@ export default function AiPackageCheckout({
       </article>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 py-6">
+          <div
+            className="w-full max-w-[420px] border p-5 shadow-[var(--bp-shadow-soft)]"
+            style={{
+              borderRadius: "var(--booking-panel-radius, var(--bp-radius, 24px))",
+              borderColor: "var(--booking-panel-border, var(--bp-stroke))",
+              borderWidth: "var(--booking-border-width, 1px)",
+              backgroundColor: "var(--bp-paper)",
+              color: "var(--bp-ink)",
+              fontFamily: "var(--bp-font-body, var(--site-font-body, inherit))",
+            }}
+          >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="text-sm text-[color:var(--bp-muted)]">Оплата AI-пакета</div>
-                <h3 className="mt-1 text-xl font-semibold">{name}</h3>
+                <div className="text-xs uppercase tracking-[0.2em] text-[color:var(--bp-muted)]">Оплата</div>
+                <h3 className="mt-1 text-xl font-semibold text-[color:var(--bp-ink)]">
+                  Выберите способ оплаты
+                </h3>
+                <div className="mt-1 text-sm text-[color:var(--bp-muted)]">
+                  К оплате {paymentSheet?.amountLabel ?? priceLabel} ₽
+                </div>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-[color:var(--bp-stroke)] px-3 py-1 text-sm">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="border px-3 py-1 text-sm"
+                style={{
+                  borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                  borderColor: "var(--booking-secondary-button-border, var(--bp-stroke))",
+                  backgroundColor: "var(--booking-secondary-button-bg, transparent)",
+                  color: "var(--booking-secondary-button-text, var(--bp-ink))",
+                }}
+                aria-label="Закрыть оплату"
+              >
                 ×
               </button>
             </div>
 
-            <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] p-4">
-              <div className="text-2xl font-semibold">{priceLabel} ₽</div>
-              <div className="mt-1 text-sm text-[color:var(--bp-muted)]">{tokensLabel} токенов</div>
-            </div>
+            <div className="mt-5 grid gap-3">
+              <div
+                className="border p-4 text-center"
+                style={{
+                  borderRadius: "var(--booking-card-radius, var(--booking-panel-radius, 24px))",
+                  borderColor: "var(--booking-card-border, var(--bp-stroke))",
+                  backgroundColor: "var(--booking-sub-bg, transparent)",
+                  backgroundImage: "var(--booking-card-gradient, none)",
+                }}
+              >
+                <div className="text-sm font-semibold text-[color:var(--bp-ink)]">Оплатить через СБП</div>
+                {loadingMethod === "sbp" && !paymentSheet ? (
+                  <div className="py-20 text-sm text-[color:var(--bp-muted)]">Создаём QR...</div>
+                ) : qrMarkup || qrImageSrc ? (
+                  <div className="mx-auto mt-3 flex max-w-[260px] justify-center rounded-xl bg-white p-3">
+                    {qrMarkup ? (
+                      <div
+                        aria-label="QR-код для оплаты через СБП"
+                        role="img"
+                        className="aspect-square w-full max-w-[230px] [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+                        dangerouslySetInnerHTML={{ __html: qrMarkup }}
+                      />
+                    ) : qrImageSrc ? (
+                      <UnoptimizedImage
+                        src={qrImageSrc}
+                        alt="QR-код для оплаты через СБП"
+                        className="aspect-square w-full max-w-[230px]"
+                      />
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="py-12 text-sm text-[color:var(--bp-muted)]">QR-код пока недоступен.</div>
+                )}
+                <div className="mt-3 text-xs text-[color:var(--bp-muted)]">
+                  Отсканируйте QR-код в приложении банка. После оплаты токены начислятся автоматически.
+                </div>
+                {paymentSheet?.qrPayload ? (
+                  <a
+                    href={paymentSheet.qrPayload}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center px-4 py-3 text-sm font-semibold sm:hidden"
+                    style={{
+                      borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                      backgroundColor: "var(--bp-accent)",
+                      color: "var(--bp-button-text)",
+                    }}
+                  >
+                    Открыть банк
+                  </a>
+                ) : null}
+              </div>
 
-            <div className="mt-4 grid gap-3">
               <button
                 type="button"
                 disabled={loadingMethod != null}
                 onClick={() => startCheckout("card")}
-                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                className="mx-4 mb-4 inline-flex w-[calc(100%-2rem)] items-center justify-center border px-4 py-3 text-sm font-semibold disabled:opacity-60"
+                style={{
+                  borderRadius: "var(--booking-button-radius, var(--bp-button-radius, 16px))",
+                  borderColor: "var(--bp-accent)",
+                  backgroundColor: "var(--booking-secondary-button-bg, transparent)",
+                  color: "var(--booking-secondary-button-text, var(--bp-ink))",
+                }}
               >
-                {loadingMethod === "card" ? "Создаём оплату..." : "Банковской картой"}
-              </button>
-              <button
-                type="button"
-                disabled={loadingMethod != null}
-                onClick={() => startCheckout("sbp")}
-                className="rounded-xl bg-[#211052] px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {loadingMethod === "sbp" ? "Создаём QR..." : "СБП"}
+                {loadingMethod === "card" ? "Создаём оплату..." : "Оплатить картой"}
               </button>
             </div>
 
-            {qr ? (
-              <div className="mt-4 rounded-xl border border-[color:var(--bp-stroke)] p-3 text-sm">
-                {qr.qrUrl && (qr.qrUrl.startsWith("http") || qr.qrUrl.startsWith("data:")) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={qr.qrUrl} alt="QR для оплаты СБП" className="mx-auto h-56 w-56 object-contain" />
-                ) : null}
-                {qr.qrPayload ? <div className="mt-2 break-all text-xs text-[color:var(--bp-muted)]">{qr.qrPayload}</div> : null}
-              </div>
-            ) : null}
-
             {error ? <div className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div> : null}
-            <p className="mt-4 text-xs text-[color:var(--bp-muted)]">
-              После оплаты банк пришлёт подтверждение, и токены начислятся автоматически.
-            </p>
           </div>
         </div>
       ) : null}
