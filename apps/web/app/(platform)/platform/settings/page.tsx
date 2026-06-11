@@ -7,9 +7,14 @@ import PlatformSettingsPanels from "./platform-settings-panels";
 export default async function PlatformSettingsPage() {
   await requirePlatformPermission("platform.settings");
 
-  const [settings, templates] = await Promise.all([
+  const [settings, templates, plans] = await Promise.all([
     prisma.platformSetting.findMany({ orderBy: { key: "asc" } }),
     prisma.templateLibrary.findMany({ orderBy: { createdAt: "desc" } }),
+    prisma.platformPlan.findMany({
+      where: { isActive: true },
+      orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
+      select: { id: true, name: true },
+    }),
   ]);
 
   const settingsMap = settings.reduce<Record<string, unknown>>(
@@ -34,7 +39,7 @@ export default async function PlatformSettingsPage() {
         </p>
       </header>
 
-      <PlatformSettingsPanels settings={settingsMap} />
+      <PlatformSettingsPanels settings={settingsMap} plans={plans} />
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Новый шаблон</h2>

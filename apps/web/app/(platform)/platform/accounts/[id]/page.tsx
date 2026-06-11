@@ -2,6 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePlatformPermission } from "@/lib/auth";
+import {
+  buildCrmBillingNotice,
+  formatPlanPeriod,
+  reconcileAccountSubscriptionState,
+} from "@/lib/platform-subscriptions";
 import AccountProfileForm from "./account-profile-form";
 import AccountLimitsEditor from "./account-limits-editor";
 
@@ -13,7 +18,7 @@ const statusLabels: Record<string, string> = {
 
 const subscriptionLabels: Record<string, string> = {
   ACTIVE: "Активна",
-  PAST_DUE: "Просрочена",
+  PAST_DUE: "Просрочена, идёт льготный период",
   CANCELLED: "Отменена",
   EXPIRED: "Истекла",
 };
@@ -30,6 +35,10 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
+function formatDate(value: Date | null | undefined) {
+  return value ? value.toLocaleString("ru-RU") : "—";
+}
+
 export default async function AccountProfilePage({ params }: PageProps) {
   await requirePlatformPermission("platform.accounts");
   const { id } = await params;
@@ -37,6 +46,8 @@ export default async function AccountProfilePage({ params }: PageProps) {
   if (!Number.isInteger(accountId)) {
     notFound();
   }
+
+  await reconcileAccountSubscriptionState(accountId);
 
   const [account, plans] = await Promise.all([
     prisma.account.findUnique({
@@ -72,6 +83,28 @@ export default async function AccountProfilePage({ params }: PageProps) {
   if (!account) notFound();
 
   const subscription = account.platformSubscriptions[0] ?? null;
+  const billingNotice = buildCrmBillingNotice({
+    accessStatus: subscription
+      ? subscription.status === "PAST_DUE"
+        ? "past_due"
+        : subscription.status === "EXPIRED"
+          ? "expired"
+          : subscription.status === "CANCELLED"
+            ? "cancelled"
+            : "active"
+      : "none",
+    subscription: subscription
+      ? {
+          ...subscription,
+          account: {
+            id: account.id,
+            status: account.status,
+            suspendedByBillingAt: account.suspendedByBillingAt,
+            planId: account.planId,
+          },
+        }
+      : null,
+  });
   const accountForm = {
     id: account.id,
     name: account.name,
@@ -122,19 +155,45 @@ export default async function AccountProfilePage({ params }: PageProps) {
           </div>
         </div>
         <div className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-          <h2 className="text-lg font-semibold">Подписка</h2>
-          <div className="mt-4 text-sm">
-            <div>Тариф: {account.plan?.name ?? "Без тарифа"}</div>
+          <h2 className="text-lg font-semibold">Подписка и доступ</h2>
+          <div className="mt-4 grid gap-2 text-sm">
+            <div>Тариф: {subscription?.plan.name ?? account.plan?.name ?? "не выбран"}</div>
+            {subscription?.plan ? (
+              <div className="text-[color:var(--bp-muted)]">
+                Период тарифа: {formatPlanPeriod(subscription.plan.billingPeriodMonths)} · grace {subscription.plan.gracePeriodDays} дн.
+              </div>
+            ) : null}
             <div className="text-[color:var(--bp-muted)]">
-              Статус:{" "}
+              Статус подписки:{" "}
               {subscription
                 ? subscriptionLabels[subscription.status] ?? subscription.status
-                : "Не активна"}
+                : "нет подписки"}
             </div>
-            {subscription?.nextBillingAt ? (
-              <div className="text-[color:var(--bp-muted)]">
-                Следующая оплата:{" "}
-                {subscription.nextBillingAt.toLocaleDateString("ru-RU")}
+            <div className="text-[color:var(--bp-muted)]">
+              Статус аккаунта: {statusLabels[account.status] ?? account.status}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Подписка началась: {formatDate(subscription?.startedAt)}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Действует до: {formatDate(subscription?.endsAt ?? subscription?.nextBillingAt)}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Льготный период до: {formatDate(subscription?.graceEndsAt)}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Последняя оплата: {formatDate(subscription?.lastPaidAt)}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Уведомление отправлено: {formatDate(subscription?.remindedAt)}
+            </div>
+            <div className="text-[color:var(--bp-muted)]">
+              Заморожен биллингом: {formatDate(account.suspendedByBillingAt)}
+            </div>
+            {billingNotice ? (
+              <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+                <div className="font-medium">{billingNotice.title}</div>
+                <div className="mt-1 text-xs">{billingNotice.message}</div>
               </div>
             ) : null}
           </div>
@@ -148,14 +207,14 @@ export default async function AccountProfilePage({ params }: PageProps) {
             <div>
               Домены:{" "}
               {account.domains.length === 0
-                ? "Не настроены"
+                ? "не настроены"
                 : account.domains.map((item) => item.domain).join(", ")}
             </div>
             <div className="text-[color:var(--bp-muted)]">
-              Логотип: {account.branding?.logoUrl ? "Есть" : "Нет"}
+              Логотип: {account.branding?.logoUrl ? "есть" : "нет"}
             </div>
             <div className="text-[color:var(--bp-muted)]">
-              Обложка: {account.branding?.coverUrl ? "Есть" : "Нет"}
+              Обложка: {account.branding?.coverUrl ? "есть" : "нет"}
             </div>
           </div>
         </div>
@@ -198,7 +257,7 @@ export default async function AccountProfilePage({ params }: PageProps) {
 
       <section className="text-xs text-[color:var(--bp-muted)]">
         Статус аккаунта: {statusLabels[account.status] ?? account.status} ·
-        Создан: {account.createdAt.toLocaleString()} · Обновлен:{" "}
+        Создан: {account.createdAt.toLocaleString()} · Обновлён:{" "}
         {account.updatedAt.toLocaleString()}
       </section>
     </div>

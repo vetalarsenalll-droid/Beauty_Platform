@@ -233,7 +233,9 @@ export default async function CrmPaymentsPage({ searchParams }: PageProps) {
     lastTestedAt: connection.lastTestedAt?.toISOString() ?? null,
   }));
   const billingMessage =
-    subscriptionState.accessStatus === "past_due" && subscription?.graceEndsAt
+    subscriptionState.accessStatus === "none"
+      ? "Подписка не подключена. CRM доступна для выбора и оплаты тарифа, публичный сайт и онлайн-запись отключены."
+      : subscriptionState.accessStatus === "past_due" && subscription?.graceEndsAt
       ? `Срок тарифа истёк. Продлите подписку до ${subscription.graceEndsAt.toLocaleDateString("ru-RU")}, иначе аккаунт будет заморожен.`
       : account?.suspendedByBillingAt
         ? "Аккаунт заморожен из-за неоплаченной подписки. После оплаты доступ восстановится автоматически."

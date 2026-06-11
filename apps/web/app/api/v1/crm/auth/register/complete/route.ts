@@ -11,6 +11,7 @@ import { isBusinessType, isLegalType } from "@/lib/business-catalog";
 import { applyBusinessTypeSiteCopy } from "@/lib/business-site-copy";
 import { logAccountAudit } from "@/lib/crm-audit";
 import { APP_BRAND_NAME } from "@/lib/brand";
+import { createTrialSubscriptionForAccount } from "@/lib/platform-subscriptions";
 
 const PURPOSE = "CRM_REGISTER";
 const CONSENT_DOCS = [
@@ -387,6 +388,8 @@ export async function POST(request: Request) {
           roleId: ownerRole.id,
         },
       });
+
+      await createTrialSubscriptionForAccount(tx, account.id);
 
       const starterDraft = applyBusinessTypeSiteCopy(
         createDefaultDraft(businessName),

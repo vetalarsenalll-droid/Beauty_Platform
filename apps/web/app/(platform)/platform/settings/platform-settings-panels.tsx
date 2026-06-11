@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 type PlatformSettingsPanelsProps = {
   settings: Record<string, unknown>;
+  plans: Array<{ id: number; name: string }>;
 };
 
 type BillingSettings = {
@@ -23,11 +24,35 @@ type ContactsSettings = {
   website?: string;
 };
 
+type PlatformSubscriptionSettings = {
+  trialEnabled: boolean;
+  trialDays: number;
+  trialPlanId: number | null;
+};
+
 const BILLING_KEY = "platform.billing";
 const CONTACTS_KEY = "platform.contacts";
+const PLATFORM_SUBSCRIPTION_SETTINGS_KEY = "platform.subscription";
+
+function normalizePlatformSubscriptionSettings(raw: unknown): PlatformSubscriptionSettings {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    return { trialEnabled: true, trialDays: 14, trialPlanId: null };
+  }
+
+  const value = raw as Record<string, unknown>;
+  const trialDays = Number(value.trialDays);
+  const trialPlanId = Number(value.trialPlanId);
+  return {
+    trialEnabled:
+      typeof value.trialEnabled === "boolean" ? value.trialEnabled : true,
+    trialDays: Number.isInteger(trialDays) && trialDays > 0 ? trialDays : 14,
+    trialPlanId: Number.isInteger(trialPlanId) && trialPlanId > 0 ? trialPlanId : null,
+  };
+}
 
 export default function PlatformSettingsPanels({
   settings,
+  plans,
 }: PlatformSettingsPanelsProps) {
   const initialBilling = useMemo<BillingSettings>(() => {
     const raw = settings[BILLING_KEY];
@@ -43,8 +68,15 @@ export default function PlatformSettingsPanels({
       : {};
   }, [settings]);
 
+  const initialSubscription = useMemo<PlatformSubscriptionSettings>(
+    () => normalizePlatformSubscriptionSettings(settings[PLATFORM_SUBSCRIPTION_SETTINGS_KEY]),
+    [settings],
+  );
+
   const [billing, setBilling] = useState<BillingSettings>(initialBilling);
   const [contacts, setContacts] = useState<ContactsSettings>(initialContacts);
+  const [subscription, setSubscription] =
+    useState<PlatformSubscriptionSettings>(initialSubscription);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -75,12 +107,95 @@ export default function PlatformSettingsPanels({
     }
   };
 
+  const saveSubscription = () => {
+    save([
+      {
+        key: PLATFORM_SUBSCRIPTION_SETTINGS_KEY,
+        valueJson: {
+          trialEnabled: subscription.trialEnabled,
+          trialDays: Math.max(1, Number(subscription.trialDays) || 14),
+          trialPlanId: subscription.trialPlanId,
+        },
+      },
+    ]);
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
-        <h2 className="text-lg font-semibold">Платежные настройки</h2>
+        <h2 className="text-lg font-semibold">Подписки CRM</h2>
         <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
-          Выберите провайдера и заполните ключи доступа.
+          Эти настройки применяются к новым CRM-аккаунтам: при регистрации можно автоматически выдать пробный период.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              checked={subscription.trialEnabled}
+              onChange={(event) =>
+                setSubscription((prev) => ({
+                  ...prev,
+                  trialEnabled: event.target.checked,
+                }))
+              }
+            />
+            Включить пробный период
+          </label>
+          <label className="flex flex-col gap-2 text-sm">
+            Длительность пробного периода, дней
+            <input
+              type="number"
+              min="1"
+              value={subscription.trialDays}
+              onChange={(event) =>
+                setSubscription((prev) => ({
+                  ...prev,
+                  trialDays: Number(event.target.value),
+                }))
+              }
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            />
+          </label>
+          <label className="flex flex-col gap-2 text-sm">
+            Тариф для пробного периода
+            <select
+              value={subscription.trialPlanId ?? ""}
+              onChange={(event) =>
+                setSubscription((prev) => ({
+                  ...prev,
+                  trialPlanId: event.target.value ? Number(event.target.value) : null,
+                }))
+              }
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            >
+              <option value="">Не выдавать тариф</option>
+              {plans.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <p className="mt-3 text-xs text-[color:var(--bp-muted)]">
+          Если пробный тариф не выбран, новым аккаунтам будет выдаваться самый дешёвый активный тариф. Если активных тарифов нет, аккаунт создастся без подписки: CRM останется доступной для оплаты, публичный сайт и онлайн-запись будут отключены.
+        </p>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={saveSubscription}
+            disabled={saving}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-semibold"
+          >
+            {saving ? "Сохранение..." : "Сохранить настройки подписок"}
+          </button>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
+        <h2 className="text-lg font-semibold">Платёжные настройки</h2>
+        <p className="mt-2 text-sm text-[color:var(--bp-muted)]">
+          Выберите провайдера и заполните публичные параметры. Секреты хранятся только в `.env`.
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="flex flex-col gap-2 text-sm">
@@ -90,15 +205,14 @@ export default function PlatformSettingsPanels({
               onChange={(event) =>
                 setBilling((prev) => ({
                   ...prev,
-                  provider: event.target
-                    .value as BillingSettings["provider"],
+                  provider: event.target.value as BillingSettings["provider"],
                 }))
               }
               className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
             >
               <option value="manual">Ручной ввод</option>
               <option value="yookassa">ЮKassa</option>
-              <option value="tinkoff">Тинькофф</option>
+              <option value="tinkoff">Т-Банк</option>
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm">
@@ -117,97 +231,9 @@ export default function PlatformSettingsPanels({
         </div>
 
         <div className="mt-4 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-3 text-sm text-[color:var(--bp-muted)]">
-          Секретные ключи платежного провайдера хранятся только в `.env`: PAYMENT_PROVIDER, TBANK_TERMINAL_KEY, TBANK_PASSWORD, TBANK_API_URL.
-          В базе остаются только несекретные настройки.
+          Секретные ключи платёжного провайдера хранятся только в `.env`: PAYMENT_PROVIDER,
+          TBANK_TERMINAL_KEY, TBANK_PASSWORD, TBANK_API_URL. В базе остаются только несекретные настройки.
         </div>
-
-        {false && billing.provider === "yookassa" ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              ЮKassa Shop ID
-              <input
-                value={billing.yookassaShopId ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    yookassaShopId: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              ЮKassa Secret Key
-              <input
-                value={billing.yookassaSecret ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    yookassaSecret: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              ЮKassa Webhook Secret
-              <input
-                value={billing.yookassaWebhookSecret ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    yookassaWebhookSecret: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-          </div>
-        ) : null}
-
-        {false && billing.provider === "tinkoff" ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm">
-              Тинькофф Terminal Key
-              <input
-                value={billing.tinkoffTerminalKey ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    tinkoffTerminalKey: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              Тинькофф Secret Key
-              <input
-                value={billing.tinkoffSecretKey ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    tinkoffSecretKey: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-            <label className="flex flex-col gap-2 text-sm">
-              Тинькофф Webhook Secret
-              <input
-                value={billing.tinkoffWebhookSecret ?? ""}
-                onChange={(event) =>
-                  setBilling((prev) => ({
-                    ...prev,
-                    tinkoffWebhookSecret: event.target.value,
-                  }))
-                }
-                className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-              />
-            </label>
-          </div>
-        ) : null}
 
         <div className="mt-4 flex items-center gap-3">
           <button
@@ -216,12 +242,10 @@ export default function PlatformSettingsPanels({
             disabled={saving}
             className="rounded-2xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-semibold"
           >
-            {saving ? "Сохранение..." : "Сохранить платежные настройки"}
+            {saving ? "Сохранение..." : "Сохранить платёжные настройки"}
           </button>
         </div>
       </section>
-
-      {/* SEO блок включим позже после полной спецификации Marketplace */}
 
       <section className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--bp-paper)] p-5 shadow-[var(--bp-shadow)]">
         <h2 className="text-lg font-semibold">Контактные данные</h2>

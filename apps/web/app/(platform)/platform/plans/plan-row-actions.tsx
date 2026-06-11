@@ -27,7 +27,9 @@ export default function PlanRowActions({
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [price, setPrice] = useState(initialPrice);
-  const [billingPeriodMonths, setBillingPeriodMonths] = useState(String(initialBillingPeriodMonths));
+  const [billingPeriodMonths, setBillingPeriodMonths] = useState(
+    String(initialBillingPeriodMonths),
+  );
   const [gracePeriodDays, setGracePeriodDays] = useState(String(initialGracePeriodDays));
   const [currency, setCurrency] = useState(initialCurrency);
   const [description, setDescription] = useState(initialDescription);
@@ -72,47 +74,67 @@ export default function PlanRowActions({
   return (
     <div className="mt-4 flex flex-col gap-3">
       <div className="grid gap-2 sm:grid-cols-2">
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-        />
-        <input
-          value={currency}
-          onChange={(event) => setCurrency(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-        />
+        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+          Название тарифа
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+          Валюта
+          <input
+            value={currency}
+            onChange={(event) => setCurrency(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+          />
+        </label>
       </div>
+
       <div className="grid gap-2 sm:grid-cols-3">
-        <input
-          value={price}
-          onChange={(event) => setPrice(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          placeholder="Цена тарифа"
-        />
-        <input
-          type="number"
-          min="1"
-          value={billingPeriodMonths}
-          onChange={(event) => setBillingPeriodMonths(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          placeholder="Срок, мес."
-        />
-        <input
-          type="number"
-          min="0"
-          value={gracePeriodDays}
-          onChange={(event) => setGracePeriodDays(event.target.value)}
-          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-          placeholder="Льготный период, дней"
-        />
+        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+          Цена за период
+          <input
+            value={price}
+            onChange={(event) => setPrice(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            placeholder="Например, 4900"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+          Срок подписки, месяцев
+          <input
+            type="number"
+            min="1"
+            value={billingPeriodMonths}
+            onChange={(event) => setBillingPeriodMonths(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            placeholder="1, 6 или 12"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+          Льготный период после окончания, дней
+          <input
+            type="number"
+            min="0"
+            value={gracePeriodDays}
+            onChange={(event) => setGracePeriodDays(event.target.value)}
+            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+            placeholder="Например, 5"
+          />
+        </label>
       </div>
-      <input
-        value={description}
-        onChange={(event) => setDescription(event.target.value)}
-        className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-        placeholder="Описание"
-      />
+
+      <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+        Описание
+        <input
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+          placeholder="Что входит в тариф"
+        />
+      </label>
       <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
         <input
           type="checkbox"
