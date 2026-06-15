@@ -140,6 +140,7 @@ export default async function CrmBillingPage() {
                 key={plan.id}
                 planId={plan.id}
                 name={plan.name}
+                priceRub={Number(plan.priceMonthly)}
                 priceLabel={money(plan.priceMonthly)}
                 billingPeriodLabel={formatPlanPeriod(plan.billingPeriodMonths)}
                 gracePeriodDays={plan.gracePeriodDays}

@@ -1,11 +1,33 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { formatPlanPeriod } from "@/lib/platform-subscriptions";
 
+function sameDecimal(left: Prisma.Decimal, right: Prisma.Decimal) {
+  return left.equals(right);
+}
+
+function metadataMatches(
+  metadata: Prisma.JsonValue | null,
+  plan: {
+    id: number;
+    billingPeriodMonths: number;
+    gracePeriodDays: number;
+  },
+) {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return false;
+  }
+
+  const value = metadata as Record<string, unknown>;
+  return (
+    Number(value.planId) === plan.id &&
+    Number(value.billingPeriodMonths) === plan.billingPeriodMonths &&
+    Number(value.gracePeriodDays) === plan.gracePeriodDays
+  );
+}
+
 export async function requestSubscriptionInvoice(accountId: number, planId: number) {
-  const db = prisma as any;
-  const plan = await db.platformPlan.findFirst({
+  const plan = await prisma.platformPlan.findFirst({
     where: { id: planId, isActive: true, isTrial: false },
     select: {
       id: true,
@@ -18,14 +40,14 @@ export async function requestSubscriptionInvoice(accountId: number, planId: numb
   });
   if (!plan) return null;
 
-  return db.$transaction(async (tx: any) => {
+  return prisma.$transaction(async (tx) => {
     const subscription = await tx.platformSubscription.findFirst({
       where: { accountId, status: { in: ["ACTIVE", "PAST_DUE"] } },
       orderBy: { createdAt: "desc" },
       select: { id: true },
     });
 
-    const existing = await tx.platformInvoice.findFirst({
+    const pendingInvoices = await tx.platformInvoice.findMany({
       where: {
         accountId,
         purpose: "SUBSCRIPTION",
@@ -33,9 +55,29 @@ export async function requestSubscriptionInvoice(accountId: number, planId: numb
         metadataJson: { path: ["planId"], equals: plan.id },
       },
       orderBy: { createdAt: "desc" },
-      select: { id: true },
+      select: {
+        id: true,
+        amount: true,
+        currency: true,
+        metadataJson: true,
+      },
     });
-    if (existing) return existing.id;
+
+    const reusable = pendingInvoices.find(
+      (invoice) =>
+        sameDecimal(invoice.amount, plan.priceMonthly) &&
+        invoice.currency === plan.currency &&
+        metadataMatches(invoice.metadataJson, plan),
+    );
+    if (reusable) return reusable.id;
+
+    const staleInvoiceIds = pendingInvoices.map((invoice) => invoice.id);
+    if (staleInvoiceIds.length) {
+      await tx.platformInvoice.updateMany({
+        where: { id: { in: staleInvoiceIds } },
+        data: { status: "VOID" },
+      });
+    }
 
     const description = `Подписка CRM ${plan.name} на ${formatPlanPeriod(plan.billingPeriodMonths)}`;
     const invoice = await tx.platformInvoice.create({

@@ -506,6 +506,77 @@ export async function activatePaidPlatformSubscription(
   });
 }
 
+export async function activateFreePlatformSubscription(
+  tx: PrismaTx,
+  input: {
+    accountId: number;
+    planId: number;
+    activatedAt: Date;
+  },
+) {
+  const plan = await tx.platformPlan.findFirst({
+    where: {
+      id: input.planId,
+      isActive: true,
+      isTrial: false,
+      priceMonthly: 0,
+    },
+    select: {
+      id: true,
+      billingPeriodMonths: true,
+    },
+  });
+  if (!plan) {
+    throw new Error("Бесплатный тариф не найден");
+  }
+
+  const existing = await tx.platformSubscription.findFirst({
+    where: { accountId: input.accountId },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  const endsAt = calculateSubscriptionEndsAt(
+    input.activatedAt,
+    plan.billingPeriodMonths,
+  );
+
+  if (existing) {
+    await tx.platformSubscription.update({
+      where: { id: existing.id },
+      data: {
+        planId: plan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: input.activatedAt,
+        endsAt,
+        nextBillingAt: endsAt,
+        graceEndsAt: null,
+        lastPaidAt: null,
+        remindedAt: null,
+      },
+    });
+  } else {
+    await tx.platformSubscription.create({
+      data: {
+        accountId: input.accountId,
+        planId: plan.id,
+        status: SubscriptionStatus.ACTIVE,
+        startedAt: input.activatedAt,
+        endsAt,
+        nextBillingAt: endsAt,
+      },
+    });
+  }
+
+  await tx.account.update({
+    where: { id: input.accountId },
+    data: {
+      planId: plan.id,
+      status: AccountStatus.ACTIVE,
+      suspendedByBillingAt: null,
+    },
+  });
+}
+
 export async function createTrialSubscriptionForAccount(
   tx: PrismaTx,
   accountId: number,

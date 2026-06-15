@@ -229,10 +229,6 @@ async function createTbankPayment(input: CreatePaymentInput): Promise<CreatePaym
     if (receipt) payload.Receipt = receipt;
   }
 
-  if (config.tbank.recurrentEnabled && invoice.purpose === "SUBSCRIPTION") {
-    payload.Recurrent = "Y";
-  }
-
   payload.Token = buildTbankToken(payload, config.tbank.password);
 
   const init = await tbankRequest<TbankInitResponse>("Init", payload);
