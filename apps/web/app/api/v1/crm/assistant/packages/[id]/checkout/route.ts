@@ -3,6 +3,7 @@ import { jsonError, jsonOk } from "@/lib/api";
 import { requestAiPackageInvoice } from "@/lib/ai-billing";
 import { applyCrmAccessCookie, requireCrmApiPermission } from "@/lib/crm-api";
 import { createPlatformCheckout } from "@/lib/payments/checkout";
+import { PLAN_MODULES, requireAccountPlanModule } from "@/lib/platform-plan-features";
 import type { PaymentMethodCode } from "@/lib/payments/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -17,6 +18,8 @@ function readMethod(value: unknown): PaymentMethodCode | null {
 export async function POST(request: Request, { params }: Params) {
   const auth = await requireCrmApiPermission("crm.assistant.billing.manage");
   if ("response" in auth) return auth.response;
+  const moduleError = await requireAccountPlanModule(auth.session.accountId, PLAN_MODULES.aiAssistant);
+  if (moduleError) return moduleError;
 
   const { id } = await params;
   const packageId = Number(id);

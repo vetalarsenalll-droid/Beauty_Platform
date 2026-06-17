@@ -11,6 +11,7 @@ import {
   type SitePageKey,
 } from "@/lib/site-builder";
 import { Prisma } from "@prisma/client";
+import { PLAN_MODULES, requireAccountPlanModule } from "@/lib/platform-plan-features";
 
 const parseJson = (value: unknown) => {
   if (!value) return null;
@@ -214,6 +215,10 @@ export async function PATCH(request: Request) {
   const rawDraftJson = parseJson(body.draftJson) ?? parseJson(page.draftJson) ?? {};
   const draftJson = normalizeDraft(rawDraftJson as SiteDraft, accountName);
   const publish = body.publish === true;
+  if (publish) {
+    const moduleError = await requireAccountPlanModule(session.accountId, PLAN_MODULES.siteBuilder);
+    if (moduleError) return moduleError;
+  }
   const publishPageRaw = typeof body.publishPage === "string" ? body.publishPage : "";
   const publishPageKey = SITE_PAGE_KEYS.has(publishPageRaw as SitePageKey)
     ? (publishPageRaw as SitePageKey)

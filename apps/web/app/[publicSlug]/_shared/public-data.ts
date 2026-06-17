@@ -1,6 +1,7 @@
 ﻿import { prisma } from "@/lib/prisma";
 import { parsePublicSlugId } from "@/lib/public-slug";
 import { getAccountSlotStepMinutes } from "@/lib/public-booking";
+import { PLAN_MODULES, type PlanModuleKey } from "@/lib/platform-plan-features";
 import { getPublicAccountById } from "@/lib/platform-subscriptions";
 import { normalizeDraft, type SiteDraft } from "@/lib/site-builder";
 import type {
@@ -28,11 +29,14 @@ export type {
   SpecialistItem,
   WorkPhotos,
 };
-export async function loadPublicData(publicSlug: string): Promise<PublicSiteData | null> {
+export async function loadPublicData(
+  publicSlug: string,
+  requiredFeatureKey: PlanModuleKey = PLAN_MODULES.siteBuilder,
+): Promise<PublicSiteData | null> {
   const parsed = parsePublicSlugId(publicSlug);
   if (!parsed) return null;
 
-  const account = await getPublicAccountById(parsed.id);
+  const account = await getPublicAccountById(parsed.id, requiredFeatureKey);
   if (!account) return null;
 
   const publicPage = await prisma.publicPage.findFirst({

@@ -5,10 +5,11 @@ import { asThreadId, asThreadKey, buildThreadKey, canAccessThread, getThread, is
 import { prisma } from "@/lib/prisma";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import { resolvePublicAccount } from "@/lib/public-booking";
+import { PLAN_MODULES } from "@/lib/platform-plan-features";
 import { enforceRateLimit } from "@/lib/rate-limit";
 
 export async function handlePublicAiChatGet(request: Request) {
-  const resolved = await resolvePublicAccount(request);
+  const resolved = await resolvePublicAccount(request, PLAN_MODULES.aiAssistant);
   if (resolved.response) return resolved.response;
   if (!isThreadSecretConfigured()) {
     return jsonError("AI_DISABLED", "AI_THREAD_SECRET is not configured.", null, 503);
@@ -85,7 +86,7 @@ export async function handlePublicAiChatGet(request: Request) {
 }
 
 export async function handlePublicAiChatDelete(request: Request) {
-  const resolved = await resolvePublicAccount(request);
+  const resolved = await resolvePublicAccount(request, PLAN_MODULES.aiAssistant);
   if (resolved.response) return resolved.response;
   if (!isThreadSecretConfigured()) {
     return jsonError("AI_DISABLED", "AI_THREAD_SECRET is not configured.", null, 503);

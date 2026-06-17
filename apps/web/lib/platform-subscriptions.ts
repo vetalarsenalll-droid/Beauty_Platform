@@ -19,6 +19,7 @@ type SubscriptionWithPlanAndAccount = Prisma.PlatformSubscriptionGetPayload<{
         id: true;
         name: true;
         billingPeriodMonths: true;
+        trialPeriodDays: true;
         gracePeriodDays: true;
       };
     };
@@ -212,6 +213,7 @@ export async function reconcileAccountSubscriptionState(
             id: true,
             name: true,
             billingPeriodMonths: true,
+            trialPeriodDays: true,
             gracePeriodDays: true,
           },
         },
@@ -378,7 +380,7 @@ export function buildCrmBillingNotice(
       title: "Подписка не подключена",
       message:
         "CRM доступна для оплаты и настройки, но публичный сайт и онлайн-запись отключены до подключения тарифа.",
-      actionHref: "/crm/payments",
+      actionHref: "/crm/billing",
       actionLabel: "Выбрать тариф",
     };
   }
@@ -392,7 +394,7 @@ export function buildCrmBillingNotice(
       message: graceEndsAt
         ? `Продлите "${planName}" до ${graceEndsAt.toLocaleDateString("ru-RU")}. До этой даты сайт и онлайн-запись продолжают работать.`
         : `Продлите "${planName}", чтобы не потерять доступ к сайту и онлайн-записи.`,
-      actionHref: "/crm/payments",
+      actionHref: "/crm/billing",
       actionLabel: "Продлить тариф",
     };
   }
@@ -402,7 +404,7 @@ export function buildCrmBillingNotice(
     title: "Аккаунт заморожен",
     message:
       "Льготный период закончился. CRM доступна для оплаты, но публичный сайт и онлайн-запись отключены до продления тарифа.",
-    actionHref: "/crm/payments",
+    actionHref: "/crm/billing",
     actionLabel: "Оплатить тариф",
   };
 }
@@ -589,12 +591,12 @@ export async function createTrialSubscriptionForAccount(
   const planPromise = settings.trialPlanId
     ? tx.platformPlan.findFirst({
         where: { id: settings.trialPlanId, isActive: true, isTrial: true },
-        select: { id: true, name: true },
+        select: { id: true, name: true, trialPeriodDays: true },
       })
     : tx.platformPlan.findFirst({
         where: { isActive: true, isTrial: true },
         orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
-        select: { id: true, name: true },
+        select: { id: true, name: true, trialPeriodDays: true },
       });
 
   const [plan, existingSubscription] = await Promise.all([
@@ -610,7 +612,7 @@ export async function createTrialSubscriptionForAccount(
   }
 
   const startedAt = new Date();
-  const endsAt = addDays(startedAt, settings.trialDays);
+  const endsAt = addDays(startedAt, plan.trialPeriodDays || settings.trialDays);
   const subscription = await tx.platformSubscription.create({
     data: {
       accountId,
@@ -642,7 +644,7 @@ export async function createTrialSubscriptionForAccount(
   return subscription;
 }
 
-export async function getPublicAccountBySlug(slug: string) {
+export async function getPublicAccountBySlug(slug: string, requiredFeatureKey?: string) {
   const account = await prisma.account.findUnique({
     where: { slug },
     select: {
@@ -655,10 +657,10 @@ export async function getPublicAccountBySlug(slug: string) {
     },
   });
   if (!account) return null;
-  return loadPublicActiveAccount(account);
+  return loadPublicActiveAccount(account, requiredFeatureKey);
 }
 
-export async function getPublicAccountById(id: number) {
+export async function getPublicAccountById(id: number, requiredFeatureKey?: string) {
   const account = await prisma.account.findUnique({
     where: { id },
     select: {
@@ -671,12 +673,25 @@ export async function getPublicAccountById(id: number) {
     },
   });
   if (!account) return null;
-  return loadPublicActiveAccount(account);
+  return loadPublicActiveAccount(account, requiredFeatureKey);
 }
 
-async function loadPublicActiveAccount(account: PublicAccountRecord) {
+async function accountHasPlanFeature(planId: number, key: string) {
+  const feature = await prisma.platformPlanFeature.findUnique({
+    where: { planId_key: { planId, key } },
+    select: { value: true },
+  });
+  return feature?.value === "true";
+}
+
+async function loadPublicActiveAccount(account: PublicAccountRecord, requiredFeatureKey?: string) {
   const state = await reconcileAccountSubscriptionState(account.id);
   if (state.accessStatus === "none" || state.accessStatus === "expired") {
+    return null;
+  }
+
+  const planId = state.subscription?.planId;
+  if (requiredFeatureKey && (!planId || !(await accountHasPlanFeature(planId, requiredFeatureKey)))) {
     return null;
   }
 

@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
 import { getClientSession } from "@/lib/auth";
 
 import { loadPublicData } from "./_shared/public-data";
+import { PublicModuleUnavailable } from "./_shared/module-unavailable";
 import { renderPublicPageShell } from "./_shared/public-page-shell";
 import { generatePublicPageMetadata } from "./_shared/seo-metadata";
 
@@ -19,7 +19,14 @@ export default async function PublicAccountPage({ params, searchParams }: PagePr
   const resolvedParams = await params;
   const publicSlug = resolvedParams.publicSlug ?? "";
   const data = await loadPublicData(publicSlug);
-  if (!data) return notFound();
+  if (!data) {
+    return (
+      <PublicModuleUnavailable
+        title="Сайт сейчас недоступен"
+        message="В тарифном плане этого аккаунта не подключен модуль «Конструктор сайта» или подписка не активна."
+      />
+    );
+  }
 
   const clientSession = await getClientSession();
   const accountLinkOverride = clientSession

@@ -22,7 +22,7 @@ function statusLabel(status: string | null | undefined) {
   if (status === "REJECTED") return "отклонен";
   if (status === "CANCELED") return "отменен";
   if (status === "REFUNDED") return "возвращен";
-  return status ?? "ожидает ответа";
+  return status ?? "ожидает ответ";
 }
 
 async function loadInvoice(invoiceId: number, accountId: number) {
@@ -76,6 +76,9 @@ export default async function CrmBillingSuccessPage({ searchParams }: PageProps)
 
   const tokens = invoice ? await loadInvoiceAiTokens(invoice.id) : 0;
   const isPaid = invoice?.status === "PAID";
+  const isAiTokens = invoice?.purpose === "AI_TOKENS" || tokens > 0;
+  const primaryHref = isAiTokens ? "/crm/assistant/site" : "/crm/billing";
+  const primaryLabel = isAiTokens ? "К ассистенту" : "К тарифам и платежам";
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center px-4 py-10">
@@ -86,17 +89,21 @@ export default async function CrmBillingSuccessPage({ searchParams }: PageProps)
         </h1>
 
         {!invoice ? (
-          <p className="mt-4 text-sm text-[color:var(--bp-muted)]">Счет не найден или относится к другому аккаунту.</p>
+          <p className="mt-4 text-sm text-[color:var(--bp-muted)]">
+            Счет не найден или относится к другому аккаунту.
+          </p>
         ) : (
           <div className="mt-5 grid gap-3 text-sm">
             <div className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-3">
               <div className="font-medium">{invoice.description ?? `Счет #${invoice.id}`}</div>
               <div className="mt-1 text-[color:var(--bp-muted)]">
-                #{invoice.id} · {money(invoice.amount)} {invoice.currency} · статус банка: {statusLabel(invoice.providerStatus)}
+                #{invoice.id} · {money(invoice.amount)} {invoice.currency} · статус банка:{" "}
+                {statusLabel(invoice.providerStatus)}
               </div>
               {tokens > 0 ? (
                 <div className="mt-2 text-[color:var(--bp-muted)]">
-                  {isPaid ? "Начислено" : "После подтверждения будет начислено"}: {tokens.toLocaleString("ru-RU")} токенов
+                  {isPaid ? "Начислено" : "После подтверждения будет начислено"}:{" "}
+                  {tokens.toLocaleString("ru-RU")} токенов
                 </div>
               ) : null}
             </div>
@@ -109,18 +116,19 @@ export default async function CrmBillingSuccessPage({ searchParams }: PageProps)
 
             {!isPaid ? (
               <p className="text-[color:var(--bp-muted)]">
-                Если банк уже показал успешную оплату, обнови эту страницу. На localhost webhook от банка может не дойти, поэтому страница сама проверяет статус по API.
+                Если банк уже показал успешную оплату, обновите эту страницу. На localhost webhook от банка может не
+                дойти, поэтому страница сама проверяет статус по API.
               </p>
             ) : null}
           </div>
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link className="rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-medium text-white" href="/crm/assistant/site">
-            К ассистенту
+          <Link className="rounded-xl bg-[color:var(--bp-ink)] px-4 py-2 text-sm font-medium text-white" href={primaryHref}>
+            {primaryLabel}
           </Link>
-          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href="/crm/payments">
-            Счета
+          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href="/crm/billing">
+            Счета платформы
           </Link>
           {!isPaid && invoiceId ? (
             <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href={`/crm/billing/success?invoiceId=${invoiceId}`}>

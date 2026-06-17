@@ -1,4 +1,5 @@
 import { getAiAccountAccessByAccountIds } from "@/lib/ai-billing";
+import { hasAccountPlanModule, PLAN_MODULES } from "@/lib/platform-plan-features";
 import { getCrmAgentAction } from "./actions";
 import { getCrmAgentTool } from "./tools";
 import type { CrmAgentRiskLevel } from "./types";
@@ -24,6 +25,13 @@ const riskRank: Record<CrmAgentRiskLevel, number> = {
 };
 
 export async function checkCrmAgentFeaturePolicy(accountId: number) {
+  if (!(await hasAccountPlanModule(accountId, PLAN_MODULES.aiAssistant))) {
+    return { allowed: false as const, reason: "ai_assistant_plan_module_disabled" };
+  }
+  if (!(await hasAccountPlanModule(accountId, PLAN_MODULES.crmAgent))) {
+    return { allowed: false as const, reason: "crm_agent_plan_module_disabled" };
+  }
+
   const accessByAccount = await getAiAccountAccessByAccountIds([accountId]);
   const access = accessByAccount.get(accountId);
   if (!access) return { allowed: true as const };

@@ -18,6 +18,7 @@ type DbPlan = {
   description: string | null;
   priceMonthly: Prisma.Decimal;
   billingPeriodMonths: number;
+  trialPeriodDays: number;
   gracePeriodDays: number;
   currency: string;
   isTrial: boolean;
@@ -33,6 +34,7 @@ function mapPlan(plan: DbPlan) {
     description: plan.description,
     priceMonthly: plan.priceMonthly.toString(),
     billingPeriodMonths: plan.billingPeriodMonths,
+    trialPeriodDays: plan.trialPeriodDays,
     gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
     isTrial: plan.isTrial,
@@ -83,6 +85,7 @@ export async function PATCH(request: Request, { params }: Params) {
     description?: string | null;
     priceMonthly?: Prisma.Decimal;
     billingPeriodMonths?: number;
+    trialPeriodDays?: number;
     gracePeriodDays?: number;
     currency?: string;
     isTrial?: boolean;
@@ -104,6 +107,15 @@ export async function PATCH(request: Request, { params }: Params) {
       });
     }
     data.billingPeriodMonths = value;
+  }
+  if (body.trialPeriodDays !== undefined) {
+    const value = Number(body.trialPeriodDays);
+    if (!Number.isInteger(value) || value <= 0) {
+      return jsonError("VALIDATION_FAILED", "Некорректный срок пробного тарифа", {
+        fields: [{ path: "trialPeriodDays", issue: "invalid" }],
+      });
+    }
+    data.trialPeriodDays = value;
   }
   if (body.gracePeriodDays !== undefined) {
     const value = Number(body.gracePeriodDays);

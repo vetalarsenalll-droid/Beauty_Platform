@@ -26,6 +26,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
   const [description, setDescription] = useState("");
   const [priceMonthly, setPriceMonthly] = useState("");
   const [billingPeriodMonths, setBillingPeriodMonths] = useState("1");
+  const [trialPeriodDays, setTrialPeriodDays] = useState("14");
   const [gracePeriodDays, setGracePeriodDays] = useState("5");
   const [currency, setCurrency] = useState("RUB");
   const [isTrial, setIsTrial] = useState(false);
@@ -53,6 +54,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
           description: description.trim() ? description.trim() : null,
           priceMonthly,
           billingPeriodMonths: Number(billingPeriodMonths),
+          trialPeriodDays: Number(trialPeriodDays),
           gracePeriodDays: Number(gracePeriodDays),
           currency,
           isTrial,
@@ -91,6 +93,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
       setDescription("");
       setPriceMonthly("");
       setBillingPeriodMonths("1");
+      setTrialPeriodDays("14");
       setGracePeriodDays("5");
       setIsTrial(false);
       setLimits({});
@@ -141,19 +144,33 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
             required
           />
         </label>
+        {isTrial ? (
+          <label className="flex flex-col gap-2 text-sm">
+            Срок пробного тарифа, дней
+            <input
+              type="number"
+              min="1"
+              value={trialPeriodDays}
+              onChange={(event) => setTrialPeriodDays(event.target.value)}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+              required
+            />
+          </label>
+        ) : (
+          <label className="flex flex-col gap-2 text-sm">
+            Срок подписки, месяцев
+            <input
+              type="number"
+              min="1"
+              value={billingPeriodMonths}
+              onChange={(event) => setBillingPeriodMonths(event.target.value)}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
+              required
+            />
+          </label>
+        )}
         <label className="flex flex-col gap-2 text-sm">
-          Срок подписки, мес.
-          <input
-            type="number"
-            min="1"
-            value={billingPeriodMonths}
-            onChange={(event) => setBillingPeriodMonths(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
-            required
-          />
-        </label>
-        <label className="flex flex-col gap-2 text-sm">
-          Льготный период, дней
+          Льготный период после окончания, дней
           <input
             type="number"
             min="0"
@@ -175,11 +192,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
       </label>
 
       <label className="flex items-center gap-2 rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-3 text-sm">
-        <input
-          type="checkbox"
-          checked={isTrial}
-          onChange={(event) => setIsTrial(event.target.checked)}
-        />
+        <input type="checkbox" checked={isTrial} onChange={(event) => setIsTrial(event.target.checked)} />
         Пробный тариф. Используется для trial и не продаётся на витрине CRM.
       </label>
 
@@ -191,9 +204,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
               {field.label}
               <input
                 value={limits[field.key] ?? ""}
-                onChange={(event) =>
-                  setLimits((prev) => ({ ...prev, [field.key]: event.target.value }))
-                }
+                onChange={(event) => setLimits((prev) => ({ ...prev, [field.key]: event.target.value }))}
                 className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-4 py-2 text-[color:var(--bp-ink)]"
                 placeholder={field.placeholder}
               />
@@ -213,9 +224,7 @@ export default function PlanCreateForm({ onCreated }: PlanCreateFormProps) {
               <input
                 type="checkbox"
                 checked={Boolean(modules[field.key])}
-                onChange={(event) =>
-                  setModules((prev) => ({ ...prev, [field.key]: event.target.checked }))
-                }
+                onChange={(event) => setModules((prev) => ({ ...prev, [field.key]: event.target.checked }))}
               />
               {field.label}
             </label>

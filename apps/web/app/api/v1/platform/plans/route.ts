@@ -17,6 +17,7 @@ type DbPlan = {
   description: string | null;
   priceMonthly: Prisma.Decimal;
   billingPeriodMonths: number;
+  trialPeriodDays: number;
   gracePeriodDays: number;
   currency: string;
   isTrial: boolean;
@@ -32,6 +33,7 @@ function mapPlan(plan: DbPlan) {
     description: plan.description,
     priceMonthly: plan.priceMonthly.toString(),
     billingPeriodMonths: plan.billingPeriodMonths,
+    trialPeriodDays: plan.trialPeriodDays,
     gracePeriodDays: plan.gracePeriodDays,
     currency: plan.currency,
     isTrial: plan.isTrial,
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
   const isActive = body.isActive !== undefined ? Boolean(body.isActive) : true;
   const isTrial = body.isTrial !== undefined ? Boolean(body.isTrial) : false;
   const billingPeriodMonths = Number(body.billingPeriodMonths ?? 1);
+  const trialPeriodDays = Number(body.trialPeriodDays ?? 14);
   const gracePeriodDays = Number(body.gracePeriodDays ?? 5);
 
   if (!name || body.priceMonthly === undefined) {
@@ -91,6 +94,12 @@ export async function POST(request: Request) {
   if (!Number.isInteger(billingPeriodMonths) || billingPeriodMonths <= 0) {
     return jsonError("VALIDATION_FAILED", "Некорректный срок тарифа", {
       fields: [{ path: "billingPeriodMonths", issue: "invalid" }],
+    });
+  }
+
+  if (!Number.isInteger(trialPeriodDays) || trialPeriodDays <= 0) {
+    return jsonError("VALIDATION_FAILED", "Некорректный срок пробного тарифа", {
+      fields: [{ path: "trialPeriodDays", issue: "invalid" }],
     });
   }
 
@@ -120,6 +129,7 @@ export async function POST(request: Request) {
           description: description || undefined,
           priceMonthly: price,
           billingPeriodMonths,
+          trialPeriodDays,
           gracePeriodDays,
           currency,
           isTrial,
@@ -139,6 +149,7 @@ export async function POST(request: Request) {
         description,
         priceMonthly: price.toString(),
         billingPeriodMonths,
+        trialPeriodDays,
         gracePeriodDays,
         currency,
         isTrial,

@@ -8,6 +8,7 @@ type PlanRowActionsProps = {
   initialName: string;
   initialPrice: string;
   initialBillingPeriodMonths: number;
+  initialTrialPeriodDays: number;
   initialGracePeriodDays: number;
   initialCurrency: string;
   initialDescription: string;
@@ -20,6 +21,7 @@ export default function PlanRowActions({
   initialName,
   initialPrice,
   initialBillingPeriodMonths,
+  initialTrialPeriodDays,
   initialGracePeriodDays,
   initialCurrency,
   initialDescription,
@@ -29,9 +31,8 @@ export default function PlanRowActions({
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [price, setPrice] = useState(initialPrice);
-  const [billingPeriodMonths, setBillingPeriodMonths] = useState(
-    String(initialBillingPeriodMonths),
-  );
+  const [billingPeriodMonths, setBillingPeriodMonths] = useState(String(initialBillingPeriodMonths));
+  const [trialPeriodDays, setTrialPeriodDays] = useState(String(initialTrialPeriodDays));
   const [gracePeriodDays, setGracePeriodDays] = useState(String(initialGracePeriodDays));
   const [currency, setCurrency] = useState(initialCurrency);
   const [description, setDescription] = useState(initialDescription);
@@ -50,6 +51,7 @@ export default function PlanRowActions({
           description,
           priceMonthly: price,
           billingPeriodMonths: Number(billingPeriodMonths),
+          trialPeriodDays: Number(trialPeriodDays),
           gracePeriodDays: Number(gracePeriodDays),
           currency,
           isTrial: trial,
@@ -58,14 +60,14 @@ export default function PlanRowActions({
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
-        const message = payload?.error?.message ?? "Не удалось обновить тариф.";
-        alert(message);
+        alert(payload?.error?.message ?? "Не удалось обновить тариф.");
         return;
       }
       setName(payload?.data?.name ?? name);
       setDescription(payload?.data?.description ?? description);
       setPrice(payload?.data?.priceMonthly ?? price);
       setBillingPeriodMonths(String(payload?.data?.billingPeriodMonths ?? billingPeriodMonths));
+      setTrialPeriodDays(String(payload?.data?.trialPeriodDays ?? trialPeriodDays));
       setGracePeriodDays(String(payload?.data?.gracePeriodDays ?? gracePeriodDays));
       setCurrency(payload?.data?.currency ?? currency);
       setTrial(payload?.data?.isTrial ?? trial);
@@ -107,17 +109,31 @@ export default function PlanRowActions({
             placeholder="Например, 4900"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
-          Срок подписки, месяцев
-          <input
-            type="number"
-            min="1"
-            value={billingPeriodMonths}
-            onChange={(event) => setBillingPeriodMonths(event.target.value)}
-            className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
-            placeholder="1, 6 или 12"
-          />
-        </label>
+        {trial ? (
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Срок пробного тарифа, дней
+            <input
+              type="number"
+              min="1"
+              value={trialPeriodDays}
+              onChange={(event) => setTrialPeriodDays(event.target.value)}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+              placeholder="Например, 14"
+            />
+          </label>
+        ) : (
+          <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
+            Срок подписки, месяцев
+            <input
+              type="number"
+              min="1"
+              value={billingPeriodMonths}
+              onChange={(event) => setBillingPeriodMonths(event.target.value)}
+              className="rounded-2xl border border-[color:var(--bp-stroke)] bg-[color:var(--input-bg)] px-3 py-2 text-sm text-[color:var(--bp-ink)]"
+              placeholder="1, 6 или 12"
+            />
+          </label>
+        )}
         <label className="flex flex-col gap-1 text-xs text-[color:var(--bp-muted)]">
           Льготный период после окончания, дней
           <input
@@ -141,19 +157,11 @@ export default function PlanRowActions({
         />
       </label>
       <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
-        <input
-          type="checkbox"
-          checked={trial}
-          onChange={(event) => setTrial(event.target.checked)}
-        />
+        <input type="checkbox" checked={trial} onChange={(event) => setTrial(event.target.checked)} />
         Пробный тариф
       </label>
       <label className="flex items-center gap-2 text-xs text-[color:var(--bp-muted)]">
-        <input
-          type="checkbox"
-          checked={active}
-          onChange={(event) => setActive(event.target.checked)}
-        />
+        <input type="checkbox" checked={active} onChange={(event) => setActive(event.target.checked)} />
         Активен
       </label>
       <button

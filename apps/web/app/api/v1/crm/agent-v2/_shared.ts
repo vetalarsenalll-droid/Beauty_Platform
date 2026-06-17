@@ -5,6 +5,16 @@ import { checkCrmAgentFeaturePolicy } from "@/lib/crm-agent-v2/core/policy";
 
 export type CrmAgentApiAuth = Exclude<Awaited<ReturnType<typeof requireCrmApiPermission>>, { response: NextResponse }>;
 
+function crmAgentDisabledMessage(reason?: string) {
+  if (reason === "ai_assistant_plan_module_disabled") {
+    return "В вашем тарифном плане не подключен модуль «AI-ассистент». Подключите тариф с AI-ассистентом, чтобы пользоваться CRM-агентом.";
+  }
+  if (reason === "crm_agent_plan_module_disabled") {
+    return "В вашем тарифном плане не подключен модуль «CRM-агент». Перейдите в «Тарифы и платежи», чтобы выбрать тариф с этим модулем.";
+  }
+  return "CRM-агент отключён для этого аккаунта.";
+}
+
 export async function requireCrmAgentApi(permission: string) {
   const auth = await requireCrmApiPermission(permission);
   if ("response" in auth) return auth;
@@ -12,7 +22,7 @@ export async function requireCrmAgentApi(permission: string) {
   const feature = await checkCrmAgentFeaturePolicy(auth.session.accountId);
   if (!feature.allowed) {
     return {
-      response: jsonError("CRM_AGENT_DISABLED", feature.reason ?? "CRM-агент отключён.", null, 403),
+      response: jsonError("CRM_AGENT_DISABLED", crmAgentDisabledMessage(feature.reason), null, 403),
     };
   }
 

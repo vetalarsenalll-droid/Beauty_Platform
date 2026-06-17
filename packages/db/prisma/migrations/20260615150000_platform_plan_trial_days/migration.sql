@@ -1,0 +1,1 @@
+ALTER TABLE "PlatformPlan" ADD COLUMN "trialPeriodDays" INTEGER NOT NULL DEFAULT 14;

@@ -27,11 +27,16 @@ export default async function PlanProfilePage({ params }: PageProps) {
 
   if (!plan) notFound();
 
+  const periodLabel = plan.isTrial
+    ? `${plan.trialPeriodDays} дней trial`
+    : formatPlanPeriod(plan.billingPeriodMonths);
+
   const planForm = {
     planId: plan.id,
     initialName: plan.name,
     initialPrice: plan.priceMonthly.toString(),
     initialBillingPeriodMonths: plan.billingPeriodMonths,
+    initialTrialPeriodDays: plan.trialPeriodDays,
     initialGracePeriodDays: plan.gracePeriodDays,
     initialCurrency: plan.currency,
     initialDescription: plan.description ?? "",
@@ -48,7 +53,7 @@ export default async function PlanProfilePage({ params }: PageProps) {
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">{plan.name}</h1>
           <p className="text-[color:var(--bp-muted)]">
-            {plan.priceMonthly.toString()} {plan.currency} за {formatPlanPeriod(plan.billingPeriodMonths)}
+            {plan.priceMonthly.toString()} {plan.currency} за {periodLabel}
             {plan.gracePeriodDays > 0 ? ` · льготный период ${plan.gracePeriodDays} дн.` : ""}
           </p>
         </div>

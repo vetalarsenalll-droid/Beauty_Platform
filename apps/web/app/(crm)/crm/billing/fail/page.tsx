@@ -20,9 +20,20 @@ export default async function CrmBillingFailPage({ searchParams }: PageProps) {
   const invoice = invoiceId
     ? await prisma.platformInvoice.findFirst({
         where: { id: invoiceId, accountId: session.accountId },
-        select: { id: true, description: true, amount: true, currency: true, paymentUrl: true, providerStatus: true },
+        select: {
+          id: true,
+          purpose: true,
+          description: true,
+          amount: true,
+          currency: true,
+          paymentUrl: true,
+          providerStatus: true,
+        },
       })
     : null;
+
+  const primaryHref = invoice?.purpose === "AI_TOKENS" ? "/crm/assistant/site" : "/crm/billing";
+  const primaryLabel = invoice?.purpose === "AI_TOKENS" ? "К ассистенту" : "К тарифам и платежам";
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-2xl items-center justify-center px-4 py-10">
@@ -39,7 +50,9 @@ export default async function CrmBillingFailPage({ searchParams }: PageProps) {
             </div>
           </div>
         ) : (
-          <p className="mt-4 text-sm text-[color:var(--bp-muted)]">Счет не найден или относится к другому аккаунту.</p>
+          <p className="mt-4 text-sm text-[color:var(--bp-muted)]">
+            Счет не найден или относится к другому аккаунту.
+          </p>
         )}
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -48,11 +61,11 @@ export default async function CrmBillingFailPage({ searchParams }: PageProps) {
               Повторить оплату
             </Link>
           ) : null}
-          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href="/crm/assistant/site">
-            К ассистенту
+          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href={primaryHref}>
+            {primaryLabel}
           </Link>
-          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href="/crm/payments">
-            Счета
+          <Link className="rounded-xl border border-[color:var(--bp-stroke)] px-4 py-2 text-sm font-medium" href="/crm/billing">
+            Счета платформы
           </Link>
         </div>
       </section>

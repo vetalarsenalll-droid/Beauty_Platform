@@ -66,7 +66,9 @@ export default async function PlatformPlansPage() {
                   </div>
                   <div className="mt-1 text-xs text-[color:var(--bp-muted)]">
                     {plan.priceMonthly.toString()} {plan.currency} за{" "}
-                    {formatPlanPeriod(plan.billingPeriodMonths)}
+                    {plan.isTrial
+                      ? `${plan.trialPeriodDays} дней trial`
+                      : formatPlanPeriod(plan.billingPeriodMonths)}
                     {plan.gracePeriodDays > 0
                       ? ` · льготный период ${plan.gracePeriodDays} дн.`
                       : ""}

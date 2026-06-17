@@ -1,4 +1,5 @@
-﻿import { notFound, redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { PLAN_MODULES } from "@/lib/platform-plan-features";
 import { buildPublicSlugId } from "@/lib/public-slug";
 import { getPublicAccountBySlug } from "@/lib/platform-subscriptions";
 
@@ -15,15 +16,14 @@ export default async function BookingEntry({ searchParams }: BookingEntryProps) 
     notFound();
   }
 
-  const account = await getPublicAccountBySlug(accountSlug);
+  const account = await getPublicAccountBySlug(accountSlug, PLAN_MODULES.onlineBooking);
 
   if (!account) {
     notFound();
     return null;
   }
 
-  const accountRecord = account;
-  const publicSlug = buildPublicSlugId(accountRecord.slug, accountRecord.id);
+  const publicSlug = buildPublicSlugId(account.slug, account.id);
   redirect(`/${publicSlug}/booking`);
 
   return null;

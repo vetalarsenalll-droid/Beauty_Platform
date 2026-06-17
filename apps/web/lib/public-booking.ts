@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { jsonError } from "@/lib/api";
 import { getPublicAccountBySlug } from "@/lib/platform-subscriptions";
+import { moduleLabel, PLAN_MODULES, type PlanModuleKey } from "@/lib/platform-plan-features";
 
 export type PublicAccount = {
   id: number;
@@ -20,16 +21,21 @@ function normalizeHost(host: string | null) {
   return value ? value.replace(/:\d+$/, "") : "";
 }
 
-export async function resolvePublicAccount(request: Request): Promise<ResolveResult> {
+export async function resolvePublicAccount(
+  request: Request,
+  requiredFeatureKey: PlanModuleKey = PLAN_MODULES.onlineBooking,
+): Promise<ResolveResult> {
   const { searchParams } = new URL(request.url);
   const accountSlug = String(searchParams.get("account") ?? "").trim();
   const hostHeader = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   const host = normalizeHost(hostHeader);
 
+  let moduleDisabled = false;
   let account =
-    accountSlug.length > 0
-      ? await getPublicAccountBySlug(accountSlug)
-      : null;
+    accountSlug.length > 0 ? await getPublicAccountBySlug(accountSlug, requiredFeatureKey) : null;
+  if (!account && accountSlug.length > 0) {
+    moduleDisabled = Boolean(await getPublicAccountBySlug(accountSlug));
+  }
 
   if (!account && host && host !== "localhost" && host !== "127.0.0.1") {
     const domain = await prisma.accountDomain.findFirst({
@@ -38,8 +44,23 @@ export async function resolvePublicAccount(request: Request): Promise<ResolveRes
     });
 
     if (domain?.account?.slug) {
-      account = await getPublicAccountBySlug(domain.account.slug);
+      account = await getPublicAccountBySlug(domain.account.slug, requiredFeatureKey);
+      if (!account) {
+        moduleDisabled = Boolean(await getPublicAccountBySlug(domain.account.slug));
+      }
     }
+  }
+
+  if (!account && moduleDisabled) {
+    const label = moduleLabel(requiredFeatureKey);
+    return {
+      response: jsonError(
+        "PLAN_MODULE_DISABLED",
+        `В тарифном плане не подключен модуль «${label}». Подключите тариф с этим модулем, чтобы продолжить.`,
+        { module: requiredFeatureKey, moduleLabel: label },
+        403,
+      ),
+    };
   }
 
   if (!account) {

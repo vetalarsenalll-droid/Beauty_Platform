@@ -449,7 +449,8 @@ export function buildEditorActions(args: BuildEditorActionsArgs) {
         args.setMessage(publish ? "Страница опубликована." : "Черновик сохранен.");
         return true;
       }
-      args.setMessage("Не удалось сохранить страницу.");
+      const payload = await response.json().catch(() => null);
+      args.setMessage(payload?.error?.message ?? "Не удалось сохранить страницу.");
       return false;
     } catch {
       args.setMessage("Не удалось сохранить страницу.");
